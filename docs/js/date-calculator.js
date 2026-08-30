@@ -119,14 +119,28 @@ function calculateDifference(event) {
   }
 }
 
+function syncDateFields(source, target) {
+  target.value = source.value;
+}
+
 function initDateCalculator() {
   const targetForm = document.querySelector("[data-target-form]");
   const differenceForm = document.querySelector("[data-difference-form]");
 
   if (!targetForm || !differenceForm) return;
 
+  const targetStartDate = targetForm.elements.startDate;
+  const differenceStartDate = differenceForm.elements.diffStartDate;
   const today = todayIsoLocal();
   differenceForm.elements.endDate.value = today;
+
+  const syncTargetToDifference = () => syncDateFields(targetStartDate, differenceStartDate);
+  const syncDifferenceToTarget = () => syncDateFields(differenceStartDate, targetStartDate);
+
+  targetStartDate.addEventListener("input", syncTargetToDifference);
+  targetStartDate.addEventListener("change", syncTargetToDifference);
+  differenceStartDate.addEventListener("input", syncDifferenceToTarget);
+  differenceStartDate.addEventListener("change", syncDifferenceToTarget);
 
   targetForm.addEventListener("submit", calculateTargetDate);
   differenceForm.addEventListener("submit", calculateDifference);
