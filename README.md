@@ -1,6 +1,6 @@
 # Toolbox
 
-**Version:** 0.1.2
+**Version:** 0.1.4
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -28,6 +28,18 @@ Die beiden Felder für das Ausgangsdatum sind gekoppelt: Wird das Datum in einem
 
 Bei Monatsrechnungen wird kalendarisch gerechnet. Existiert der Ausgangstag im Zielmonat nicht, wird auf den letzten Tag des Zielmonats begrenzt. Beispiel: `31.01.2026 + 1 Monat = 28.02.2026`.
 
+## Änderungen in Version 0.1.4
+
+- Toolbox-Dashboard-Logo in die zentrale Navigation eingebunden.
+- Vollständigen Favicon-Satz in Dashboard und Datumsrechner eingebunden.
+- Apple-Touch-Icon und Web-App-Manifest eingebunden.
+- Projektvalidierung um die Branding-Dateien erweitert.
+
+## Änderungen in Version 0.1.3
+
+- Neues Toolbox-Branding mit gekreuztem Schraubenschlüssel und Hammer ergänzt.
+- Vollständigen Favicon-Satz und Dashboard-Logo unter `docs/assets/` angelegt.
+
 ## Änderungen in Version 0.1.2
 
 - iOS-/Safari-spezifische Mindestbreite nativer Datumsfelder auf kleinen Displays aufgehoben.
@@ -50,6 +62,18 @@ toolbox/
 │  └─ tools.json
 ├─ docs/
 │  ├─ assets/
+│  │  ├─ favicon/
+│  │  │  ├─ android-chrome-192x192.png
+│  │  │  ├─ android-chrome-512x512.png
+│  │  │  ├─ apple-touch-icon.png
+│  │  │  ├─ favicon-16x16.png
+│  │  │  ├─ favicon-32x32.png
+│  │  │  ├─ favicon-48x48.png
+│  │  │  ├─ favicon-master-512.png
+│  │  │  ├─ favicon.ico
+│  │  │  └─ site.webmanifest
+│  │  └─ logo/
+│  │     └─ toolbox-dashboard-logo.png
 │  ├─ css/
 │  │  ├─ base.css
 │  │  ├─ calculator.css
@@ -138,4 +162,4 @@ Für einen neuen Rechner sind im Regelfall folgende Schritte nötig:
 
 Die Projektversion steht in `VERSION` und wird zusätzlich im Dashboard und Footer angezeigt.
 
-Aktuelle Version: **0.1.2**
+Aktuelle Version: **0.1.4**
