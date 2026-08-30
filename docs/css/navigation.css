@@ -26,15 +26,12 @@
   font-weight: 850;
 }
 
-.site-brand__mark {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: 10px;
-  color: white;
-  background: var(--accent);
-  font-weight: 900;
+.site-brand__logo {
+  display: block;
+  width: auto;
+  height: 40px;
+  max-width: 170px;
+  object-fit: contain;
 }
 
 .topnav {
@@ -111,6 +108,11 @@
 @media (max-width: 760px) {
   .site-header__inner {
     width: min(calc(100% - 24px), var(--content-width));
+  }
+
+  .site-brand__logo {
+    height: 36px;
+    max-width: 150px;
   }
 
   .topnav {
