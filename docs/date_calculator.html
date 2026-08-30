@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Datumsrechner für Zieldaten und Zeitspannen.">
+  <title>Toolbox – Datumsrechner</title>
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/navigation.css">
+  <link rel="stylesheet" href="assets/css/calculator.css">
+</head>
+<body>
+  <div data-site-header></div>
+
+  <main>
+    <nav class="breadcrumbs" aria-label="Breadcrumb" data-breadcrumbs></nav>
+
+    <header class="page-heading">
+      <p class="page-heading__eyebrow">Datum & Zeit</p>
+      <h1>Datumsrechner</h1>
+      <p>Zieldatum aus einem Ausgangsdatum berechnen oder die Zeitspanne zwischen zwei Daten ermitteln.</p>
+    </header>
+
+    <div class="calculator-layout">
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Zieldatum berechnen</h2>
+          <p>Ausgangsdatum plus oder minus Tage, Wochen oder Monate.</p>
+        </div>
+        <div class="panel__body">
+          <form class="calculator-form" data-target-form>
+            <div class="field">
+              <label for="startDate">Ausgangsdatum</label>
+              <input id="startDate" name="startDate" type="date" required>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="amount">Anzahl</label>
+                <input id="amount" name="amount" type="number" step="1" inputmode="numeric" placeholder="z. B. 10000" required>
+                <span class="field__hint">Ganze Zahl; negativ für Rückwärtsrechnung.</span>
+              </div>
+
+              <div class="field">
+                <label for="unit">Einheit</label>
+                <select id="unit" name="unit">
+                  <option value="days">Tage</option>
+                  <option value="weeks">Wochen</option>
+                  <option value="months">Monate</option>
+                </select>
+              </div>
+            </div>
+
+            <p class="form-message" data-target-message hidden></p>
+            <button class="primary-button" type="submit">Zieldatum berechnen</button>
+          </form>
+
+          <div class="result-box" data-target-result hidden aria-live="polite">
+            <span class="result-box__label">Zieldatum</span>
+            <strong class="result-box__primary" data-target-date></strong>
+            <span class="result-box__summary" data-target-summary></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Zeitspanne berechnen</h2>
+          <p>Das Enddatum ist beim Öffnen automatisch auf heute gesetzt.</p>
+        </div>
+        <div class="panel__body">
+          <form class="calculator-form" data-difference-form>
+            <div class="field">
+              <label for="diffStartDate">Ausgangsdatum / Geburtsdatum</label>
+              <input id="diffStartDate" name="diffStartDate" type="date" required>
+            </div>
+
+            <div class="field">
+              <label for="endDate">Enddatum</label>
+              <input id="endDate" name="endDate" type="date" required>
+            </div>
+
+            <p class="form-message" data-difference-message hidden></p>
+            <button class="primary-button" type="submit">Zeitspanne berechnen</button>
+          </form>
+
+          <div class="result-box" data-difference-result hidden aria-live="polite">
+            <span class="result-box__label">Kalenderzeit</span>
+            <strong class="result-box__primary" data-diff-calendar></strong>
+
+            <div class="metric-list">
+              <div class="metric">
+                <span class="metric__label">Tage gesamt</span>
+                <span class="metric__value" data-diff-days></span>
+              </div>
+              <div class="metric">
+                <span class="metric__label">Stunden</span>
+                <span class="metric__value" data-diff-hours></span>
+                <span class="metric__subvalue">Kalendertage × 24</span>
+              </div>
+              <div class="metric">
+                <span class="metric__label">Wochen</span>
+                <span class="metric__value" data-diff-weeks></span>
+                <span class="metric__subvalue"><span data-diff-weeks-decimal></span> Wochen dezimal</span>
+              </div>
+              <div class="metric">
+                <span class="metric__label">Volle Monate</span>
+                <span class="metric__value" data-diff-months></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="calculator-note">
+      <strong>Berechnungslogik:</strong> Tage und Wochen werden als Kalendertage gerechnet. Bei Monaten wird kalendarisch gerechnet; liegt der Ausgangstag im Zielmonat nicht vor, wird auf dessen letzten Tag begrenzt. Beispiel: 31.01.2026 + 1 Monat = 28.02.2026.
+    </aside>
+  </main>
+
+  <footer class="site-footer">Toolbox · v0.1.0</footer>
+
+  <script type="module" src="assets/js/navigation.js"></script>
+  <script type="module" src="assets/js/date-calculator.js"></script>
+</body>
+</html>
