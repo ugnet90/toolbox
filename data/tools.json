@@ -1,1 +1,14 @@
- 
+{
+  "schema_version": 1,
+  "tools": [
+    {
+      "id": "date-calculator",
+      "title": "Datumsrechner",
+      "description": "Zieldatum aus Ausgangsdatum und Zeitraum berechnen oder die Zeitspanne zwischen zwei Daten ermitteln.",
+      "category": "Datum & Zeit",
+      "icon": "📅",
+      "href": "date_calculator.html",
+      "status": "active"
+    }
+  ]
+}
