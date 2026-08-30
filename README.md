@@ -1,6 +1,6 @@
 # Toolbox
 
-**Version:** 0.1.1
+**Version:** 0.1.2
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -27,6 +27,11 @@
 Die beiden Felder für das Ausgangsdatum sind gekoppelt: Wird das Datum in einem der beiden Rechner geändert, wird es automatisch in den jeweils anderen übernommen.
 
 Bei Monatsrechnungen wird kalendarisch gerechnet. Existiert der Ausgangstag im Zielmonat nicht, wird auf den letzten Tag des Zielmonats begrenzt. Beispiel: `31.01.2026 + 1 Monat = 28.02.2026`.
+
+## Änderungen in Version 0.1.2
+
+- iOS-/Safari-spezifische Mindestbreite nativer Datumsfelder auf kleinen Displays aufgehoben.
+- Form-, Grid- und Feldcontainer mobil zusätzlich auf die verfügbare Kartenbreite begrenzt.
 
 ## Änderungen in Version 0.1.1
 
@@ -133,4 +138,4 @@ Für einen neuen Rechner sind im Regelfall folgende Schritte nötig:
 
 Die Projektversion steht in `VERSION` und wird zusätzlich im Dashboard und Footer angezeigt.
 
-Aktuelle Version: **0.1.1**
+Aktuelle Version: **0.1.2**
