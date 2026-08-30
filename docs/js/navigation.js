@@ -99,8 +99,7 @@ function initNavigation() {
     <header class="site-header">
       <div class="site-header__inner">
         <a class="site-brand" href="index.html" aria-label="Toolbox Dashboard">
-          <span class="site-brand__mark" aria-hidden="true">T</span>
-          <span class="site-brand__text">Toolbox</span>
+          <img class="site-brand__logo" src="assets/logo/toolbox-dashboard-logo.png" alt="" aria-hidden="true">
         </a>
 
         <nav class="topnav" aria-label="Hauptnavigation">
