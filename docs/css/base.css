@@ -111,7 +111,9 @@ main {
 
 .field {
   display: grid;
+  min-width: 0;
   gap: 7px;
+  align-content: start;
 }
 
 .field label {
@@ -126,12 +128,21 @@ main {
 input,
 select {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 46px;
   padding: 9px 11px;
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
   color: var(--text);
   background: var(--surface);
+}
+
+input[type="date"] {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 input:focus,
