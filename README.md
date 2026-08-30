@@ -37,17 +37,17 @@ toolbox/
 │  └─ tools.json
 ├─ docs/
 │  ├─ assets/
-│  │  ├─ css/
-│  │  │  ├─ base.css
-│  │  │  ├─ calculator.css
-│  │  │  ├─ dashboard.css
-│  │  │  └─ navigation.css
-│  │  └─ js/
-│  │     ├─ dashboard.js
-│  │     ├─ date-calculator.js
-│  │     ├─ date-utils.js
-│  │     ├─ navigation.js
-│  │     └─ site-map.js
+│  ├─ css/
+│  │  ├─ base.css
+│  │  ├─ calculator.css
+│  │  ├─ dashboard.css
+│  │  └─ navigation.css
+│  ├─ js/
+│  │  ├─ dashboard.js
+│  │  ├─ date-calculator.js
+│  │  ├─ date-utils.js
+│  │  ├─ navigation.js
+│  │  └─ site-map.js
 │  ├─ data/
 │  │  └─ tools.json
 │  ├─ date_calculator.html
@@ -67,8 +67,8 @@ toolbox/
 - `.github/workflows/`: GitHub-Actions-Workflows.
 - `data/`: kanonische strukturierte Projektdaten.
 - `docs/`: komplette öffentliche GitHub-Pages-Oberfläche.
-- `docs/assets/css/`: gemeinsame und seitenbezogene Stylesheets.
-- `docs/assets/js/`: gemeinsame Navigation sowie seitenbezogene JavaScript-Module.
+- `docs/css/`: gemeinsame und seitenbezogene Stylesheets.
+- `docs/js/`: gemeinsame Navigation sowie seitenbezogene JavaScript-Module.
 - `scripts/`: technische Tests oder Hilfsskripte, die nicht Teil der Webseite sind.
 - `tools/`: Python-Hilfsprogramme für Synchronisierung, Validierung oder spätere Build-Schritte.
 
@@ -76,7 +76,7 @@ Webseiten werden bewusst **nicht** im Ordner `tools/` abgelegt.
 
 ## Navigation
 
-Die Navigation wird zentral über zwei Strukturen in `docs/assets/js/site-map.js` gepflegt:
+Die Navigation wird zentral über zwei Strukturen in `docs/js/site-map.js` gepflegt:
 
 - `SITE_MAP`: Seiten, Seitentitel, Links und Breadcrumb-Hierarchie.
 - `SITE_NAV`: Gruppierung und Reihenfolge der Hauptnavigation.
@@ -115,8 +115,8 @@ Nach dem ersten Upload des Repositories muss unter **Settings → Pages → Buil
 Für einen neuen Rechner sind im Regelfall folgende Schritte nötig:
 
 1. neue HTML-Seite unter `docs/` anlegen,
-2. eigenes JavaScript-Modul unter `docs/assets/js/` anlegen,
-3. bei Bedarf eigenes Stylesheet unter `docs/assets/css/` anlegen,
+2. eigenes JavaScript-Modul unter `docs/js/` anlegen,
+3. bei Bedarf eigenes Stylesheet unter `docs/css/` anlegen,
 4. Seite in `SITE_MAP` und `SITE_NAV` ergänzen,
 5. Tool in `data/tools.json` ergänzen,
 6. `tools/sync_public_data.py` ausführen bzw. den GitHub-Actions-Workflow die Synchronisierung beim Deployment durchführen lassen.
