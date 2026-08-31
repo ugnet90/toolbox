@@ -11,12 +11,28 @@
 .effective-form__term,
 .effective-form__taxes {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
+/* Desktop: bewusst kompakte Eingabefelder statt voller Panelbreite. */
+.effective-form__money {
+  grid-template-columns: repeat(2, minmax(0, 280px));
+}
+
 .effective-form__term {
-  grid-template-columns: minmax(0, 1fr) minmax(170px, 0.55fr);
+  grid-template-columns: 260px 160px;
+}
+
+.effective-form__payout-mode {
+  width: min(100%, 280px);
+}
+
+.effective-form__taxes {
+  grid-template-columns: repeat(2, minmax(0, 180px));
+}
+
+.effective-form .field {
+  min-width: 0;
 }
 
 .effective-form .primary-button {
@@ -125,6 +141,13 @@
   color: var(--accent);
 }
 
+.effective-tax-warning {
+  margin-top: -2px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
 @media (max-width: 700px) {
   .page-heading--compact-mobile p:last-child {
     display: none;
@@ -135,14 +158,22 @@
   }
 
   .effective-form__money,
-  .effective-form__taxes,
   .effective-results,
   .detail-grid {
     grid-template-columns: 1fr;
   }
 
   .effective-form__term {
-    grid-template-columns: minmax(0, 1fr) minmax(130px, 0.65fr);
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 0.6fr);
+  }
+
+  /* KESt und VersSt bleiben mobil bewusst nebeneinander. */
+  .effective-form__taxes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .effective-form__payout-mode {
+    width: 100%;
   }
 
   .effective-form .primary-button {
@@ -150,9 +181,8 @@
   }
 }
 
-.effective-tax-warning {
-  margin-top: -2px;
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
-  color: var(--text);
-  background: var(--accent-soft);
+@media (max-width: 380px) {
+  .effective-form__term {
+    grid-template-columns: minmax(0, 1fr) 112px;
+  }
 }
