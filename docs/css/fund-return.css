@@ -364,3 +364,132 @@
   min-width: 125px;
   text-align: right;
 }
+
+.fund-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.comparison-chart {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface-soft);
+}
+
+.comparison-chart__header h3,
+.comparison-chart__header p,
+.comparison-chart__panel h4 {
+  margin: 0;
+}
+
+.comparison-chart__header p {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.comparison-chart__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.comparison-chart__panel {
+  min-width: 0;
+}
+
+.comparison-chart__panel h4 {
+  margin-bottom: 12px;
+  font-size: 0.96rem;
+}
+
+.comparison-bars {
+  display: grid;
+  gap: 11px;
+}
+
+.comparison-bar-row {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.9fr) minmax(120px, 2fr) minmax(92px, auto);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.comparison-bar-row__label {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.comparison-bar-row__track {
+  position: relative;
+  min-width: 0;
+  height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.comparison-bar-row__bar {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  min-width: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.comparison-bar-row__bar.is-negative {
+  background: var(--danger);
+}
+
+.comparison-bar-row__track--return {
+  overflow: visible;
+}
+
+.comparison-bar-row__zero {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--text-muted);
+  opacity: 0.55;
+}
+
+.comparison-bar-row__value {
+  white-space: nowrap;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 780px) {
+  .comparison-chart__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .fund-form__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .fund-form__actions > button {
+    width: 100%;
+  }
+
+  .comparison-bar-row {
+    grid-template-columns: minmax(88px, 0.8fr) minmax(90px, 1.5fr) minmax(78px, auto);
+    gap: 7px;
+  }
+
+  .comparison-chart {
+    padding: 13px;
+  }
+}
