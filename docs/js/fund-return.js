@@ -4,11 +4,35 @@ import {
   generateRecurringDates,
   initialInvestment,
   parseGermanNumber,
-  simulateHistoricalSavings,
+  simulateHistoricalRateBenchmark,
   summarizeCashflows
 } from "./fund-return-utils.js";
 
-const SAVINGS_API = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev/savings-rates";
+const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
+const BENCHMARKS = {
+  overnight: {
+    endpoint: "/savings-rates",
+    label: "Historische Spareinlage",
+    differenceLabel: "Fonds vs. Spareinlage",
+    meta: "Vergleichswert am Enddatum nach 25 % KESt",
+    interestLabel: "Spareinlagen-Bruttozinsen",
+    taxLabel: "KESt Spareinlage",
+    taxPercent: 25,
+    seriesLabel: "historische Spareinlagen-Zinsen",
+    methodText: "Der historische Sparvergleich verwendet die monatliche ECB-MIR-Serie für täglich fällige österreichische Haushaltseinlagen. Der jeweilige Jahreszinssatz wird taggenau (act/365) auf das alternative Sparguthaben angewendet; positive Zinsen werden zum Jahresende bzw. Vergleichsende mit 25 % KESt belastet."
+  },
+  euribor3m: {
+    endpoint: "/euribor-3m",
+    label: "3-Monats-Euribor",
+    differenceLabel: "Fonds vs. 3M-Euribor",
+    meta: "fiktiver Vergleichswert · brutto · Marktbenchmark",
+    interestLabel: "Euribor-Zinsertrag",
+    taxLabel: "Steuer im Euribor-Benchmark",
+    taxPercent: 0,
+    seriesLabel: "3-Monats-Euribor-Daten",
+    methodText: "Der 3-Monats-Euribor-Vergleich verwendet den monatlichen Durchschnitt der offiziellen ECB-Serie FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA. Der jeweilige Brutto-Jahreszinssatz wird taggenau (act/365) auf ein fiktives Referenzguthaben angewendet. Es wird keine Steuer abgezogen, da Euribor selbst kein konkretes Anlageprodukt ist, sondern ein Marktzinssatz-Benchmark."
+  }
+};
 
 const form = document.querySelector("[data-fund-form]");
 const errorNode = document.querySelector("[data-fund-error]");
@@ -17,9 +41,10 @@ const resultsNode = document.querySelector("[data-fund-results]");
 const detailsNode = document.querySelector("[data-fund-details]");
 const cashflowBody = document.querySelector("[data-cashflow-body]");
 const cashflowTableWrap = document.querySelector("[data-cashflow-table-wrap]");
-const savingsCard = document.querySelector("[data-savings-card]");
-const savingsDiffCard = document.querySelector("[data-savings-diff-card]");
-const savingsDetailNodes = [...document.querySelectorAll("[data-savings-detail]")];
+const benchmarkCard = document.querySelector("[data-benchmark-card]");
+const benchmarkDiffCard = document.querySelector("[data-benchmark-diff-card]");
+const benchmarkDetailNodes = [...document.querySelectorAll("[data-benchmark-detail]")];
+const benchmarkTaxDetail = document.querySelector("[data-benchmark-tax-detail]");
 
 const purchaseDate = document.querySelector("#purchaseDate");
 const initialAmount = document.querySelector("#initialAmount");
@@ -44,8 +69,11 @@ const recurringNote = document.querySelector("#recurringNote");
 const nodes = {
   xirr: document.querySelector("[data-xirr]"),
   economicResult: document.querySelector("[data-economic-result]"),
-  savingsValue: document.querySelector("[data-savings-value]"),
-  savingsDifference: document.querySelector("[data-savings-difference]"),
+  benchmarkLabel: document.querySelector("[data-benchmark-label]"),
+  benchmarkValue: document.querySelector("[data-benchmark-value]"),
+  benchmarkMeta: document.querySelector("[data-benchmark-meta]"),
+  benchmarkDiffLabel: document.querySelector("[data-benchmark-diff-label]"),
+  benchmarkDifference: document.querySelector("[data-benchmark-difference]"),
   startOutflow: document.querySelector("[data-start-outflow]"),
   startNet: document.querySelector("[data-start-net]"),
   startFee: document.querySelector("[data-start-fee]"),
@@ -53,8 +81,10 @@ const nodes = {
   intermediateInflows: document.querySelector("[data-intermediate-inflows]"),
   terminalValue: document.querySelector("[data-terminal-value]"),
   cashflowCount: document.querySelector("[data-cashflow-count]"),
-  savingsInterest: document.querySelector("[data-savings-interest]"),
-  savingsTax: document.querySelector("[data-savings-tax]"),
+  benchmarkInterestLabel: document.querySelector("[data-benchmark-interest-label]"),
+  benchmarkInterest: document.querySelector("[data-benchmark-interest]"),
+  benchmarkTaxLabel: document.querySelector("[data-benchmark-tax-label]"),
+  benchmarkTax: document.querySelector("[data-benchmark-tax]"),
   rateCoverage: document.querySelector("[data-rate-coverage]"),
   method: document.querySelector("[data-fund-method]")
 };
@@ -111,9 +141,10 @@ function clearCalculation() {
     detailsNode.hidden = true;
     detailsNode.open = false;
   }
-  if (savingsCard) savingsCard.hidden = true;
-  if (savingsDiffCard) savingsDiffCard.hidden = true;
-  savingsDetailNodes.forEach((node) => { node.hidden = true; });
+  if (benchmarkCard) benchmarkCard.hidden = true;
+  if (benchmarkDiffCard) benchmarkDiffCard.hidden = true;
+  benchmarkDetailNodes.forEach((node) => { node.hidden = true; });
+  if (benchmarkTaxDetail) benchmarkTaxDetail.hidden = true;
 }
 
 function showError(message) {
@@ -173,8 +204,11 @@ function monthFromDate(iso) {
   return String(iso).slice(0, 7);
 }
 
-async function fetchSavingsRates(startIso, endIso) {
-  const url = new URL(SAVINGS_API);
+async function fetchBenchmarkRates(kind, startIso, endIso) {
+  const config = BENCHMARKS[kind];
+  if (!config) throw new Error("Unbekannter historischer Benchmark.");
+
+  const url = new URL(`${DATA_PROXY}${config.endpoint}`);
   url.searchParams.set("start", monthFromDate(startIso));
   url.searchParams.set("end", monthFromDate(endIso));
 
@@ -184,9 +218,9 @@ async function fetchSavingsRates(startIso, endIso) {
   });
   const body = await response.json().catch(() => null);
   if (!response.ok || !body?.observations?.length) {
-    throw new Error(body?.error || "Historische Spareinlagen-Zinsen konnten nicht geladen werden.");
+    throw new Error(body?.error || `${config.label} konnte nicht geladen werden.`);
   }
-  return body;
+  return { config, apiData: body };
 }
 
 function buildCalculation() {
@@ -246,25 +280,33 @@ function renderCoreResults(calc, xirrResult) {
   detailsNode.hidden = false;
 }
 
-function renderSavings(calc, apiData, savings) {
-  const difference = calc.terminalValue - savings.balance;
-  const coverage = savings.rateCoverage;
-  nodes.savingsValue.textContent = currency.format(savings.balance);
-  nodes.savingsDifference.textContent = `${difference >= 0 ? "+" : ""}${currency.format(difference)}`;
-  nodes.savingsInterest.textContent = currency.format(savings.grossInterest);
-  nodes.savingsTax.textContent = currency.format(savings.tax);
+function renderBenchmark(calc, config, apiData, benchmark) {
+  const difference = calc.terminalValue - benchmark.balance;
+  const coverage = benchmark.rateCoverage;
+
+  nodes.benchmarkLabel.textContent = config.label;
+  nodes.benchmarkValue.textContent = currency.format(benchmark.balance);
+  nodes.benchmarkMeta.textContent = config.meta;
+  nodes.benchmarkDiffLabel.textContent = config.differenceLabel;
+  nodes.benchmarkDifference.textContent = `${difference >= 0 ? "+" : ""}${currency.format(difference)}`;
+  nodes.benchmarkInterestLabel.textContent = config.interestLabel;
+  nodes.benchmarkInterest.textContent = currency.format(benchmark.grossInterest);
+  nodes.benchmarkTaxLabel.textContent = config.taxLabel;
+  nodes.benchmarkTax.textContent = currency.format(benchmark.tax);
 
   if (coverage?.carriedForward) {
     nodes.rateCoverage.textContent = `${coverage.firstOfficialPeriod} bis ${coverage.lastOfficialPeriod}; ab ${coverage.lastOfficialPeriod} mit ${percent.format(coverage.carriedRate)} % p.a. bis ${coverage.requiredEndPeriod} fortgeführt`;
-    showWarning(`Hinweis: Offizielle ECB-Zinsdaten sind nur bis ${coverage.lastOfficialPeriod} verfügbar. Für die Zeit danach bis ${coverage.requiredEndPeriod} wurde der zuletzt verfügbare Zinssatz von ${percent.format(coverage.carriedRate)} % p.a. unverändert fortgeführt.`);
+    showWarning(`Hinweis: Offizielle ECB-Daten für „${config.label}“ sind nur bis ${coverage.lastOfficialPeriod} verfügbar. Für die Zeit danach bis ${coverage.requiredEndPeriod} wurde der zuletzt verfügbare Zinssatz von ${percent.format(coverage.carriedRate)} % p.a. unverändert fortgeführt.`);
   } else {
     nodes.rateCoverage.textContent = `${apiData.first_period} bis ${apiData.last_period}`;
   }
 
-  savingsCard.hidden = false;
-  savingsDiffCard.hidden = false;
-  savingsDetailNodes.forEach((node) => { node.hidden = false; });
-  nodes.method.textContent += " Der historische Sparvergleich verwendet die monatliche ECB-MIR-Serie für täglich fällige österreichische Haushaltseinlagen. Der jeweilige Jahreszinssatz wird taggenau (act/365) auf das alternative Sparguthaben angewendet; positive Zinsen werden zum Jahresende bzw. Vergleichsende mit 25 % KESt belastet.";
+  benchmarkCard.hidden = false;
+  benchmarkDiffCard.hidden = false;
+  benchmarkDetailNodes.forEach((node) => { node.hidden = false; });
+  if (benchmarkTaxDetail) benchmarkTaxDetail.hidden = config.taxPercent === 0;
+
+  nodes.method.textContent += ` ${config.methodText}`;
   if (coverage?.carriedForward) {
     nodes.method.textContent += ` Nach dem letzten verfügbaren ECB-Monat ${coverage.lastOfficialPeriod} wird dessen Zinssatz unverändert bis zum Vergleichsende fortgeschrieben.`;
   }
@@ -366,22 +408,24 @@ form?.addEventListener("submit", async (event) => {
     const xirrResult = calculateXirr(calc.investorFlows);
     renderCoreResults(calc, xirrResult);
 
-    if (historicalCompare.value === "overnight") {
+    if (historicalCompare.value !== "none") {
       try {
-        const apiData = await fetchSavingsRates(calc.startDate, calc.finishDate);
+        const { config, apiData } = await fetchBenchmarkRates(historicalCompare.value, calc.startDate, calc.finishDate);
         const expectedStartMonth = monthFromDate(calc.startDate);
         if (apiData.first_period > expectedStartMonth) {
           throw new Error(`ECB-Daten beginnen erst mit ${apiData.first_period}; benötigt wird ${expectedStartMonth}.`);
         }
-        const savings = simulateHistoricalSavings({
+        const benchmark = simulateHistoricalRateBenchmark({
           cashflows: calc.benchmarkFlows,
           endDate: calc.finishDate,
           observations: apiData.observations,
-          taxPercent: 25
+          taxPercent: config.taxPercent,
+          seriesLabel: config.seriesLabel
         });
-        renderSavings(calc, apiData, savings);
+        renderBenchmark(calc, config, apiData, benchmark);
       } catch (error) {
-        showWarning(`Fondsrendite wurde berechnet. Historischer Sparvergleich nicht möglich: ${error.message || error}`);
+        const label = BENCHMARKS[historicalCompare.value]?.label || "Historischer Vergleich";
+        showWarning(`Fondsrendite wurde berechnet. Vergleich „${label}“ nicht möglich: ${error.message || error}`);
       }
     }
   } catch (error) {

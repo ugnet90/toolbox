@@ -239,21 +239,27 @@ function rateMapFromObservations(observations) {
   return map;
 }
 
-export function simulateHistoricalSavings({ cashflows, endDate, observations, taxPercent = 25 }) {
+export function simulateHistoricalRateBenchmark({
+  cashflows,
+  endDate,
+  observations,
+  taxPercent = 0,
+  seriesLabel = "historische Zinsdaten"
+}) {
   const flows = (cashflows ?? []).map((item) => ({
     ...item,
     amount: Number(item.amount),
     date: String(item.date)
   })).sort((a, b) => a.date.localeCompare(b.date));
 
-  if (!flows.length) throw new Error("Keine Zahlungsströme für den Spareinlagen-Vergleich vorhanden.");
+  if (!flows.length) throw new Error("Keine Zahlungsströme für den historischen Vergleich vorhanden.");
   parseIsoDate(endDate);
   const taxRate = Number(taxPercent) / 100;
   if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate >= 1) throw new Error("Ungültiger KESt-Satz für den Vergleich.");
 
   const rates = rateMapFromObservations(observations);
   const ratePeriods = [...rates.keys()].sort();
-  if (!ratePeriods.length) throw new Error("Keine historischen Spareinlagen-Zinsen verfügbar.");
+  if (!ratePeriods.length) throw new Error(`Keine ${seriesLabel} verfügbar.`);
 
   const firstOfficialPeriod = ratePeriods[0];
   const lastOfficialPeriod = ratePeriods[ratePeriods.length - 1];
@@ -294,7 +300,7 @@ export function simulateHistoricalSavings({ cashflows, endDate, observations, ta
       carriedForwardThrough = key;
       return lastOfficialRate;
     }
-    throw new Error(`Für ${key} fehlen historische Spareinlagen-Zinsen innerhalb der ECB-Datenreihe.`);
+    throw new Error(`Für ${key} fehlen ${seriesLabel} innerhalb der ECB-Datenreihe.`);
   }
 
   function accrueUntil(targetDate) {
@@ -320,11 +326,11 @@ export function simulateHistoricalSavings({ cashflows, endDate, observations, ta
 
   for (const flow of flows) {
     if (flow.date > endDate) continue;
-    if (!Number.isFinite(flow.amount)) throw new Error("Ungültiger Zahlungsstrom im Spareinlagen-Vergleich.");
+    if (!Number.isFinite(flow.amount)) throw new Error("Ungültiger Zahlungsstrom im historischen Vergleich.");
     accrueUntil(flow.date);
     balance += -flow.amount;
     if (balance < -0.005) {
-      throw new Error(`Der historische Spareinlagen-Vergleich würde am ${flow.date} ins Minus geraten.`);
+      throw new Error(`Der historische Vergleich würde am ${flow.date} ins Minus geraten.`);
     }
     if (Math.abs(balance) < 0.005) balance = 0;
   }
@@ -349,6 +355,13 @@ export function simulateHistoricalSavings({ cashflows, endDate, observations, ta
       carriedRate: carriedForward ? lastOfficialRate : null
     }
   };
+}
+
+export function simulateHistoricalSavings(options) {
+  return simulateHistoricalRateBenchmark({
+    ...options,
+    seriesLabel: options?.seriesLabel || "historische Spareinlagen-Zinsen"
+  });
 }
 
 export function summarizeCashflows(cashflows) {
