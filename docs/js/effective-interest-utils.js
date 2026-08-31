@@ -4,38 +4,51 @@ import {
   solveBankRate
 } from "./bundesschatz-utils.js";
 
-export const GENERIC_KEST = 0.275;
+const ALLOWED_KEST_RATES = [0, 0.25, 0.275];
+const ALLOWED_INSURANCE_TAX_RATES = [0, 0.04, 0.11];
 
 export function calculateEffectiveInterest({
   depositAmount,
   payoutAmount,
   termValue,
   termUnit,
-  kestFree,
+  kestPercent,
   insuranceTaxPercent,
   startDate
 }) {
   const deposit = Number(depositAmount);
   const payout = Number(payoutAmount);
   const term = Number(termValue);
+  const kestRate = Number(kestPercent) / 100;
   const insuranceTaxRate = Number(insuranceTaxPercent) / 100;
 
   if (!Number.isFinite(deposit) || deposit <= 0) throw new Error("Der Einzahlungsbetrag muss größer als 0 sein.");
   if (!Number.isFinite(payout) || payout <= 0) throw new Error("Der Auszahlungsbetrag muss größer als 0 sein.");
   if (!Number.isInteger(term) || term <= 0) throw new Error("Die Laufzeit muss eine positive ganze Zahl sein.");
   if (!["D", "M", "Y"].includes(termUnit)) throw new Error("Ungültige Laufzeiteinheit.");
-  if (![0, 0.04, 0.11].includes(insuranceTaxRate)) throw new Error("Ungültiger Versicherungssteuersatz.");
+  if (!ALLOWED_KEST_RATES.includes(kestRate)) throw new Error("Ungültiger KESt-Satz.");
+  if (!ALLOWED_INSURANCE_TAX_RATES.includes(insuranceTaxRate)) throw new Error("Ungültiger Versicherungssteuersatz.");
 
   const endDate = maturityDate(startDate, term, termUnit);
   const days = actualDays(startDate, endDate);
   if (days <= 0) throw new Error("Die Laufzeit muss größer als 0 sein.");
 
-  const insuranceTaxAmount = deposit * insuranceTaxRate;
-  const totalOutlay = deposit + insuranceTaxAmount;
-  const taxableGain = Math.max(payout - deposit, 0);
-  const kestAmount = kestFree ? 0 : taxableGain * GENERIC_KEST;
-  const netPayout = payout - kestAmount;
-  const targetFactor = netPayout / totalOutlay;
+  // Der Einzahlungsbetrag ist der tatsächlich vom Kunden bezahlte Gesamtbetrag.
+  // Eine allfällige Versicherungssteuer ist darin enthalten und wird herausgerechnet.
+  const netInvestment = deposit / (1 + insuranceTaxRate);
+  const insuranceTaxAmount = deposit - netInvestment;
+
+  // Der eingegebene Auszahlungsbetrag ist bereits netto nach einer allfälligen KESt.
+  // Der KESt-Satz dient daher nur zur rechnerischen Rückrechnung der enthaltenen Steuer.
+  const netGainAfterKest = Math.max(payout - netInvestment, 0);
+  const grossGainBeforeKest = kestRate > 0
+    ? netGainAfterKest / (1 - kestRate)
+    : netGainAfterKest;
+  const kestAmount = grossGainBeforeKest - netGainAfterKest;
+
+  // Kundensicht: gleicher tatsächlich bezahlter Kapitaleinsatz und gleiche Netto-Auszahlung.
+  const netPayout = payout;
+  const targetFactor = netPayout / deposit;
   const totalNetReturn = targetFactor - 1;
   const yearFraction = termUnit === "Y"
     ? term
@@ -61,16 +74,19 @@ export function calculateEffectiveInterest({
     yearFraction,
     deposit,
     payout,
+    kestRate,
     insuranceTaxRate,
     insuranceTaxAmount,
-    totalOutlay,
-    taxableGain,
+    netInvestment,
+    netGainAfterKest,
+    grossGainBeforeKest,
     kestAmount,
     netPayout,
     targetFactor,
     totalNetReturn,
     annualizedNetReturn,
     bankRate,
-    bankRateNotRequired
+    bankRateNotRequired,
+    taxCombinationWarning: insuranceTaxRate > 0 && kestRate > 0
   };
 }

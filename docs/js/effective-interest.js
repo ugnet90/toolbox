@@ -7,15 +7,19 @@ import { calculateEffectiveInterest } from "./effective-interest-utils.js";
 
 const form = document.querySelector("[data-effective-form]");
 const errorNode = document.querySelector("[data-effective-error]");
+const warningNode = document.querySelector("[data-tax-warning]");
 const resultsNode = document.querySelector("[data-effective-results]");
 const detailsNode = document.querySelector("[data-effective-details]");
+const insuranceTaxSelect = document.querySelector("#insuranceTax");
+const kestRateSelect = document.querySelector("#kestRate");
 
 const nodes = {
   effectiveRate: document.querySelector("[data-effective-rate]"),
   totalReturn: document.querySelector("[data-total-return]"),
   bankRate: document.querySelector("[data-bank-rate]"),
   insuranceTaxAmount: document.querySelector("[data-insurance-tax-amount]"),
-  totalOutlay: document.querySelector("[data-total-outlay]"),
+  netInvestment: document.querySelector("[data-net-investment]"),
+  kestRate: document.querySelector("[data-kest-rate]"),
   kestAmount: document.querySelector("[data-kest-amount]"),
   netPayout: document.querySelector("[data-net-payout]"),
   startDate: document.querySelector("[data-start-date]"),
@@ -40,6 +44,8 @@ const exactPercent = new Intl.NumberFormat("de-AT", {
   maximumFractionDigits: 4
 });
 
+const outputNodes = Object.values(nodes).filter(Boolean);
+
 function parseAmount(value) {
   let normalized = String(value ?? "").trim().replace(/[\s']/g, "");
   const comma = normalized.lastIndexOf(",");
@@ -58,6 +64,33 @@ function parseAmount(value) {
   }
 
   return Number(normalized);
+}
+
+function clearCalculation() {
+  if (errorNode) {
+    errorNode.textContent = "";
+    errorNode.hidden = true;
+  }
+  if (resultsNode) resultsNode.hidden = true;
+  if (detailsNode) {
+    detailsNode.hidden = true;
+    detailsNode.open = false;
+  }
+  outputNodes.forEach((node) => {
+    node.textContent = "";
+  });
+}
+
+function updateTaxWarning() {
+  if (!warningNode) return;
+  const insuranceTax = Number(insuranceTaxSelect?.value ?? 0);
+  const kest = Number(kestRateSelect?.value ?? 0);
+  const unusualCombination = insuranceTax > 0 && kest > 0;
+
+  warningNode.hidden = !unusualCombination;
+  warningNode.textContent = unusualCombination
+    ? "Hinweis: Versicherungssteuer über 0 % wird üblicherweise mit 0 % KESt kombiniert. Bitte prüfe diese Eingabekombination."
+    : "";
 }
 
 function showError(message) {
@@ -81,7 +114,8 @@ function render(result) {
   }
 
   nodes.insuranceTaxAmount.textContent = currency.format(result.insuranceTaxAmount);
-  nodes.totalOutlay.textContent = currency.format(result.totalOutlay);
+  nodes.netInvestment.textContent = currency.format(result.netInvestment);
+  nodes.kestRate.textContent = `${percent.format(result.kestRate * 100)} %`;
   nodes.kestAmount.textContent = currency.format(result.kestAmount);
   nodes.netPayout.textContent = currency.format(result.netPayout);
   nodes.startDate.textContent = formatIsoDate(result.startDate);
@@ -92,8 +126,18 @@ function render(result) {
   detailsNode.hidden = false;
 }
 
+function handleInputChange() {
+  clearCalculation();
+  updateTaxWarning();
+}
+
+form?.addEventListener("input", handleInputChange);
+form?.addEventListener("change", handleInputChange);
+
 form?.addEventListener("submit", (event) => {
   event.preventDefault();
+  clearCalculation();
+  updateTaxWarning();
 
   const data = new FormData(form);
   try {
@@ -102,7 +146,7 @@ form?.addEventListener("submit", (event) => {
       payoutAmount: parseAmount(data.get("payoutAmount")),
       termValue: Number(data.get("termValue")),
       termUnit: String(data.get("termUnit")),
-      kestFree: data.get("kestFree") === "yes",
+      kestPercent: Number(data.get("kestRate")),
       insuranceTaxPercent: Number(data.get("insuranceTax")),
       startDate: viennaDateTimeParts().date
     });
@@ -111,3 +155,5 @@ form?.addEventListener("submit", (event) => {
     showError(error.message || "Berechnung nicht möglich.");
   }
 });
+
+updateTaxWarning();
