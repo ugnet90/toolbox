@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Fondsrendite mit datierten Zahlungsströmen berechnen und mit historischen österreichischen Spareinlagen-Zinsen vergleichen.">
+  <link rel="icon" href="assets/favicon/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon/favicon-48x48.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="assets/favicon/site.webmanifest">
+  <meta name="theme-color" content="#316880">
+  <title>Toolbox – Fondsrendite & Vergleich</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/navigation.css">
+  <link rel="stylesheet" href="css/fund-return.css">
+</head>
+<body>
+  <div data-site-header></div>
+
+  <main>
+    <nav class="breadcrumbs" aria-label="Breadcrumb" data-breadcrumbs></nav>
+
+    <header class="page-heading page-heading--compact-mobile">
+      <p class="page-heading__eyebrow">Finanzen</p>
+      <h1>Fondsrendite & Vergleich</h1>
+      <p>Datumsgenaue Nettorendite aus Einzahlungen, Zuzahlungen, Ausschüttungen, Steuern, Gebühren und Endwert berechnen – optional mit historischem österreichischem Sparzins-Vergleich.</p>
+    </header>
+
+    <section class="panel fund-panel">
+      <div class="panel__header">
+        <h2>Start und Endwert</h2>
+        <p>Alle Zahlungsströme werden aus Sicht des Anlegers betrachtet. Zahlungen vom Anleger sind negativ, Zuflüsse zum Anleger positiv.</p>
+      </div>
+      <div class="panel__body">
+        <form class="fund-form" data-fund-form>
+          <div class="fund-form__start-grid">
+            <div class="field">
+              <label for="purchaseDate">Kauf-/Startdatum</label>
+              <input id="purchaseDate" name="purchaseDate" type="date" required>
+            </div>
+            <div class="field">
+              <label for="initialAmount">Startbetrag</label>
+              <input id="initialAmount" name="initialAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 50.000,00" required>
+            </div>
+            <div class="field">
+              <label for="initialAmountMode">Startbetrag ist</label>
+              <select id="initialAmountMode" name="initialAmountMode">
+                <option value="gross" selected>Brutto – Kundenaufwand inkl. Kaufspesen</option>
+                <option value="net">Netto – tatsächlich investiert</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="purchaseFee">Kaufspesen / Ausgabeaufschlag</label>
+              <div class="input-suffix">
+                <input id="purchaseFee" name="purchaseFee" type="number" inputmode="decimal" min="0" max="100" step="0.01" value="0">
+                <span>%</span>
+              </div>
+              <span class="field__hint">Spesensatz auf den Nettoanlagebetrag; Brutto = Netto × (1 + Spesensatz).</span>
+            </div>
+          </div>
+
+          <div class="fund-form__end-grid">
+            <div class="field">
+              <label for="endDate">End-/Bewertungsdatum</label>
+              <input id="endDate" name="endDate" type="date" required>
+            </div>
+            <div class="field">
+              <label for="endValue">End-/Verkaufswert</label>
+              <input id="endValue" name="endValue" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 72.500,00" required>
+              <span class="field__hint">Bei Verkauf möglichst den tatsächlich verbleibenden Nettoerlös verwenden.</span>
+            </div>
+            <div class="field">
+              <label for="historicalCompare">Historischer Vergleich</label>
+              <select id="historicalCompare" name="historicalCompare">
+                <option value="overnight" selected>Ø täglich fällige Einlagen AT (ECB/OeNB)</option>
+                <option value="none">Kein Vergleich</option>
+              </select>
+              <span class="field__hint">Monatlicher Durchschnittszins österreichischer Haushaltseinlagen, nicht Bestzins.</span>
+            </div>
+          </div>
+
+          <section class="cashflow-section" aria-labelledby="cashflow-heading">
+            <div class="section-heading-row">
+              <div>
+                <h3 id="cashflow-heading">Weitere Zahlungsströme</h3>
+                <p>Ausschüttungen dürfen ausdrücklich auch negativ erfasst werden, z. B. wenn eine Steuerbelastung den Nettozufluss übersteigt.</p>
+              </div>
+            </div>
+
+            <div class="cashflow-entry">
+              <div class="field">
+                <label for="cashflowDate">Datum</label>
+                <input id="cashflowDate" type="date">
+              </div>
+              <div class="field">
+                <label for="cashflowType">Art</label>
+                <select id="cashflowType">
+                  <option value="contribution">Zuzahlung / Sparrate</option>
+                  <option value="distribution">Ausschüttung</option>
+                  <option value="tax">Steuer / ausschüttungsgleicher Ertrag</option>
+                  <option value="fee">Depot-/sonstige Gebühr</option>
+                  <option value="withdrawal">Entnahme</option>
+                  <option value="other">Sonstiger Cashflow</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="cashflowAmount">Betrag</label>
+                <input id="cashflowAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 200,00 oder -35,00">
+              </div>
+              <div class="field cashflow-entry__note">
+                <label for="cashflowNote">Notiz</label>
+                <input id="cashflowNote" type="text" maxlength="80" placeholder="optional">
+              </div>
+              <button class="secondary-button cashflow-entry__button" type="button" data-add-cashflow>Zahlung hinzufügen</button>
+            </div>
+
+            <p class="cashflow-sign-note"><strong>Vorzeichen:</strong> negativ = Zahlung/Belastung des Anlegers, positiv = Zufluss. Bei Zuzahlung, Steuer und Gebühr wird ein positiv eingegebener Betrag automatisch als Belastung übernommen.</p>
+
+            <div class="cashflow-table-wrap" data-cashflow-table-wrap hidden>
+              <table class="cashflow-table">
+                <thead>
+                  <tr>
+                    <th>Datum</th>
+                    <th>Art</th>
+                    <th class="cashflow-table__amount">Betrag</th>
+                    <th>Notiz</th>
+                    <th><span class="sr-only">Aktion</span></th>
+                  </tr>
+                </thead>
+                <tbody data-cashflow-body></tbody>
+              </table>
+            </div>
+
+            <details class="recurring-box">
+              <summary>Regelmäßige Zahlungen erzeugen</summary>
+              <div class="recurring-grid">
+                <div class="field">
+                  <label for="recurringType">Art</label>
+                  <select id="recurringType">
+                    <option value="contribution">Zuzahlung / Sparrate</option>
+                    <option value="fee">Depot-/sonstige Gebühr</option>
+                    <option value="distribution">Ausschüttung</option>
+                    <option value="tax">Steuer</option>
+                    <option value="other">Sonstiger Cashflow</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="recurringAmount">Betrag je Zahlung</label>
+                  <input id="recurringAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 200,00">
+                </div>
+                <div class="field">
+                  <label for="recurringInterval">Intervall</label>
+                  <select id="recurringInterval">
+                    <option value="1" selected>monatlich</option>
+                    <option value="3">vierteljährlich</option>
+                    <option value="6">halbjährlich</option>
+                    <option value="12">jährlich</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="recurringFirst">Erste Zahlung</label>
+                  <input id="recurringFirst" type="date">
+                </div>
+                <div class="field">
+                  <label for="recurringLast">Letzte Zahlung</label>
+                  <input id="recurringLast" type="date">
+                </div>
+                <div class="field recurring-grid__note">
+                  <label for="recurringNote">Notiz</label>
+                  <input id="recurringNote" type="text" maxlength="80" placeholder="optional">
+                </div>
+              </div>
+              <button class="secondary-button" type="button" data-add-recurring>Zahlungen erzeugen</button>
+            </details>
+          </section>
+
+          <p class="form-message form-message--error" data-fund-error hidden></p>
+          <p class="form-message fund-warning" data-fund-warning hidden></p>
+          <button class="primary-button" type="submit">Fondsrendite berechnen</button>
+        </form>
+
+        <div class="fund-results" data-fund-results hidden aria-live="polite">
+          <div class="fund-result-card fund-result-card--primary">
+            <span class="fund-result-card__label">Effektive Nettorendite</span>
+            <strong class="fund-result-card__value" data-xirr></strong>
+            <span class="fund-result-card__meta">XIRR · datumsgenau p.a.</span>
+          </div>
+          <div class="fund-result-card">
+            <span class="fund-result-card__label">Wirtschaftlicher Überschuss</span>
+            <strong class="fund-result-card__value" data-economic-result></strong>
+            <span class="fund-result-card__meta">alle Anleger-Cashflows inkl. Endwert</span>
+          </div>
+          <div class="fund-result-card fund-result-card--compare" data-savings-card hidden>
+            <span class="fund-result-card__label">Historische Spareinlage</span>
+            <strong class="fund-result-card__value" data-savings-value></strong>
+            <span class="fund-result-card__meta">Vergleichswert am Enddatum nach 25 % KESt</span>
+          </div>
+          <div class="fund-result-card" data-savings-diff-card hidden>
+            <span class="fund-result-card__label">Fonds vs. Spareinlage</span>
+            <strong class="fund-result-card__value" data-savings-difference></strong>
+            <span class="fund-result-card__meta">Mehr-/Minderwert am Enddatum</span>
+          </div>
+        </div>
+
+        <details class="fund-details" data-fund-details hidden>
+          <summary>Berechnungsdetails</summary>
+          <div class="detail-grid">
+            <div class="detail-item"><span class="detail-item__label">Kundenaufwand Start</span><span class="detail-item__value" data-start-outflow></span></div>
+            <div class="detail-item"><span class="detail-item__label">Davon netto investiert</span><span class="detail-item__value" data-start-net></span></div>
+            <div class="detail-item"><span class="detail-item__label">Kaufspesen</span><span class="detail-item__value" data-start-fee></span></div>
+            <div class="detail-item"><span class="detail-item__label">Weitere Belastungen</span><span class="detail-item__value" data-other-outflows></span></div>
+            <div class="detail-item"><span class="detail-item__label">Zwischenzeitliche Zuflüsse</span><span class="detail-item__value" data-intermediate-inflows></span></div>
+            <div class="detail-item"><span class="detail-item__label">End-/Verkaufswert</span><span class="detail-item__value" data-terminal-value></span></div>
+            <div class="detail-item"><span class="detail-item__label">Anzahl Cashflows</span><span class="detail-item__value" data-cashflow-count></span></div>
+            <div class="detail-item" data-savings-detail hidden><span class="detail-item__label">Spareinlagen-Bruttozinsen</span><span class="detail-item__value" data-savings-interest></span></div>
+            <div class="detail-item" data-savings-detail hidden><span class="detail-item__label">KESt Spareinlage</span><span class="detail-item__value" data-savings-tax></span></div>
+            <div class="detail-item" data-savings-detail hidden><span class="detail-item__label">ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage></span></div>
+          </div>
+          <p class="method-note" data-fund-method></p>
+          <div class="source-links">
+            <a href="https://data.ecb.europa.eu/data/datasets/MIR/MIR.M.AT.B.L21.A.R.A.2250.EUR.N" target="_blank" rel="noopener noreferrer">ECB: österreichische täglich fällige Haushaltseinlagen</a>
+            <a href="https://data.ecb.europa.eu/help/api/data" target="_blank" rel="noopener noreferrer">ECB Data Portal API</a>
+          </div>
+        </details>
+
+        <aside class="fund-general-note">
+          <strong>Hinweis:</strong> Der Fondsrechner bildet keine österreichische Fondsbesteuerung nach. Ausschüttungen, ausschüttungsgleiche Erträge, Steuern, Gebühren und sonstige Belastungen werden über die tatsächlich angefallenen Netto-Cashflows erfasst. Der historische Sparvergleich ist ein statistischer Benchmark mit österreichischen Durchschnittszinsen und kein konkretes Bankangebot.
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">Toolbox</footer>
+
+  <script type="module" src="js/navigation.js"></script>
+  <script type="module" src="js/fund-return.js"></script>
+</body>
+</html>
