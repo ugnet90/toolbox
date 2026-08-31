@@ -40,11 +40,29 @@ const resultsNode = document.querySelector("[data-fund-results]");
 const detailsNode = document.querySelector("[data-fund-details]");
 const cashflowBody = document.querySelector("[data-cashflow-body]");
 const cashflowTableWrap = document.querySelector("[data-cashflow-table-wrap]");
-const benchmarkCard = document.querySelector("[data-benchmark-card]");
-const benchmarkDiffCard = document.querySelector("[data-benchmark-diff-card]");
-const benchmarkDetailNodes = [...document.querySelectorAll("[data-benchmark-detail]")];
-const benchmarkTaxDetail = document.querySelector("[data-benchmark-tax-detail]");
 const ignoredKestDetail = document.querySelector("[data-ignored-kest-detail]");
+const comparisonChart = document.querySelector("[data-comparison-chart]");
+const valueChart = document.querySelector("[data-value-chart]");
+const returnChart = document.querySelector("[data-return-chart]");
+const resetButton = document.querySelector("[data-reset-fund]");
+
+const benchmarkCards = Object.fromEntries(
+  Object.keys(BENCHMARKS).map((kind) => [kind, document.querySelector(`[data-benchmark-card="${kind}"]`)])
+);
+
+const benchmarkNodes = Object.fromEntries(
+  Object.keys(BENCHMARKS).map((kind) => [kind, {
+    rate: document.querySelector(`[data-benchmark-rate="${kind}"]`),
+    meta: document.querySelector(`[data-benchmark-meta="${kind}"]`),
+    end: document.querySelector(`[data-benchmark-end="${kind}"]`),
+    xirr: document.querySelector(`[data-benchmark-xirr="${kind}"]`),
+    interest: document.querySelector(`[data-benchmark-interest="${kind}"]`),
+    tax: document.querySelector(`[data-benchmark-tax="${kind}"]`),
+    difference: document.querySelector(`[data-benchmark-difference="${kind}"]`),
+    coverage: document.querySelector(`[data-rate-coverage="${kind}"]`),
+    details: [...document.querySelectorAll(`[data-benchmark-detail="${kind}"]`)]
+  }])
+);
 
 const purchaseDate = document.querySelector("#purchaseDate");
 const initialAmount = document.querySelector("#initialAmount");
@@ -70,11 +88,6 @@ const recurringNote = document.querySelector("#recurringNote");
 const nodes = {
   xirr: document.querySelector("[data-xirr]"),
   economicResult: document.querySelector("[data-economic-result]"),
-  benchmarkLabel: document.querySelector("[data-benchmark-label]"),
-  benchmarkValue: document.querySelector("[data-benchmark-value]"),
-  benchmarkMeta: document.querySelector("[data-benchmark-meta]"),
-  benchmarkDiffLabel: document.querySelector("[data-benchmark-diff-label]"),
-  benchmarkDifference: document.querySelector("[data-benchmark-difference]"),
   startOutflow: document.querySelector("[data-start-outflow]"),
   startNet: document.querySelector("[data-start-net]"),
   startFee: document.querySelector("[data-start-fee]"),
@@ -84,13 +97,12 @@ const nodes = {
   cashflowCount: document.querySelector("[data-cashflow-count]"),
   kestStatus: document.querySelector("[data-kest-status]"),
   ignoredKest: document.querySelector("[data-ignored-kest]"),
-  benchmarkInterestLabel: document.querySelector("[data-benchmark-interest-label]"),
-  benchmarkInterest: document.querySelector("[data-benchmark-interest]"),
-  benchmarkTaxLabel: document.querySelector("[data-benchmark-tax-label]"),
-  benchmarkTax: document.querySelector("[data-benchmark-tax]"),
-  rateCoverage: document.querySelector("[data-rate-coverage]"),
   method: document.querySelector("[data-fund-method]")
 };
+
+function setText(node, value) {
+  if (node) node.textContent = value;
+}
 
 const currency = new Intl.NumberFormat("de-AT", {
   style: "currency",
@@ -116,6 +128,7 @@ const typeLabels = {
 const defaultNegativeTypes = new Set(["contribution", "tax", "fee"]);
 let cashflows = [];
 let nextCashflowId = 1;
+let calculationRevision = 0;
 
 function normalizeSignedAmount(rawValue, type) {
   const amount = parseGermanNumber(rawValue);
@@ -131,6 +144,7 @@ function formatAmountInput(input) {
 }
 
 function clearCalculation() {
+  calculationRevision += 1;
   if (errorNode) {
     errorNode.hidden = true;
     errorNode.textContent = "";
@@ -144,19 +158,24 @@ function clearCalculation() {
     detailsNode.hidden = true;
     detailsNode.open = false;
   }
-  if (benchmarkCard) benchmarkCard.hidden = true;
-  if (benchmarkDiffCard) benchmarkDiffCard.hidden = true;
-  benchmarkDetailNodes.forEach((node) => { node.hidden = true; });
-  if (benchmarkTaxDetail) benchmarkTaxDetail.hidden = true;
+  Object.values(benchmarkCards).forEach((card) => { if (card) card.hidden = true; });
+  Object.values(benchmarkNodes).forEach((group) => {
+    group.details.forEach((node) => { node.hidden = true; });
+  });
   if (ignoredKestDetail) ignoredKestDetail.hidden = true;
+  if (comparisonChart) comparisonChart.hidden = true;
+  if (valueChart) valueChart.innerHTML = "";
+  if (returnChart) returnChart.innerHTML = "";
 }
 
 function showError(message) {
+  if (!errorNode) return;
   errorNode.textContent = message;
   errorNode.hidden = false;
 }
 
 function showWarning(message) {
+  if (!warningNode) return;
   warningNode.textContent = message;
   warningNode.hidden = false;
 }
@@ -175,6 +194,7 @@ function typeOptions(selected) {
 }
 
 function renderCashflows() {
+  if (!cashflowBody || !cashflowTableWrap) return;
   cashflowBody.innerHTML = "";
   const ordered = [...cashflows].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
 
@@ -284,20 +304,20 @@ function buildCalculation() {
 function renderCoreResults(calc, xirrResult) {
   const summary = summarizeCashflows(calc.investorFlows);
   const intermediateSummary = summarizeCashflows(calc.intermediate);
-  nodes.xirr.textContent = `${percent.format(xirrResult.rate * 100)} % p.a.`;
-  nodes.economicResult.textContent = currency.format(summary.net);
-  nodes.startOutflow.textContent = currency.format(calc.start.customerOutflow);
-  nodes.startNet.textContent = currency.format(calc.start.netInvested);
-  nodes.startFee.textContent = currency.format(calc.start.feeAmount);
-  nodes.otherOutflows.textContent = currency.format(Math.max(intermediateSummary.outflows, 0));
-  nodes.intermediateInflows.textContent = currency.format(Math.max(intermediateSummary.inflows, 0));
-  nodes.terminalValue.textContent = currency.format(calc.terminalValue);
-  nodes.cashflowCount.textContent = String(calc.investorFlows.length);
-  nodes.kestStatus.textContent = calc.isKestExempt ? "Ja – KESt-Abzug nicht berücksichtigt" : "Nein";
+  setText(nodes.xirr, `${percent.format(xirrResult.rate * 100)} % p.a.`);
+  setText(nodes.economicResult, currency.format(summary.net));
+  setText(nodes.startOutflow, currency.format(calc.start.customerOutflow));
+  setText(nodes.startNet, currency.format(calc.start.netInvested));
+  setText(nodes.startFee, currency.format(calc.start.feeAmount));
+  setText(nodes.otherOutflows, currency.format(Math.max(intermediateSummary.outflows, 0)));
+  setText(nodes.intermediateInflows, currency.format(Math.max(intermediateSummary.inflows, 0)));
+  setText(nodes.terminalValue, currency.format(calc.terminalValue));
+  setText(nodes.cashflowCount, String(calc.investorFlows.length));
+  setText(nodes.kestStatus, calc.isKestExempt ? "Ja – KESt-Abzug nicht berücksichtigt" : "Nein");
   if (ignoredKestDetail) {
     ignoredKestDetail.hidden = !calc.isKestExempt || calc.ignoredKestCashflows.length === 0;
   }
-  if (nodes.ignoredKest) nodes.ignoredKest.textContent = currency.format(calc.ignoredKestNet);
+  setText(nodes.ignoredKest, currency.format(calc.ignoredKestNet));
 
   const multipleRootText = xirrResult.rootCount > 1
     ? " Die Zahlungsstromfolge besitzt mehrere mathematisch mögliche IRR-Lösungen; angezeigt wird die betragsmäßig nächstliegende Lösung zu 0 %."
@@ -306,7 +326,7 @@ function renderCoreResults(calc, xirrResult) {
   const kestMethodText = calc.isKestExempt
     ? " Eine wirksame KESt-Befreiungserklärung wurde angesetzt; als KESt/Steuer auf agE kategorisierte Cashflows werden in der Fondsrendite nicht berücksichtigt. Dies bildet nur den KESt-Abzug ab, nicht Körperschaftsteuer oder andere Steuern."
     : " Eine KESt-Befreiungserklärung wurde nicht angesetzt; erfasste Steuer-Cashflows wirken daher wie eingegeben auf die Fondsrendite.";
-  nodes.method.textContent = `Die Rendite wird als datumsgenaue XIRR aus allen berücksichtigten Anleger-Cashflows berechnet. Der Start-Cashflow entspricht dem tatsächlichen Kundenaufwand; Kaufspesen beeinflussen daher die Rendite, ohne dass eine vollständige Fondsbesteuerung modelliert wird.${kestMethodText}${multipleRootText}`;
+  setText(nodes.method, `Die Rendite wird als datumsgenaue XIRR aus allen berücksichtigten Anleger-Cashflows berechnet. Der Start-Cashflow entspricht dem tatsächlichen Kundenaufwand; Kaufspesen beeinflussen daher die Rendite, ohne dass eine vollständige Fondsbesteuerung modelliert wird.${kestMethodText}${multipleRootText}`);
   if (calc.isKestExempt && calc.ignoredKestCashflows.length > 0) {
     appendWarning(`Hinweis: ${calc.ignoredKestCashflows.length} als KESt/Steuer auf agE erfasste Cashflow(s) werden wegen der aktivierten KESt-Befreiung nicht berücksichtigt.`);
   }
@@ -314,45 +334,128 @@ function renderCoreResults(calc, xirrResult) {
     appendWarning("Hinweis: Für diese Zahlungsstromfolge existieren mehrere mathematisch mögliche Effektivzinssätze. Details beachten.");
   }
 
-  resultsNode.hidden = false;
-  detailsNode.hidden = false;
+  if (resultsNode) resultsNode.hidden = false;
+  if (detailsNode) detailsNode.hidden = false;
 }
 
-function renderBenchmark(calc, config, apiData, benchmark, effectiveTaxPercent) {
+function selectedBenchmarkKinds() {
+  const selection = historicalCompare?.value || "both";
+  if (selection === "both") return ["overnight", "euribor3m"];
+  if (BENCHMARKS[selection]) return [selection];
+  return [];
+}
+
+function benchmarkXirr(calc, benchmark) {
+  return calculateXirr([
+    ...calc.benchmarkFlows.map((flow) => ({ ...flow })),
+    { date: calc.finishDate, amount: benchmark.balance, type: "terminal", note: "Benchmark-Endwert" }
+  ]);
+}
+
+function renderBenchmark(calc, kind, config, apiData, benchmark, effectiveTaxPercent) {
+  const group = benchmarkNodes[kind];
+  const card = benchmarkCards[kind];
   const difference = calc.terminalValue - benchmark.balance;
   const coverage = benchmark.rateCoverage;
+  const xirrResult = benchmarkXirr(calc, benchmark);
 
-  nodes.benchmarkLabel.textContent = config.label;
-  nodes.benchmarkValue.textContent = currency.format(benchmark.balance);
-  nodes.benchmarkMeta.textContent = effectiveTaxPercent === 0
-    ? "fiktiver Vergleichswert · 0 % KESt (Befreiungserklärung)"
-    : "fiktiver Vergleichswert · nach 25 % KESt";
-  nodes.benchmarkDiffLabel.textContent = config.differenceLabel;
-  nodes.benchmarkDifference.textContent = `${difference >= 0 ? "+" : ""}${currency.format(difference)}`;
-  nodes.benchmarkInterestLabel.textContent = config.interestLabel;
-  nodes.benchmarkInterest.textContent = currency.format(benchmark.grossInterest);
-  nodes.benchmarkTaxLabel.textContent = config.taxLabel;
-  nodes.benchmarkTax.textContent = currency.format(benchmark.tax);
+  setText(group?.rate, `${percent.format(xirrResult.rate * 100)} % p.a.`);
+  setText(group?.meta, `Endwert ${currency.format(benchmark.balance)} · ${effectiveTaxPercent === 0 ? "0 % KESt" : "nach 25 % KESt"}`);
+  setText(group?.end, currency.format(benchmark.balance));
+  setText(group?.xirr, `${percent.format(xirrResult.rate * 100)} % p.a.`);
+  setText(group?.interest, currency.format(benchmark.grossInterest));
+  setText(group?.tax, currency.format(benchmark.tax));
+  setText(group?.difference, `${difference >= 0 ? "+" : ""}${currency.format(difference)}`);
 
   if (coverage?.carriedForward) {
-    nodes.rateCoverage.textContent = `${coverage.firstOfficialPeriod} bis ${coverage.lastOfficialPeriod}; ab ${coverage.lastOfficialPeriod} mit ${percent.format(coverage.carriedRate)} % p.a. bis ${coverage.requiredEndPeriod} fortgeführt`;
+    setText(group?.coverage, `${coverage.firstOfficialPeriod} bis ${coverage.lastOfficialPeriod}; ab ${coverage.lastOfficialPeriod} mit ${percent.format(coverage.carriedRate)} % p.a. bis ${coverage.requiredEndPeriod} fortgeführt`);
     appendWarning(`Hinweis: Offizielle ECB-Daten für „${config.label}“ sind nur bis ${coverage.lastOfficialPeriod} verfügbar. Für die Zeit danach bis ${coverage.requiredEndPeriod} wurde der zuletzt verfügbare Zinssatz von ${percent.format(coverage.carriedRate)} % p.a. unverändert fortgeführt.`);
   } else {
-    nodes.rateCoverage.textContent = `${apiData.first_period} bis ${apiData.last_period}`;
+    setText(group?.coverage, `${apiData.first_period} bis ${apiData.last_period}`);
   }
 
-  benchmarkCard.hidden = false;
-  benchmarkDiffCard.hidden = false;
-  benchmarkDetailNodes.forEach((node) => { node.hidden = false; });
-  if (benchmarkTaxDetail) benchmarkTaxDetail.hidden = false;
+  if (card) card.hidden = false;
+  group?.details.forEach((node) => { node.hidden = false; });
 
   const benchmarkTaxText = effectiveTaxPercent === 0
     ? " Wegen der aktivierten KESt-Befreiungserklärung wird im Benchmark kein KESt-Abzug vorgenommen."
     : " Positive Zinsen werden zum Jahresende bzw. Vergleichsende mit 25 % KESt belastet.";
-  nodes.method.textContent += ` ${config.methodText}${benchmarkTaxText}`;
-  if (coverage?.carriedForward) {
+  if (nodes.method) nodes.method.textContent += ` ${config.methodText}${benchmarkTaxText}`;
+  if (coverage?.carriedForward && nodes.method) {
     nodes.method.textContent += ` Nach dem letzten verfügbaren ECB-Monat ${coverage.lastOfficialPeriod} wird dessen Zinssatz unverändert bis zum Vergleichsende fortgeschrieben.`;
   }
+
+  return { kind, config, benchmark, xirrResult, effectiveTaxPercent };
+}
+
+function appendSimpleBar(container, label, value, maxValue) {
+  if (!container) return;
+  const row = document.createElement("div");
+  row.className = "comparison-bar-row";
+  const safeMax = Math.max(maxValue, 0.000001);
+  const width = Math.max(0, Math.min(100, (Math.max(value, 0) / safeMax) * 100));
+  row.innerHTML = `
+    <div class="comparison-bar-row__label"></div>
+    <div class="comparison-bar-row__track"><div class="comparison-bar-row__bar"></div></div>
+    <strong class="comparison-bar-row__value"></strong>
+  `;
+  setText(row.querySelector(".comparison-bar-row__label"), label);
+  setText(row.querySelector(".comparison-bar-row__value"), currency.format(value));
+  row.querySelector(".comparison-bar-row__bar").style.width = `${width}%`;
+  container.append(row);
+}
+
+function appendReturnBar(container, label, rate, minRate, maxRate) {
+  if (!container) return;
+  const row = document.createElement("div");
+  row.className = "comparison-bar-row comparison-bar-row--return";
+  const low = Math.min(minRate, 0);
+  const high = Math.max(maxRate, 0);
+  const range = Math.max(high - low, 0.000001);
+  const zero = ((0 - low) / range) * 100;
+  const point = ((rate - low) / range) * 100;
+  const left = Math.min(zero, point);
+  const width = Math.max(1, Math.abs(point - zero));
+  row.innerHTML = `
+    <div class="comparison-bar-row__label"></div>
+    <div class="comparison-bar-row__track comparison-bar-row__track--return">
+      <span class="comparison-bar-row__zero"></span>
+      <div class="comparison-bar-row__bar"></div>
+    </div>
+    <strong class="comparison-bar-row__value"></strong>
+  `;
+  setText(row.querySelector(".comparison-bar-row__label"), label);
+  setText(row.querySelector(".comparison-bar-row__value"), `${percent.format(rate * 100)} %`);
+  const zeroNode = row.querySelector(".comparison-bar-row__zero");
+  zeroNode.style.left = `${zero}%`;
+  const bar = row.querySelector(".comparison-bar-row__bar");
+  bar.style.left = `${left}%`;
+  bar.style.width = `${width}%`;
+  if (rate < 0) bar.classList.add("is-negative");
+  container.append(row);
+}
+
+function renderComparisonCharts(calc, fundXirrResult, benchmarkResults) {
+  if (!comparisonChart || !valueChart || !returnChart || !benchmarkResults.length) return;
+  valueChart.innerHTML = "";
+  returnChart.innerHTML = "";
+
+  const valueItems = [
+    { label: "Fonds", value: calc.terminalValue },
+    ...benchmarkResults.map((item) => ({ label: item.config.label, value: item.benchmark.balance }))
+  ];
+  const maxValue = Math.max(...valueItems.map((item) => item.value), 0);
+  valueItems.forEach((item) => appendSimpleBar(valueChart, item.label, item.value, maxValue));
+
+  const returnItems = [
+    { label: "Fonds", rate: fundXirrResult.rate },
+    ...benchmarkResults.map((item) => ({ label: item.config.label, rate: item.xirrResult.rate }))
+  ];
+  const minRate = Math.min(...returnItems.map((item) => item.rate), 0);
+  const maxRate = Math.max(...returnItems.map((item) => item.rate), 0);
+  returnItems.forEach((item) => appendReturnBar(returnChart, item.label, item.rate, minRate, maxRate));
+
+  comparisonChart.hidden = false;
 }
 
 [initialAmount, endValue, cashflowAmount, recurringAmount].forEach((input) => {
@@ -440,9 +543,20 @@ document.querySelector("[data-add-recurring]")?.addEventListener("click", () => 
   }
 });
 
+
+resetButton?.addEventListener("click", () => {
+  form?.reset();
+  cashflows = [];
+  nextCashflowId = 1;
+  renderCashflows();
+  clearCalculation();
+  purchaseDate?.focus();
+});
+
 form?.addEventListener("submit", async (event) => {
   event.preventDefault();
   clearCalculation();
+  const runRevision = calculationRevision;
   formatAmountInput(initialAmount);
   formatAmountInput(endValue);
 
@@ -451,9 +565,10 @@ form?.addEventListener("submit", async (event) => {
     const xirrResult = calculateXirr(calc.investorFlows);
     renderCoreResults(calc, xirrResult);
 
-    if (historicalCompare.value !== "none") {
-      try {
-        const { config, apiData } = await fetchBenchmarkRates(historicalCompare.value, calc.startDate, calc.finishDate);
+    const kinds = selectedBenchmarkKinds();
+    if (kinds.length) {
+      const settled = await Promise.allSettled(kinds.map(async (kind) => {
+        const { config, apiData } = await fetchBenchmarkRates(kind, calc.startDate, calc.finishDate);
         const expectedStartMonth = monthFromDate(calc.startDate);
         if (apiData.first_period > expectedStartMonth) {
           throw new Error(`ECB-Daten beginnen erst mit ${apiData.first_period}; benötigt wird ${expectedStartMonth}.`);
@@ -466,11 +581,25 @@ form?.addEventListener("submit", async (event) => {
           taxPercent: effectiveTaxPercent,
           seriesLabel: config.seriesLabel
         });
-        renderBenchmark(calc, config, apiData, benchmark, effectiveTaxPercent);
-      } catch (error) {
-        const label = BENCHMARKS[historicalCompare.value]?.label || "Historischer Vergleich";
-        showWarning(`Fondsrendite wurde berechnet. Vergleich „${label}“ nicht möglich: ${error.message || error}`);
-      }
+        return { kind, config, apiData, benchmark, effectiveTaxPercent };
+      }));
+
+      if (runRevision !== calculationRevision) return;
+
+      const rendered = [];
+      settled.forEach((result, index) => {
+        const kind = kinds[index];
+        if (result.status === "fulfilled") {
+          try {
+            rendered.push(renderBenchmark(calc, kind, result.value.config, result.value.apiData, result.value.benchmark, result.value.effectiveTaxPercent));
+          } catch (error) {
+            appendWarning(`Fondsrendite wurde berechnet. Effektivrendite für „${BENCHMARKS[kind]?.label || kind}“ nicht möglich: ${error.message || error}`);
+          }
+        } else {
+          appendWarning(`Fondsrendite wurde berechnet. Vergleich „${BENCHMARKS[kind]?.label || kind}“ nicht möglich: ${result.reason?.message || result.reason}`);
+        }
+      });
+      renderComparisonCharts(calc, xirrResult, rendered);
     }
   } catch (error) {
     showError(error.message || "Berechnung nicht möglich.");
