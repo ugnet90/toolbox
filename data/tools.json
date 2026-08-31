@@ -22,10 +22,19 @@
     {
       "id": "effective-interest",
       "title": "Effektivzins & Vergleich",
-      "description": "Netto-Rendite aus Ein- und Auszahlung, Laufzeit, KESt und Versicherungssteuer berechnen und mit einer Spareinlage vergleichen.",
+      "description": "Netto-Rendite aus Ein- und Auszahlung sowie Laufzeit berechnen und mit einer Spareinlage vergleichen.",
       "category": "Finanzen",
       "icon": "📈",
       "href": "effective_interest.html",
+      "status": "active"
+    },
+    {
+      "id": "fund-return",
+      "title": "Fondsrendite & Vergleich",
+      "description": "Datumsgenaue Rendite aus beliebigen Zahlungsströmen berechnen und optional mit historischen österreichischen Sparzinsen vergleichen.",
+      "category": "Finanzen",
+      "icon": "📊",
+      "href": "fund_return.html",
       "status": "active"
     }
   ]
