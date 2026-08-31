@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  applyKestExemption,
   calculateXirr,
   generateRecurringDates,
   initialInvestment,
@@ -49,12 +50,22 @@ const euriborBenchmark = simulateHistoricalRateBenchmark({
   cashflows: [{ date: "2020-01-01", amount: -1000 }],
   endDate: "2021-01-01",
   observations,
-  taxPercent: 0,
+  taxPercent: 25,
   seriesLabel: "3-Monats-Euribor-Daten"
 });
 assert.ok(Math.abs(euriborBenchmark.grossInterest - expectedGrossInterest) < 1e-6);
-assert.equal(euriborBenchmark.tax, 0);
-assert.ok(Math.abs(euriborBenchmark.balance - (1000 + expectedGrossInterest)) < 1e-6);
+assert.ok(Math.abs(euriborBenchmark.tax - expectedTax) < 1e-6);
+assert.ok(Math.abs(euriborBenchmark.balance - (1000 + expectedGrossInterest - expectedTax)) < 1e-6);
+
+const euriborExempt = simulateHistoricalRateBenchmark({
+  cashflows: [{ date: "2020-01-01", amount: -1000 }],
+  endDate: "2021-01-01",
+  observations,
+  taxPercent: 0,
+  seriesLabel: "3-Monats-Euribor-Daten"
+});
+assert.equal(euriborExempt.tax, 0);
+assert.ok(Math.abs(euriborExempt.balance - (1000 + expectedGrossInterest)) < 1e-6);
 
 const negativeBenchmark = simulateHistoricalRateBenchmark({
   cashflows: [{ date: "2020-01-01", amount: -1000 }],
@@ -106,5 +117,20 @@ assert.throws(
   }),
   /innerhalb der ECB-Datenreihe/
 );
+
+const kestFlows = [
+  { date: "2024-01-01", amount: -1000, type: "contribution" },
+  { date: "2024-06-01", amount: -75, type: "tax" },
+  { date: "2024-12-31", amount: 1200, type: "distribution" }
+];
+const notExempt = applyKestExemption(kestFlows, false);
+assert.equal(notExempt.cashflows.length, 3);
+assert.equal(notExempt.ignoredTaxCashflows.length, 0);
+
+const exempt = applyKestExemption(kestFlows, true);
+assert.equal(exempt.cashflows.length, 2);
+assert.equal(exempt.ignoredTaxCashflows.length, 1);
+assert.equal(exempt.ignoredTaxNet, -75);
+assert.ok(exempt.cashflows.every((flow) => flow.type !== "tax"));
 
 console.log("OK: fund return utils");
