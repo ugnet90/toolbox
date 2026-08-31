@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Informationen zur Toolbox, ihrem Aufbau, Datenschutz und den verwendeten Datenquellen.">
+  <link rel="icon" href="assets/favicon/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon/favicon-48x48.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="assets/favicon/site.webmanifest">
+  <meta name="theme-color" content="#316880">
+  <title>Toolbox – Über die Toolbox</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/navigation.css">
+  <link rel="stylesheet" href="css/about.css">
+</head>
+<body>
+  <div data-site-header></div>
+
+  <main>
+    <nav class="breadcrumbs" aria-label="Breadcrumb" data-breadcrumbs></nav>
+
+    <header class="page-heading page-heading--compact-mobile">
+      <p class="page-heading__eyebrow">Übersicht</p>
+      <h1>Über die Toolbox</h1>
+      <p>Hintergrundinformationen zur Sammlung, zum Datenschutz und zu externen Datenquellen.</p>
+    </header>
+
+    <div class="about-grid">
+      <section class="panel about-card">
+        <div class="panel__header">
+          <h2>Direkt im Browser</h2>
+        </div>
+        <div class="panel__body">
+          <p>Die Toolbox ist eine wachsende Sammlung kleiner Rechen- und Alltagstools. Sie ist ohne Installation über GitHub Pages auf Desktop und mobilen Geräten nutzbar.</p>
+        </div>
+      </section>
+
+      <section class="panel about-card">
+        <div class="panel__header">
+          <h2>Datenschutz</h2>
+        </div>
+        <div class="panel__body">
+          <p>Eingegebene Rechenwerte werden grundsätzlich lokal im Browser verarbeitet und nicht gespeichert. Einzelne Tools können öffentliche externe Daten laden; das wird auf der jeweiligen Rechnerseite ausdrücklich angegeben.</p>
+        </div>
+      </section>
+
+      <section class="panel about-card">
+        <div class="panel__header">
+          <h2>Live-Daten</h2>
+        </div>
+        <div class="panel__body">
+          <p>Der Bundesschatz-Vergleich lädt aktuelle öffentliche Konditionen über einen schlanken Cloudflare-Worker-Proxy. Der Proxy speichert keine Zinssätze und enthält keine feste Laufzeitenliste.</p>
+        </div>
+      </section>
+
+      <section class="panel about-card">
+        <div class="panel__header">
+          <h2>Version</h2>
+        </div>
+        <div class="panel__body">
+          <p><strong>Toolbox v0.3.0</strong></p>
+          <p class="about-muted">Dashboard-Erklärungen ausgelagert, manueller Bundesschatz-Fallback und Effektivzins-Vergleich ergänzt.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">Toolbox · v0.3.0</footer>
+
+  <script type="module" src="js/navigation.js"></script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Effektivzins und Netto-Rendite aus Einzahlungsbetrag, Auszahlungsbetrag, Laufzeit, KESt und Versicherungssteuer berechnen.">
+  <link rel="icon" href="assets/favicon/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon/favicon-48x48.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="assets/favicon/site.webmanifest">
+  <meta name="theme-color" content="#316880">
+  <title>Toolbox – Effektivzins & Vergleich</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/navigation.css">
+  <link rel="stylesheet" href="css/effective-interest.css">
+</head>
+<body>
+  <div data-site-header></div>
+
+  <main>
+    <nav class="breadcrumbs" aria-label="Breadcrumb" data-breadcrumbs></nav>
+
+    <header class="page-heading page-heading--compact-mobile">
+      <p class="page-heading__eyebrow">Finanzen</p>
+      <h1>Effektivzins & Vergleich</h1>
+      <p>Netto-Rendite einer Einmalanlage inklusive Steuerwirkung berechnen und mit einer österreichischen Spareinlage vergleichen.</p>
+    </header>
+
+    <section class="panel effective-panel">
+      <div class="panel__header">
+        <h2>Anlage erfassen</h2>
+        <p>Der Einzahlungsbetrag ist der Anlage- bzw. Einmalerlagsbetrag vor einer allfälligen Versicherungssteuer.</p>
+      </div>
+      <div class="panel__body">
+        <form class="effective-form" data-effective-form>
+          <div class="effective-form__money">
+            <div class="field">
+              <label for="depositAmount">Einzahlungsbetrag</label>
+              <input id="depositAmount" name="depositAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 100000" required>
+            </div>
+            <div class="field">
+              <label for="payoutAmount">Auszahlungsbetrag</label>
+              <input id="payoutAmount" name="payoutAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 120000" required>
+            </div>
+          </div>
+
+          <div class="effective-form__term">
+            <div class="field">
+              <label for="termValue">Laufzeit</label>
+              <input id="termValue" name="termValue" type="number" inputmode="numeric" min="1" step="1" value="10" required>
+            </div>
+            <div class="field">
+              <label for="termUnit">Einheit</label>
+              <select id="termUnit" name="termUnit">
+                <option value="D">Tage</option>
+                <option value="M">Monate</option>
+                <option value="Y" selected>Jahre</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="effective-form__taxes">
+            <div class="field">
+              <label for="kestFree">KESt-frei</label>
+              <select id="kestFree" name="kestFree">
+                <option value="yes" selected>Ja</option>
+                <option value="no">Nein – 27,5 % KESt</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="insuranceTax">Versicherungssteuer</label>
+              <select id="insuranceTax" name="insuranceTax">
+                <option value="0" selected>0 %</option>
+                <option value="4">4 %</option>
+                <option value="11">11 %</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="primary-button" type="submit">Effektivzins berechnen</button>
+          <p class="form-message form-message--error" data-effective-error hidden></p>
+        </form>
+
+        <div class="effective-results" data-effective-results hidden aria-live="polite">
+          <div class="effective-result-card effective-result-card--primary">
+            <span class="effective-result-card__label">Netto-Effektivzins</span>
+            <strong class="effective-result-card__value" data-effective-rate></strong>
+            <span class="effective-result-card__meta">pro Jahr</span>
+          </div>
+          <div class="effective-result-card">
+            <span class="effective-result-card__label">Netto-Rendite gesamt</span>
+            <strong class="effective-result-card__value" data-total-return></strong>
+            <span class="effective-result-card__meta">über die gesamte Laufzeit</span>
+          </div>
+          <div class="effective-result-card effective-result-card--bank">
+            <span class="effective-result-card__label">Vergleichbare Spareinlage</span>
+            <strong class="effective-result-card__value" data-bank-rate></strong>
+            <span class="effective-result-card__meta">Brutto p.a. · 25 % KESt</span>
+          </div>
+        </div>
+
+        <details class="comparison-details" data-effective-details hidden>
+          <summary>Berechnungsdetails</summary>
+          <div class="detail-grid">
+            <div class="detail-item"><span class="detail-item__label">Versicherungssteuer</span><span class="detail-item__value" data-insurance-tax-amount></span></div>
+            <div class="detail-item"><span class="detail-item__label">Gesamter Kapitaleinsatz</span><span class="detail-item__value" data-total-outlay></span></div>
+            <div class="detail-item"><span class="detail-item__label">KESt</span><span class="detail-item__value" data-kest-amount></span></div>
+            <div class="detail-item"><span class="detail-item__label">Netto-Auszahlung</span><span class="detail-item__value" data-net-payout></span></div>
+            <div class="detail-item"><span class="detail-item__label">Vergleichsstart</span><span class="detail-item__value" data-start-date></span></div>
+            <div class="detail-item"><span class="detail-item__label">Laufzeitende</span><span class="detail-item__value" data-end-date></span></div>
+            <div class="detail-item"><span class="detail-item__label">Spareinlagen-Zinssatz rechnerisch</span><span class="detail-item__value" data-bank-rate-exact></span></div>
+          </div>
+          <p class="method-note">Annahme: Die Versicherungssteuer wird zusätzlich zum eingegebenen Einzahlungsbetrag bezahlt. Bei „KESt-frei = Nein“ werden 27,5 % auf einen positiven Ertrag aus Auszahlungsbetrag minus Einzahlungsbetrag angesetzt. Der Spareinlagen-Vergleich verwendet 25 % KESt, 30/360 und einen Jahresabschluss zum Kalenderjahresende. Gebühren und sonstige Kosten sind nur insoweit berücksichtigt, wie sie bereits im Auszahlungsbetrag enthalten sind.</p>
+          <div class="source-links">
+            <a href="https://www.bmf.gv.at/themen/steuern/sparen-veranlagen/besteuerung-kapitalertraege-inland.html" target="_blank" rel="noopener noreferrer">BMF: KESt-Sätze</a>
+            <a href="https://www.bmf.gv.at/themen/steuern/sparen-veranlagen/lebensversicherungen.html" target="_blank" rel="noopener noreferrer">BMF: Lebensversicherungen</a>
+            <a href="https://www.ris.bka.gv.at/NormDokument.wxe?Abfrage=Bundesnormen&Gesetzesnummer=10003834&Paragraf=5" target="_blank" rel="noopener noreferrer">RIS: Versicherungssteuer</a>
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">Toolbox · v0.3.0</footer>
+
+  <script type="module" src="js/navigation.js"></script>
+  <script type="module" src="js/effective-interest.js"></script>
+</body>
+</html>

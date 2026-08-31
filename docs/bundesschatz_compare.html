@@ -46,6 +46,38 @@
           <button class="retry-button" type="button" data-retry hidden>Erneut laden</button>
         </form>
 
+        <form class="manual-form" data-manual-form hidden>
+          <div class="manual-form__heading">
+            <h3>Bundesschatz manuell erfassen</h3>
+            <p>Falls die Live-Daten nicht verfügbar sind, können Laufzeit und Zinssatz hier selbst eingetragen werden.</p>
+          </div>
+          <div class="manual-form__grid">
+            <div class="field">
+              <label for="manualValueDate">Valuta</label>
+              <input id="manualValueDate" name="valueDate" type="date" required>
+            </div>
+            <div class="field">
+              <label for="manualTermValue">Laufzeit</label>
+              <input id="manualTermValue" name="termValue" type="number" min="1" step="1" value="12" required>
+            </div>
+            <div class="field">
+              <label for="manualTermUnit">Einheit</label>
+              <select id="manualTermUnit" name="termUnit">
+                <option value="D">Tage</option>
+                <option value="W">Wochen</option>
+                <option value="M" selected>Monate</option>
+                <option value="Y">Jahre</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="manualInterestRate">Zinssatz p.a.</label>
+              <input id="manualInterestRate" name="interestRate" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 2,60" required>
+            </div>
+          </div>
+          <button class="primary-button" type="submit">Manuellen Vergleich berechnen</button>
+          <p class="form-message form-message--error" data-manual-error hidden></p>
+        </form>
+
         <div class="comparison-result" data-comparison-result hidden aria-live="polite">
           <div class="rate-card">
             <span class="rate-card__label" data-product-kind>Bundesschatz</span>
@@ -95,7 +127,7 @@
     </section>
   </main>
 
-  <footer class="site-footer">Toolbox · v0.2.1</footer>
+  <footer class="site-footer">Toolbox · v0.3.0</footer>
 
   <script type="module" src="js/navigation.js"></script>
   <script type="module" src="js/bundesschatz-compare.js"></script>
