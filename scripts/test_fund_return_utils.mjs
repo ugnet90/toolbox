@@ -57,4 +57,32 @@ assert.throws(
   /ins Minus/
 );
 
+const trailingObservations = [
+  { period: "2020-01", rate: 6 },
+  { period: "2020-02", rate: 12 }
+];
+const carriedSavings = simulateHistoricalSavings({
+  cashflows: [{ date: "2020-01-01", amount: -1000 }],
+  endDate: "2020-04-01",
+  observations: trailingObservations,
+  taxPercent: 25
+});
+assert.equal(carriedSavings.rateCoverage.carriedForward, true);
+assert.equal(carriedSavings.rateCoverage.lastOfficialPeriod, "2020-02");
+assert.equal(carriedSavings.rateCoverage.requiredEndPeriod, "2020-04");
+assert.equal(carriedSavings.rateCoverage.carriedRate, 12);
+
+assert.throws(
+  () => simulateHistoricalSavings({
+    cashflows: [{ date: "2020-01-01", amount: -1000 }],
+    endDate: "2020-04-01",
+    observations: [
+      { period: "2020-01", rate: 6 },
+      { period: "2020-03", rate: 12 }
+    ],
+    taxPercent: 25
+  }),
+  /innerhalb der ECB-Datenreihe/
+);
+
 console.log("OK: fund return utils");
