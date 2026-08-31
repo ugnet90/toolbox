@@ -1,6 +1,6 @@
 # Toolbox
 
-**Version:** 0.3.2
+**Version:** 0.3.3
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -44,6 +44,14 @@ Bei **Brutto-Auszahlung** werden zusätzlich eingeblendet:
 Eine Versicherungssteuer ist im Einzahlungsbetrag enthalten und wird bei Brutto-Berechnung durch Division durch 1,04 bzw. 1,11 herausgerechnet. KESt wird auf einen positiven Ertrag gegenüber dem netto veranlagten Betrag gerechnet. Bei Versicherungssteuer > 0 % zusammen mit KESt > 0 % erscheint ein Plausibilitätshinweis.
 
 Ausgegeben werden Netto-Gesamtrendite, annualisierter Netto-Effektivzins und der Bruttozinssatz einer österreichischen Spareinlage, die nach 25 % KESt bei gleichem tatsächlichem Einzahlungsbetrag denselben Netto-Endbetrag erreicht. Der angezeigte Vergleichszinssatz wird kaufmännisch auf zwei Nachkommastellen gerundet; der exakte Rechenwert bleibt in den Berechnungsdetails sichtbar. Betragsfelder werden beim Verlassen im österreichischen Zahlenformat formatiert.
+
+## Änderungen in Version 0.3.3
+
+- Betragsfelder verwenden nun unabhängig vom Browser das Format `110.000,00`.
+- Laufzeit-Eingabe und Einheit-Dropdown sind mobil gleich hoch.
+- Steuerfelder sind bei Netto-Auszahlung vollständig unsichtbar.
+- Bei Brutto-Auszahlung stehen KESt und Versicherungssteuer am Desktop rechts neben dem Auszahlungsmodus; mobil bleiben beide Steuersätze nebeneinander.
+- Allgemeiner Hinweis auf mögliche Abweichungen durch Gebühren, Steuerregeln, Rundungen und Produktbesonderheiten ergänzt.
 
 ## Änderungen in Version 0.3.2
 
@@ -167,4 +175,4 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 Die Projektversion steht in `VERSION` und zusätzlich in den Seiten-Footern.
 
-Aktuelle Version: **0.3.2**
+Aktuelle Version: **0.3.3**
