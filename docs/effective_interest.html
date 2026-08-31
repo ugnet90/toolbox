@@ -61,30 +61,32 @@
             </div>
           </div>
 
-          <div class="field effective-form__payout-mode">
-            <label for="payoutMode">Auszahlungsbetrag ist</label>
-            <select id="payoutMode" name="payoutMode">
-              <option value="net" selected>Netto – bereits nach Steuern</option>
-              <option value="gross">Brutto – vor KESt</option>
-            </select>
-          </div>
-
-          <div class="effective-form__taxes" data-tax-fields hidden>
-            <div class="field">
-              <label for="kestRate">KESt-Satz</label>
-              <select id="kestRate" name="kestRate" disabled>
-                <option value="0" selected>0 %</option>
-                <option value="25">25 %</option>
-                <option value="27.5">27,5 %</option>
+          <div class="effective-form__payout-settings">
+            <div class="field effective-form__payout-mode">
+              <label for="payoutMode">Auszahlungsbetrag ist</label>
+              <select id="payoutMode" name="payoutMode">
+                <option value="net" selected>Netto – bereits nach Steuern</option>
+                <option value="gross">Brutto – vor KESt</option>
               </select>
             </div>
-            <div class="field">
-              <label for="insuranceTax">Versicherungssteuer</label>
-              <select id="insuranceTax" name="insuranceTax" disabled>
-                <option value="0" selected>0 %</option>
-                <option value="4">4 %</option>
-                <option value="11">11 %</option>
-              </select>
+
+            <div class="effective-form__taxes" data-tax-fields hidden>
+              <div class="field">
+                <label for="kestRate">KESt-Satz</label>
+                <select id="kestRate" name="kestRate" disabled>
+                  <option value="0" selected>0 %</option>
+                  <option value="25">25 %</option>
+                  <option value="27.5">27,5 %</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="insuranceTax">Versicherungssteuer</label>
+                <select id="insuranceTax" name="insuranceTax" disabled>
+                  <option value="0" selected>0 %</option>
+                  <option value="4">4 %</option>
+                  <option value="11">11 %</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -133,11 +135,15 @@
             <a href="https://www.ris.bka.gv.at/NormDokument.wxe?Abfrage=Bundesnormen&Gesetzesnummer=10003834&Paragraf=5" target="_blank" rel="noopener noreferrer">RIS: Versicherungssteuer</a>
           </div>
         </details>
+
+        <aside class="effective-general-note" aria-label="Hinweis zur Berechnung">
+          <strong>Hinweis:</strong> Die Ergebnisse sind eine mathematische Vergleichsrechnung. Gebühren, abweichende Steuerregeln, Zahlungszeitpunkte, Rundungen und produktspezifische Besonderheiten können das tatsächliche Ergebnis verändern. Maßgeblich sind die jeweiligen Produkt- und Steuerunterlagen.
+        </aside>
       </div>
     </section>
   </main>
 
-  <footer class="site-footer">Toolbox · v0.3.2</footer>
+  <footer class="site-footer">Toolbox · v0.3.3</footer>
 
   <script type="module" src="js/navigation.js"></script>
   <script type="module" src="js/effective-interest.js"></script>
