@@ -252,8 +252,19 @@ export function simulateHistoricalSavings({ cashflows, endDate, observations, ta
   if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate >= 1) throw new Error("Ungültiger KESt-Satz für den Vergleich.");
 
   const rates = rateMapFromObservations(observations);
+  const ratePeriods = [...rates.keys()].sort();
+  if (!ratePeriods.length) throw new Error("Keine historischen Spareinlagen-Zinsen verfügbar.");
+
+  const firstOfficialPeriod = ratePeriods[0];
+  const lastOfficialPeriod = ratePeriods[ratePeriods.length - 1];
+  const lastOfficialRate = rates.get(lastOfficialPeriod);
   const startDate = flows[0].date;
+  const requiredStartPeriod = monthKey(startDate);
+  const requiredEndPeriod = monthKey(endDate);
   if (startDate > endDate) throw new Error("Das Vergleichsende liegt vor dem ersten Zahlungsstrom.");
+  if (firstOfficialPeriod > requiredStartPeriod) {
+    throw new Error(`ECB-Daten beginnen erst mit ${firstOfficialPeriod}; benötigt wird ${requiredStartPeriod}.`);
+  }
 
   let cursor = parseIsoDate(startDate);
   const end = parseIsoDate(endDate);
@@ -261,6 +272,9 @@ export function simulateHistoricalSavings({ cashflows, endDate, observations, ta
   let accruedGrossInterest = 0;
   let totalGrossInterest = 0;
   let totalTax = 0;
+  let carriedForward = false;
+  let carriedForwardFrom = null;
+  let carriedForwardThrough = null;
 
   function creditInterest() {
     if (Math.abs(accruedGrossInterest) < 1e-12) return;
@@ -270,6 +284,17 @@ export function simulateHistoricalSavings({ cashflows, endDate, observations, ta
     totalGrossInterest += accruedGrossInterest;
     totalTax += tax;
     accruedGrossInterest = 0;
+  }
+
+  function rateForPeriod(key) {
+    if (rates.has(key)) return rates.get(key);
+    if (key > lastOfficialPeriod) {
+      carriedForward = true;
+      carriedForwardFrom = lastOfficialPeriod;
+      carriedForwardThrough = key;
+      return lastOfficialRate;
+    }
+    throw new Error(`Für ${key} fehlen historische Spareinlagen-Zinsen innerhalb der ECB-Datenreihe.`);
   }
 
   function accrueUntil(targetDate) {
@@ -282,10 +307,7 @@ export function simulateHistoricalSavings({ cashflows, endDate, observations, ta
       if (yearBoundary < stop) stop = yearBoundary;
 
       const key = `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, "0")}`;
-      if (!rates.has(key)) {
-        throw new Error(`Für ${key} fehlen historische Spareinlagen-Zinsen.`);
-      }
-      const annualRate = rates.get(key) / 100;
+      const annualRate = rateForPeriod(key) / 100;
       const days = Math.round((stop - cursor) / MS_PER_DAY);
       accruedGrossInterest += balance * annualRate * (days / 365);
       cursor = stop;
@@ -316,7 +338,16 @@ export function simulateHistoricalSavings({ cashflows, endDate, observations, ta
     tax: totalTax,
     startDate,
     endDate,
-    taxRate
+    taxRate,
+    rateCoverage: {
+      firstOfficialPeriod,
+      lastOfficialPeriod,
+      requiredEndPeriod,
+      carriedForward,
+      carriedForwardFrom,
+      carriedForwardThrough: carriedForward ? requiredEndPeriod : null,
+      carriedRate: carriedForward ? lastOfficialRate : null
+    }
   };
 }
 

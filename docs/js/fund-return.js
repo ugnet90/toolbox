@@ -248,16 +248,26 @@ function renderCoreResults(calc, xirrResult) {
 
 function renderSavings(calc, apiData, savings) {
   const difference = calc.terminalValue - savings.balance;
+  const coverage = savings.rateCoverage;
   nodes.savingsValue.textContent = currency.format(savings.balance);
   nodes.savingsDifference.textContent = `${difference >= 0 ? "+" : ""}${currency.format(difference)}`;
   nodes.savingsInterest.textContent = currency.format(savings.grossInterest);
   nodes.savingsTax.textContent = currency.format(savings.tax);
-  nodes.rateCoverage.textContent = `${apiData.first_period} bis ${apiData.last_period}`;
+
+  if (coverage?.carriedForward) {
+    nodes.rateCoverage.textContent = `${coverage.firstOfficialPeriod} bis ${coverage.lastOfficialPeriod}; ab ${coverage.lastOfficialPeriod} mit ${percent.format(coverage.carriedRate)} % p.a. bis ${coverage.requiredEndPeriod} fortgeführt`;
+    showWarning(`Hinweis: Offizielle ECB-Zinsdaten sind nur bis ${coverage.lastOfficialPeriod} verfügbar. Für die Zeit danach bis ${coverage.requiredEndPeriod} wurde der zuletzt verfügbare Zinssatz von ${percent.format(coverage.carriedRate)} % p.a. unverändert fortgeführt.`);
+  } else {
+    nodes.rateCoverage.textContent = `${apiData.first_period} bis ${apiData.last_period}`;
+  }
 
   savingsCard.hidden = false;
   savingsDiffCard.hidden = false;
   savingsDetailNodes.forEach((node) => { node.hidden = false; });
   nodes.method.textContent += " Der historische Sparvergleich verwendet die monatliche ECB-MIR-Serie für täglich fällige österreichische Haushaltseinlagen. Der jeweilige Jahreszinssatz wird taggenau (act/365) auf das alternative Sparguthaben angewendet; positive Zinsen werden zum Jahresende bzw. Vergleichsende mit 25 % KESt belastet.";
+  if (coverage?.carriedForward) {
+    nodes.method.textContent += ` Nach dem letzten verfügbaren ECB-Monat ${coverage.lastOfficialPeriod} wird dessen Zinssatz unverändert bis zum Vergleichsende fortgeschrieben.`;
+  }
 }
 
 [initialAmount, endValue, cashflowAmount, recurringAmount].forEach((input) => {
@@ -360,9 +370,8 @@ form?.addEventListener("submit", async (event) => {
       try {
         const apiData = await fetchSavingsRates(calc.startDate, calc.finishDate);
         const expectedStartMonth = monthFromDate(calc.startDate);
-        const expectedEndMonth = monthFromDate(calc.finishDate);
-        if (apiData.first_period > expectedStartMonth || apiData.last_period < expectedEndMonth) {
-          throw new Error(`ECB-Daten decken den Zeitraum nicht vollständig ab (${apiData.first_period} bis ${apiData.last_period}).`);
+        if (apiData.first_period > expectedStartMonth) {
+          throw new Error(`ECB-Daten beginnen erst mit ${apiData.first_period}; benötigt wird ${expectedStartMonth}.`);
         }
         const savings = simulateHistoricalSavings({
           cashflows: calc.benchmarkFlows,
