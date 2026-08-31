@@ -9,7 +9,7 @@ import {
   productsForValueDate
 } from "./bundesschatz-utils.js";
 
-const API_URL = "https://www.bundesschatz.at/customer-backend/api/public-products";
+const API_URL = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev/bundesschatz";
 
 const state = {
   products: [],
@@ -123,14 +123,14 @@ async function loadProducts() {
     populateProducts(products);
     setStatus(
       "success",
-      `${products.length} aktuelle${products.length === 1 ? "s" : ""} Angebot${products.length === 1 ? "" : "e"} für Geldeingang am ${formatIsoDate(valueDate)} direkt von Bundesschatz geladen.`
+      `${products.length} aktuelle${products.length === 1 ? "s" : ""} Angebot${products.length === 1 ? "" : "e"} für Geldeingang am ${formatIsoDate(valueDate)} von Bundesschatz geladen.`
     );
     renderSelected();
   } catch (error) {
     console.error(error);
     setStatus(
       "error",
-      "Die aktuellen Bundesschatz-Konditionen konnten nicht direkt geladen werden. Es werden keine veralteten Ersatzwerte verwendet."
+      "Die aktuellen Bundesschatz-Konditionen konnten nicht geladen werden. Es werden keine veralteten Ersatzwerte verwendet."
     );
     elements.select.innerHTML = '<option value="">Keine Live-Daten verfügbar</option>';
     elements.select.disabled = true;
