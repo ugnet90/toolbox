@@ -1,22 +1,32 @@
 import {
-  ceilPercentToHundredth,
   formatIsoDate,
   viennaDateTimeParts
 } from "./bundesschatz-utils.js";
-import { calculateEffectiveInterest } from "./effective-interest-utils.js";
+import {
+  calculateEffectiveInterest,
+  commercialRoundPercent
+} from "./effective-interest-utils.js";
 
 const form = document.querySelector("[data-effective-form]");
 const errorNode = document.querySelector("[data-effective-error]");
 const warningNode = document.querySelector("[data-tax-warning]");
 const resultsNode = document.querySelector("[data-effective-results]");
 const detailsNode = document.querySelector("[data-effective-details]");
+const taxFieldsNode = document.querySelector("[data-tax-fields]");
+const taxDetailNodes = [...document.querySelectorAll("[data-tax-detail]")];
 const insuranceTaxSelect = document.querySelector("#insuranceTax");
 const kestRateSelect = document.querySelector("#kestRate");
+const payoutModeSelect = document.querySelector("#payoutMode");
+const depositInput = document.querySelector("#depositAmount");
+const payoutInput = document.querySelector("#payoutAmount");
+const methodNote = document.querySelector("[data-method-note]");
 
 const nodes = {
   effectiveRate: document.querySelector("[data-effective-rate]"),
   totalReturn: document.querySelector("[data-total-return]"),
   bankRate: document.querySelector("[data-bank-rate]"),
+  payoutMode: document.querySelector("[data-payout-mode]"),
+  deposit: document.querySelector("[data-deposit]"),
   insuranceTaxAmount: document.querySelector("[data-insurance-tax-amount]"),
   netInvestment: document.querySelector("[data-net-investment]"),
   kestRate: document.querySelector("[data-kest-rate]"),
@@ -30,6 +40,12 @@ const nodes = {
 const currency = new Intl.NumberFormat("de-AT", {
   style: "currency",
   currency: "EUR",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
+const amountFormat = new Intl.NumberFormat("de-AT", {
+  useGrouping: true,
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
 });
@@ -66,6 +82,12 @@ function parseAmount(value) {
   return Number(normalized);
 }
 
+function formatAmountInput(input) {
+  if (!input || !input.value.trim()) return;
+  const value = parseAmount(input.value);
+  if (Number.isFinite(value)) input.value = amountFormat.format(value);
+}
+
 function clearCalculation() {
   if (errorNode) {
     errorNode.textContent = "";
@@ -79,10 +101,29 @@ function clearCalculation() {
   outputNodes.forEach((node) => {
     node.textContent = "";
   });
+  if (methodNote) methodNote.textContent = "";
+}
+
+function isGrossMode() {
+  return payoutModeSelect?.value === "gross";
+}
+
+function updateTaxFields() {
+  const gross = isGrossMode();
+  if (taxFieldsNode) taxFieldsNode.hidden = !gross;
+  if (kestRateSelect) kestRateSelect.disabled = !gross;
+  if (insuranceTaxSelect) insuranceTaxSelect.disabled = !gross;
+  updateTaxWarning();
 }
 
 function updateTaxWarning() {
   if (!warningNode) return;
+  if (!isGrossMode()) {
+    warningNode.hidden = true;
+    warningNode.textContent = "";
+    return;
+  }
+
   const insuranceTax = Number(insuranceTaxSelect?.value ?? 0);
   const kest = Number(kestRateSelect?.value ?? 0);
   const unusualCombination = insuranceTax > 0 && kest > 0;
@@ -108,11 +149,13 @@ function render(result) {
     nodes.bankRate.textContent = "≤ 0,00 % p.a.";
     nodes.bankRateExact.textContent = "Kein positiver Spareinlagen-Zinssatz erforderlich.";
   } else {
-    const displayRate = ceilPercentToHundredth(result.bankRate);
+    const displayRate = commercialRoundPercent(result.bankRate);
     nodes.bankRate.textContent = `${percent.format(displayRate)} % p.a.`;
     nodes.bankRateExact.textContent = `${exactPercent.format(result.bankRate * 100)} % p.a.`;
   }
 
+  nodes.payoutMode.textContent = result.payoutMode === "gross" ? "Brutto" : "Netto";
+  nodes.deposit.textContent = currency.format(result.deposit);
   nodes.insuranceTaxAmount.textContent = currency.format(result.insuranceTaxAmount);
   nodes.netInvestment.textContent = currency.format(result.netInvestment);
   nodes.kestRate.textContent = `${percent.format(result.kestRate * 100)} %`;
@@ -121,6 +164,17 @@ function render(result) {
   nodes.startDate.textContent = formatIsoDate(result.startDate);
   nodes.endDate.textContent = formatIsoDate(result.endDate);
 
+  const showTaxDetails = result.payoutMode === "gross";
+  taxDetailNodes.forEach((node) => {
+    node.hidden = !showTaxDetails;
+  });
+
+  if (methodNote) {
+    methodNote.textContent = showTaxDetails
+      ? "Bei Brutto-Auszahlung wird eine allfällige Versicherungssteuer aus dem tatsächlich bezahlten Einzahlungsbetrag herausgerechnet. KESt wird auf einen positiven Ertrag gegenüber dem netto veranlagten Betrag angewendet. Für Rendite und Spareinlagen-Vergleich zählt anschließend die tatsächliche Netto-Auszahlung."
+      : "Bei Netto-Auszahlung werden KESt und Versicherungssteuer nicht benötigt: Für Rendite und Spareinlagen-Vergleich werden ausschließlich der tatsächlich bezahlte Einzahlungsbetrag und die bereits netto vorliegende Auszahlung verwendet.";
+  }
+
   errorNode.hidden = true;
   resultsNode.hidden = false;
   detailsNode.hidden = false;
@@ -128,26 +182,35 @@ function render(result) {
 
 function handleInputChange() {
   clearCalculation();
-  updateTaxWarning();
+  updateTaxFields();
 }
 
 form?.addEventListener("input", handleInputChange);
 form?.addEventListener("change", handleInputChange);
 
+[depositInput, payoutInput].forEach((input) => {
+  input?.addEventListener("blur", () => formatAmountInput(input));
+});
+
 form?.addEventListener("submit", (event) => {
   event.preventDefault();
   clearCalculation();
-  updateTaxWarning();
+  updateTaxFields();
+  formatAmountInput(depositInput);
+  formatAmountInput(payoutInput);
 
   const data = new FormData(form);
+  const gross = isGrossMode();
+
   try {
     const result = calculateEffectiveInterest({
-      depositAmount: parseAmount(data.get("depositAmount")),
-      payoutAmount: parseAmount(data.get("payoutAmount")),
+      depositAmount: parseAmount(depositInput?.value),
+      payoutAmount: parseAmount(payoutInput?.value),
+      payoutMode: gross ? "gross" : "net",
       termValue: Number(data.get("termValue")),
       termUnit: String(data.get("termUnit")),
-      kestPercent: Number(data.get("kestRate")),
-      insuranceTaxPercent: Number(data.get("insuranceTax")),
+      kestPercent: gross ? Number(data.get("kestRate")) : 0,
+      insuranceTaxPercent: gross ? Number(data.get("insuranceTax")) : 0,
       startDate: viennaDateTimeParts().date
     });
     render(result);
@@ -156,4 +219,4 @@ form?.addEventListener("submit", (event) => {
   }
 });
 
-updateTaxWarning();
+updateTaxFields();
