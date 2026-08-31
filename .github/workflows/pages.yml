@@ -41,6 +41,9 @@ jobs:
       - name: Test effective interest calculations
         run: node scripts/test_effective_interest_utils.mjs
 
+      - name: Test fund return calculations
+        run: node scripts/test_fund_return_utils.mjs
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
