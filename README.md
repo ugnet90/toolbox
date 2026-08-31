@@ -1,6 +1,6 @@
 # Toolbox
 
-**Version:** 0.3.1
+**Version:** 0.3.2
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -30,21 +30,31 @@ Kann der Live-Abruf nicht durchgeführt werden, erscheint automatisch eine manue
 Eingaben:
 
 - tatsächlich bezahlter Einzahlungsbetrag,
-- bereits netto vorliegender Auszahlungsbetrag,
-- Laufzeit in Tagen, Monaten oder Jahren,
+- Auszahlungsbetrag,
+- Auswahl, ob der Auszahlungsbetrag netto oder brutto vor KESt vorliegt,
+- Laufzeit in Tagen, Monaten oder Jahren.
+
+Bei **Netto-Auszahlung** werden keine Steuerangaben benötigt. Die Rendite wird ausschließlich aus dem tatsächlichen Einzahlungsbetrag und der bereits netto vorliegenden Auszahlung ermittelt.
+
+Bei **Brutto-Auszahlung** werden zusätzlich eingeblendet:
+
 - KESt-Satz: 0 %, 25 % oder 27,5 %,
 - Versicherungssteuer: 0 %, 4 % oder 11 %.
 
-Berechnet werden:
+Eine Versicherungssteuer ist im Einzahlungsbetrag enthalten und wird bei Brutto-Berechnung durch Division durch 1,04 bzw. 1,11 herausgerechnet. KESt wird auf einen positiven Ertrag gegenüber dem netto veranlagten Betrag gerechnet. Bei Versicherungssteuer > 0 % zusammen mit KESt > 0 % erscheint ein Plausibilitätshinweis.
 
-- bei Versicherungssteuer der daraus resultierende netto veranlagte Betrag (`Einzahlung / 1,04` bzw. `/ 1,11`),
-- Versicherungssteueranteil im Einzahlungsbetrag,
-- Netto-Rendite über die gesamte Laufzeit aus Kundensicht,
-- annualisierter Netto-Effektivzins,
-- rechnerisch bereits in der Netto-Auszahlung enthaltene KESt,
-- Bruttozinssatz einer österreichischen Spareinlage, die nach 25 % KESt bei gleichem tatsächlichem Einzahlungsbetrag denselben Netto-Endbetrag erreicht.
+Ausgegeben werden Netto-Gesamtrendite, annualisierter Netto-Effektivzins und der Bruttozinssatz einer österreichischen Spareinlage, die nach 25 % KESt bei gleichem tatsächlichem Einzahlungsbetrag denselben Netto-Endbetrag erreicht. Der angezeigte Vergleichszinssatz wird kaufmännisch auf zwei Nachkommastellen gerundet; der exakte Rechenwert bleibt in den Berechnungsdetails sichtbar. Betragsfelder werden beim Verlassen im österreichischen Zahlenformat formatiert.
 
-Der Auszahlungsbetrag wird nicht nochmals um KESt vermindert. Bei einer Kombination aus Versicherungssteuer > 0 % und KESt > 0 % zeigt der Rechner einen Plausibilitätshinweis, lässt die Berechnung aber zu. Sobald eine Eingabe geändert wird, wird ein vorhandenes Ergebnis gelöscht und erst nach erneutem Klick auf **Effektivzins berechnen** wieder angezeigt.
+## Änderungen in Version 0.3.2
+
+- Netto-/Brutto-Auswahl für den Auszahlungsbetrag ergänzt.
+- Steuerfelder bei Netto-Auszahlung vollständig ausgeblendet und rechnerisch ignoriert.
+- KESt und Versicherungssteuer werden nur bei Brutto-Auszahlung berücksichtigt.
+- Vergleichszinssatz wird kaufmännisch auf zwei Nachkommastellen gerundet.
+- Betragsfelder werden beim Verlassen als österreichische Beträge formatiert.
+- Eingabe- und Auswahlfelder am Desktop kompakter gestaltet.
+- KESt- und Versicherungssteuer-Dropdowns bleiben mobil nebeneinander.
+- bestehende Ergebnisse werden weiterhin bei jeder Eingabeänderung gelöscht.
 
 ## Änderungen in Version 0.3.1
 
@@ -157,4 +167,4 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 Die Projektversion steht in `VERSION` und zusätzlich in den Seiten-Footern.
 
-Aktuelle Version: **0.3.1**
+Aktuelle Version: **0.3.2**
