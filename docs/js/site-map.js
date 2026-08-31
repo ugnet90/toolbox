@@ -1,3 +1,5 @@
+export const SITE_VERSION = "0.4.0";
+
 export const SITE_MAP = {
   dashboard: {
     label: "Dashboard",
@@ -23,6 +25,11 @@ export const SITE_MAP = {
     label: "Effektivzins & Vergleich",
     href: "effective_interest.html",
     parent: "dashboard"
+  },
+  fundReturn: {
+    label: "Fondsrendite & Vergleich",
+    href: "fund_return.html",
+    parent: "dashboard"
   }
 };
 
@@ -37,6 +44,6 @@ export const SITE_NAV = [
   },
   {
     label: "Finanzen",
-    items: ["bundesschatzCompare", "effectiveInterest"]
+    items: ["bundesschatzCompare", "effectiveInterest", "fundReturn"]
   }
 ];

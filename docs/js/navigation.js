@@ -1,4 +1,4 @@
-import { SITE_MAP, SITE_NAV } from "./site-map.js";
+import { SITE_MAP, SITE_NAV, SITE_VERSION } from "./site-map.js";
 
 function currentPageKey() {
   const fileName = window.location.pathname.split("/").pop() || "index.html";
@@ -124,6 +124,10 @@ function initNavigation() {
   if (breadcrumbHost) {
     breadcrumbHost.innerHTML = renderBreadcrumbs(activeKey);
   }
+
+  document.querySelectorAll(".site-footer").forEach((footer) => {
+    footer.textContent = `Toolbox · v${SITE_VERSION}`;
+  });
 
   const button = headerHost.querySelector(".menu-button");
   const panel = headerHost.querySelector(".mobile-nav");
