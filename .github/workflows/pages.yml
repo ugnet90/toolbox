@@ -35,6 +35,12 @@ jobs:
       - name: Test date calculations
         run: node scripts/test_date_utils.mjs
 
+      - name: Test Bundesschatz calculations
+        run: node scripts/test_bundesschatz_utils.mjs
+
+      - name: Test effective interest calculations
+        run: node scripts/test_effective_interest_utils.mjs
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
