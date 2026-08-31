@@ -1,0 +1,31 @@
+.about-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.about-card {
+  min-width: 0;
+}
+
+.about-card .panel__body p {
+  margin: 0;
+}
+
+.about-card .panel__body p + p {
+  margin-top: 8px;
+}
+
+.about-muted {
+  color: var(--text-muted);
+}
+
+@media (max-width: 680px) {
+  .about-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-heading--compact-mobile p:last-child {
+    display: none;
+  }
+}

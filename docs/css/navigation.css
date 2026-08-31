@@ -105,7 +105,7 @@
   display: none;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 1080px) {
   .site-header__inner {
     width: min(calc(100% - 24px), var(--content-width));
   }

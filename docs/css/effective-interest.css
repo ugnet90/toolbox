@@ -1,0 +1,151 @@
+.effective-panel {
+  max-width: 900px;
+}
+
+.effective-form {
+  display: grid;
+  gap: 16px;
+}
+
+.effective-form__money,
+.effective-form__term,
+.effective-form__taxes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.effective-form__term {
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 0.55fr);
+}
+
+.effective-form .primary-button {
+  justify-self: start;
+}
+
+.effective-results {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.effective-result-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.effective-result-card--primary,
+.effective-result-card--bank {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: var(--accent-soft);
+}
+
+.effective-result-card__label,
+.effective-result-card__meta {
+  display: block;
+}
+
+.effective-result-card__label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.effective-result-card__value {
+  display: block;
+  margin-top: 5px;
+  font-size: clamp(1.55rem, 5vw, 2.2rem);
+  line-height: 1.1;
+}
+
+.effective-result-card__meta {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.comparison-details {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.comparison-details summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.detail-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-small);
+  background: var(--surface-soft);
+}
+
+.detail-item span {
+  display: block;
+}
+
+.detail-item__label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.detail-item__value {
+  margin-top: 2px;
+  font-weight: 800;
+}
+
+.method-note {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.source-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 10px;
+  font-size: 0.84rem;
+}
+
+.source-links a {
+  color: var(--accent);
+}
+
+@media (max-width: 700px) {
+  .page-heading--compact-mobile p:last-child {
+    display: none;
+  }
+
+  .page-heading--compact-mobile {
+    margin-bottom: 16px;
+  }
+
+  .effective-form__money,
+  .effective-form__taxes,
+  .effective-results,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .effective-form__term {
+    grid-template-columns: minmax(0, 1fr) minmax(130px, 0.65fr);
+  }
+
+  .effective-form .primary-button {
+    width: 100%;
+  }
+}

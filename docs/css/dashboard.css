@@ -1,33 +1,5 @@
-.dashboard-intro {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
-  gap: 18px;
-  margin: 8px 0 30px;
-}
-
-.dashboard-intro__main,
-.dashboard-intro__side {
-  padding: 22px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow);
-}
-
-.dashboard-intro__main h2,
-.dashboard-intro__side h2 {
-  margin: 0 0 7px;
-  font-size: 1.1rem;
-}
-
-.dashboard-intro__main p,
-.dashboard-intro__side p {
-  margin: 0;
-  color: var(--text-muted);
-}
-
 .dashboard-section {
-  margin-top: 28px;
+  margin-top: 22px;
 }
 
 .dashboard-section__header {
@@ -113,8 +85,12 @@
 }
 
 @media (max-width: 680px) {
-  .dashboard-intro {
-    grid-template-columns: 1fr;
+  .page-heading {
+    margin-bottom: 10px;
+  }
+
+  .dashboard-section {
+    margin-top: 14px;
   }
 
   .tool-grid {
@@ -122,25 +98,11 @@
   }
 
   .tool-card {
-    min-height: 116px;
-  }
-}
-
-@media (max-width: 680px) {
-  /* Das Dashboard soll am Handy sofort die Werkzeuge zeigen. */
-  .dashboard-intro {
-    display: none;
+    min-height: 104px;
+    padding: 15px;
   }
 
-  .page-heading {
-    margin-bottom: 10px;
-  }
-
-  .page-heading > p:last-child {
-    display: none;
-  }
-
-  .dashboard-section {
-    margin-top: 18px;
+  .tool-card__description {
+    font-size: 0.86rem;
   }
 }
