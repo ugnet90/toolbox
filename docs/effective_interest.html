@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Effektivzins und Netto-Rendite aus Einzahlungsbetrag, Auszahlungsbetrag, Laufzeit, KESt und Versicherungssteuer berechnen.">
+  <meta name="description" content="Effektivzins und Netto-Rendite aus Einzahlungsbetrag, Auszahlungsbetrag und Laufzeit berechnen und mit einer österreichischen Spareinlage vergleichen.">
   <link rel="icon" href="assets/favicon/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon/favicon-48x48.png">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
@@ -25,24 +25,24 @@
     <header class="page-heading page-heading--compact-mobile">
       <p class="page-heading__eyebrow">Finanzen</p>
       <h1>Effektivzins & Vergleich</h1>
-      <p>Netto-Rendite aus tatsächlichem Einzahlungsbetrag und Netto-Auszahlung berechnen und mit einer österreichischen Spareinlage vergleichen.</p>
+      <p>Netto-Rendite aus Einzahlungsbetrag, Auszahlungsbetrag und Laufzeit berechnen und mit einer österreichischen Spareinlage vergleichen.</p>
     </header>
 
     <section class="panel effective-panel">
       <div class="panel__header">
         <h2>Anlage erfassen</h2>
-        <p>Der Einzahlungsbetrag ist der tatsächlich bezahlte Gesamtbetrag. Eine allfällige Versicherungssteuer wird daraus herausgerechnet; der Auszahlungsbetrag ist bereits netto.</p>
+        <p>Bei einer Netto-Auszahlung werden keine Steuerangaben benötigt. Nur wenn der Auszahlungsbetrag brutto eingegeben wird, werden KESt und Versicherungssteuer berücksichtigt.</p>
       </div>
       <div class="panel__body">
         <form class="effective-form" data-effective-form>
           <div class="effective-form__money">
             <div class="field">
               <label for="depositAmount">Einzahlungsbetrag</label>
-              <input id="depositAmount" name="depositAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 100000" required>
+              <input id="depositAmount" name="depositAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 100.000,00" required>
             </div>
             <div class="field">
               <label for="payoutAmount">Auszahlungsbetrag</label>
-              <input id="payoutAmount" name="payoutAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 120000" required>
+              <input id="payoutAmount" name="payoutAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 120.000,00" required>
             </div>
           </div>
 
@@ -61,10 +61,18 @@
             </div>
           </div>
 
-          <div class="effective-form__taxes">
+          <div class="field effective-form__payout-mode">
+            <label for="payoutMode">Auszahlungsbetrag ist</label>
+            <select id="payoutMode" name="payoutMode">
+              <option value="net" selected>Netto – bereits nach Steuern</option>
+              <option value="gross">Brutto – vor KESt</option>
+            </select>
+          </div>
+
+          <div class="effective-form__taxes" data-tax-fields hidden>
             <div class="field">
               <label for="kestRate">KESt-Satz</label>
-              <select id="kestRate" name="kestRate">
+              <select id="kestRate" name="kestRate" disabled>
                 <option value="0" selected>0 %</option>
                 <option value="25">25 %</option>
                 <option value="27.5">27,5 %</option>
@@ -72,7 +80,7 @@
             </div>
             <div class="field">
               <label for="insuranceTax">Versicherungssteuer</label>
-              <select id="insuranceTax" name="insuranceTax">
+              <select id="insuranceTax" name="insuranceTax" disabled>
                 <option value="0" selected>0 %</option>
                 <option value="4">4 %</option>
                 <option value="11">11 %</option>
@@ -107,16 +115,18 @@
         <details class="comparison-details" data-effective-details hidden>
           <summary>Berechnungsdetails</summary>
           <div class="detail-grid">
-            <div class="detail-item"><span class="detail-item__label">Versicherungssteuer im Einzahlungsbetrag</span><span class="detail-item__value" data-insurance-tax-amount></span></div>
-            <div class="detail-item"><span class="detail-item__label">Netto veranlagt</span><span class="detail-item__value" data-net-investment></span></div>
-            <div class="detail-item"><span class="detail-item__label">KESt-Satz</span><span class="detail-item__value" data-kest-rate></span></div>
-            <div class="detail-item"><span class="detail-item__label">KESt rechnerisch bereits berücksichtigt</span><span class="detail-item__value" data-kest-amount></span></div>
+            <div class="detail-item"><span class="detail-item__label">Auszahlungsmodus</span><span class="detail-item__value" data-payout-mode></span></div>
+            <div class="detail-item"><span class="detail-item__label">Einzahlungsbetrag</span><span class="detail-item__value" data-deposit></span></div>
+            <div class="detail-item" data-tax-detail><span class="detail-item__label">Versicherungssteuer im Einzahlungsbetrag</span><span class="detail-item__value" data-insurance-tax-amount></span></div>
+            <div class="detail-item" data-tax-detail><span class="detail-item__label">Netto veranlagt</span><span class="detail-item__value" data-net-investment></span></div>
+            <div class="detail-item" data-tax-detail><span class="detail-item__label">KESt-Satz</span><span class="detail-item__value" data-kest-rate></span></div>
+            <div class="detail-item" data-tax-detail><span class="detail-item__label">KESt auf Brutto-Auszahlung</span><span class="detail-item__value" data-kest-amount></span></div>
             <div class="detail-item"><span class="detail-item__label">Netto-Auszahlung</span><span class="detail-item__value" data-net-payout></span></div>
             <div class="detail-item"><span class="detail-item__label">Vergleichsstart</span><span class="detail-item__value" data-start-date></span></div>
             <div class="detail-item"><span class="detail-item__label">Laufzeitende</span><span class="detail-item__value" data-end-date></span></div>
             <div class="detail-item"><span class="detail-item__label">Spareinlagen-Zinssatz rechnerisch</span><span class="detail-item__value" data-bank-rate-exact></span></div>
           </div>
-          <p class="method-note">Der Einzahlungsbetrag ist der tatsächlich bezahlte Gesamtbetrag. Bei 4 % bzw. 11 % Versicherungssteuer wird der netto veranlagte Betrag durch Division durch 1,04 bzw. 1,11 ermittelt. Der Auszahlungsbetrag wird immer als bereits netto nach einer allfälligen KESt verwendet und daher nicht nochmals besteuert. Der gewählte KESt-Satz dient nur zur rechnerischen Rückrechnung der bereits enthaltenen Steuer. Der Spareinlagen-Vergleich verwendet denselben tatsächlichen Einzahlungsbetrag, 25 % KESt, 30/360 und einen Jahresabschluss zum Kalenderjahresende.</p>
+          <p class="method-note" data-method-note></p>
           <div class="source-links">
             <a href="https://www.bmf.gv.at/themen/steuern/sparen-veranlagen/besteuerung-kapitalertraege-inland.html" target="_blank" rel="noopener noreferrer">BMF: KESt-Sätze</a>
             <a href="https://www.bmf.gv.at/themen/steuern/sparen-veranlagen/lebensversicherungen.html" target="_blank" rel="noopener noreferrer">BMF: Lebensversicherungen</a>
@@ -127,7 +137,7 @@
     </section>
   </main>
 
-  <footer class="site-footer">Toolbox · v0.3.1</footer>
+  <footer class="site-footer">Toolbox · v0.3.2</footer>
 
   <script type="module" src="js/navigation.js"></script>
   <script type="module" src="js/effective-interest.js"></script>
