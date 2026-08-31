@@ -63,14 +63,21 @@ Der Rechner bildet Fondsveranlagungen als datierte Zahlungsströme aus Sicht des
 
 Die effektive Nettorendite wird als datumsgenaue XIRR aus allen Anleger-Cashflows berechnet. Eine österreichische Fondsbesteuerung wird bewusst nicht pauschal nachgebildet; steuerliche Belastungen werden über die tatsächlich angefallenen Netto-Cashflows erfasst.
 
-Optional wird derselbe historische Zahlungsstrom mit einem fiktiven österreichischen Sparkonto verglichen. Grundlage ist die monatliche ECB-MIR-Serie `MIR.M.AT.B.L21.A.R.A.2250.EUR.N` (österreichische täglich fällige Haushaltseinlagen, durchschnittlicher Jahreszinssatz). Die historischen Zinsen werden über den bestehenden Cloudflare-Worker geladen. Der Benchmark ist ein statistischer Durchschnitt und kein Bestzins einzelner Banken. Für positive Sparzinsen werden 25 % KESt angenommen.
+Optional kann derselbe historische Zahlungsstrom mit zwei Benchmarks verglichen werden:
 
-## Änderungen in Version 0.4.2
+- **Ø täglich fällige Einlagen Österreich**: monatliche ECB-MIR-Serie `MIR.M.AT.B.L21.A.R.A.2250.EUR.N`; statistischer Durchschnitt österreichischer Haushaltseinlagen, positive Zinsen mit 25 % KESt.
+- **3-Monats-Euribor**: monatliche Durchschnittsreihe `FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA`; Brutto-Marktbenchmark ohne fiktiven Steuerabzug, da Euribor selbst kein konkretes Anlageprodukt ist.
 
-- Hauptnavigation in die Bereiche `Dashboard`, `About`, `Datum & Zeit` und `Finanzen` gegliedert.
-- `Datum & Zeit` und `Finanzen` erscheinen am Desktop als Dropdown-Menüs.
-- mobiles Hamburger-Menü verwendet dieselbe Gruppierung.
-- aktive Unterseite markiert zugleich die zugehörige Navigationsgruppe.
+Die historischen Zinsen werden über den bestehenden Cloudflare-Worker geladen. Bei beiden Benchmarks wird nach dem letzten verfügbaren offiziellen ECB-Monat der letzte Wert bis zum Vergleichsende unverändert fortgeführt und in der Oberfläche entsprechend gekennzeichnet.
+
+
+## Änderungen in Version 0.4.3
+
+- 3-Monats-Euribor als zweiten historischen Vergleichsbenchmark im Fondsrechner ergänzt.
+- offizielle monatliche ECB-Reihe `FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA` angebunden.
+- Euribor-Vergleich wird als Brutto-Marktbenchmark ohne fiktive KESt dargestellt.
+- Cloudflare-Worker um `/euribor-3m` erweitert.
+- bestehende Fortschreibung des letzten verfügbaren ECB-Monats gilt auch für den Euribor-Benchmark.
 
 ## Änderungen in Version 0.4.1
 
@@ -202,7 +209,7 @@ Die Tool-Karten werden aus `data/tools.json` erzeugt. `docs/data/tools.json` ist
 
 ## Datenschutz und externe Daten
 
-Rechner-Eingaben werden lokal im Browser verarbeitet und nicht gespeichert. Der Bundesschatz-Vergleich ruft öffentliche Konditionsdaten über den Cloudflare-Worker ab. Der Fondsrechner lädt bei aktiviertem historischem Vergleich ausschließlich den benötigten Monatsbereich der öffentlichen ECB-Zinsserie; die eingegebenen Fonds-Cashflows werden nicht an den Worker übertragen.
+Rechner-Eingaben werden lokal im Browser verarbeitet und nicht gespeichert. Der Bundesschatz-Vergleich ruft öffentliche Konditionsdaten über den Cloudflare-Worker ab. Der Fondsrechner lädt bei aktiviertem historischem Vergleich ausschließlich den benötigten Monatsbereich der ausgewählten öffentlichen ECB-Zinsserie (österreichische täglich fällige Einlagen oder 3-Monats-Euribor); die eingegebenen Fonds-Cashflows werden nicht an den Worker übertragen.
 
 ## GitHub Pages
 
