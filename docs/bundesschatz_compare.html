@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Vergleich aktueller Bundesschatz-Konditionen mit einer österreichischen Spareinlage nach KESt.">
+  <link rel="icon" href="assets/favicon/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon/favicon-48x48.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="assets/favicon/site.webmanifest">
+  <meta name="theme-color" content="#316880">
+  <title>Toolbox – Bundesschatz-Vergleich</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/navigation.css">
+  <link rel="stylesheet" href="css/bundesschatz.css">
+</head>
+<body>
+  <div data-site-header></div>
+
+  <main>
+    <nav class="breadcrumbs" aria-label="Breadcrumb" data-breadcrumbs></nav>
+
+    <header class="page-heading page-heading--compact-mobile">
+      <p class="page-heading__eyebrow">Finanzen</p>
+      <h1>Bundesschatz-Vergleich</h1>
+      <p>Welchen Bruttozinssatz muss eine österreichische Spareinlage bieten, damit nach KESt derselbe Endbetrag wie beim gewählten Bundesschatz entsteht?</p>
+    </header>
+
+    <section class="panel comparison-panel">
+      <div class="panel__header">
+        <h2>Aktuelles Angebot wählen</h2>
+        <p>Die verfügbaren Laufzeiten und Zinssätze werden beim Öffnen live von Bundesschatz abgefragt.</p>
+      </div>
+      <div class="panel__body">
+        <p class="live-status live-status--loading" data-live-status aria-live="polite">Aktuelle Bundesschatz-Konditionen werden geladen …</p>
+
+        <form class="comparison-form" data-comparison-form>
+          <div class="field">
+            <label for="bundesschatzProduct">Laufzeit</label>
+            <select id="bundesschatzProduct" data-product-select disabled>
+              <option>Live-Daten werden geladen …</option>
+            </select>
+          </div>
+          <button class="retry-button" type="button" data-retry hidden>Erneut laden</button>
+        </form>
+
+        <div class="comparison-result" data-comparison-result hidden aria-live="polite">
+          <div class="rate-card">
+            <span class="rate-card__label" data-product-kind>Bundesschatz</span>
+            <span class="rate-card__term" data-bs-term></span>
+            <strong class="rate-card__rate" data-bs-rate></strong>
+            <span class="rate-card__meta">KESt 27,5 %</span>
+          </div>
+
+          <div class="rate-card rate-card--target">
+            <span class="rate-card__label">Erforderliche Spareinlage</span>
+            <span class="rate-card__term">mindestens</span>
+            <strong class="rate-card__rate" data-bank-rate></strong>
+            <span class="rate-card__meta">KESt 25 % · auf 0,01 %-Punkte aufgerundet</span>
+          </div>
+        </div>
+
+        <details class="comparison-details" data-comparison-result hidden>
+          <summary>Berechnungsdetails</summary>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-item__label">Geldeingang / Valuta</span>
+              <span class="detail-item__value" data-value-date></span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item__label">Laufzeitende</span>
+              <span class="detail-item__value" data-maturity></span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item__label">Bundesschatz-Nettoertrag</span>
+              <span class="detail-item__value" data-net-return></span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item__label">Bankzinssatz rechnerisch</span>
+              <span class="detail-item__value" data-exact-bank-rate></span>
+            </div>
+          </div>
+          <p class="method-note">
+            Vergleichsannahme für die österreichische Spareinlage: 25 % KESt, Zinsrechnung 30/360 und Jahresabschluss zum Kalenderjahresende. Für Bundesschatz werden bis einschließlich ein Jahr die tatsächlichen Tage/365 und bei längeren Laufzeiten die von Bundesschatz angegebene Zinseszinsmethode verwendet. Gebühren werden nicht berücksichtigt.
+          </p>
+          <div class="source-links">
+            <a href="https://www.bundesschatz.at/haeufige-fragen" target="_blank" rel="noopener noreferrer">Bundesschatz: Zinssätze & Berechnung</a>
+            <a href="https://www.bmf.gv.at/themen/steuern/sparen-veranlagen/besteuerung-kapitalertraege-inland.html" target="_blank" rel="noopener noreferrer">BMF: KESt-Sätze</a>
+            <a href="https://ris.bka.gv.at/NormDokument.wxe?Abfrage=Bundesnormen&Gesetzesnummer=10004827&Paragraf=32" target="_blank" rel="noopener noreferrer">RIS: BWG § 32</a>
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">Toolbox · v0.2.0</footer>
+
+  <script type="module" src="js/navigation.js"></script>
+  <script type="module" src="js/bundesschatz-compare.js"></script>
+</body>
+</html>
