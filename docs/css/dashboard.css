@@ -125,3 +125,22 @@
     min-height: 116px;
   }
 }
+
+@media (max-width: 680px) {
+  /* Das Dashboard soll am Handy sofort die Werkzeuge zeigen. */
+  .dashboard-intro {
+    display: none;
+  }
+
+  .page-heading {
+    margin-bottom: 10px;
+  }
+
+  .page-heading > p:last-child {
+    display: none;
+  }
+
+  .dashboard-section {
+    margin-top: 18px;
+  }
+}
