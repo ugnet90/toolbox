@@ -25,7 +25,7 @@
     <header class="page-heading page-heading--compact-mobile">
       <p class="page-heading__eyebrow">Finanzen</p>
       <h1>Fondsrendite & Vergleich</h1>
-      <p>Datumsgenaue Nettorendite aus Einzahlungen, Zuzahlungen, Ausschüttungen, Steuern, Gebühren und Endwert berechnen – optional mit historischem österreichischem Sparzins-Vergleich.</p>
+      <p>Datumsgenaue Nettorendite aus Einzahlungen, Zuzahlungen, Ausschüttungen, Steuern, Gebühren und Endwert berechnen – optional mit historischem Sparzins- oder 3-Monats-Euribor-Vergleich.</p>
     </header>
 
     <section class="panel fund-panel">
@@ -75,9 +75,10 @@
               <label for="historicalCompare">Historischer Vergleich</label>
               <select id="historicalCompare" name="historicalCompare">
                 <option value="overnight" selected>Ø täglich fällige Einlagen AT (ECB/OeNB)</option>
+                <option value="euribor3m">3-Monats-Euribor (ECB, brutto)</option>
                 <option value="none">Kein Vergleich</option>
               </select>
-              <span class="field__hint">Monatlicher Durchschnittszins österreichischer Haushaltseinlagen, nicht Bestzins.</span>
+              <span class="field__hint">Spareinlage: österreichischer Durchschnitt nach 25 % KESt. Euribor: monatlicher Brutto-Marktzinssatz als Referenzbenchmark.</span>
             </div>
           </div>
 
@@ -192,14 +193,14 @@
             <strong class="fund-result-card__value" data-economic-result></strong>
             <span class="fund-result-card__meta">alle Anleger-Cashflows inkl. Endwert</span>
           </div>
-          <div class="fund-result-card fund-result-card--compare" data-savings-card hidden>
-            <span class="fund-result-card__label">Historische Spareinlage</span>
-            <strong class="fund-result-card__value" data-savings-value></strong>
-            <span class="fund-result-card__meta">Vergleichswert am Enddatum nach 25 % KESt</span>
+          <div class="fund-result-card fund-result-card--compare" data-benchmark-card hidden>
+            <span class="fund-result-card__label" data-benchmark-label></span>
+            <strong class="fund-result-card__value" data-benchmark-value></strong>
+            <span class="fund-result-card__meta" data-benchmark-meta></span>
           </div>
-          <div class="fund-result-card" data-savings-diff-card hidden>
-            <span class="fund-result-card__label">Fonds vs. Spareinlage</span>
-            <strong class="fund-result-card__value" data-savings-difference></strong>
+          <div class="fund-result-card" data-benchmark-diff-card hidden>
+            <span class="fund-result-card__label" data-benchmark-diff-label></span>
+            <strong class="fund-result-card__value" data-benchmark-difference></strong>
             <span class="fund-result-card__meta">Mehr-/Minderwert am Enddatum</span>
           </div>
         </div>
@@ -214,19 +215,20 @@
             <div class="detail-item"><span class="detail-item__label">Zwischenzeitliche Zuflüsse</span><span class="detail-item__value" data-intermediate-inflows></span></div>
             <div class="detail-item"><span class="detail-item__label">End-/Verkaufswert</span><span class="detail-item__value" data-terminal-value></span></div>
             <div class="detail-item"><span class="detail-item__label">Anzahl Cashflows</span><span class="detail-item__value" data-cashflow-count></span></div>
-            <div class="detail-item" data-savings-detail hidden><span class="detail-item__label">Spareinlagen-Bruttozinsen</span><span class="detail-item__value" data-savings-interest></span></div>
-            <div class="detail-item" data-savings-detail hidden><span class="detail-item__label">KESt Spareinlage</span><span class="detail-item__value" data-savings-tax></span></div>
-            <div class="detail-item" data-savings-detail hidden><span class="detail-item__label">ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage></span></div>
+            <div class="detail-item" data-benchmark-detail hidden><span class="detail-item__label" data-benchmark-interest-label>Benchmark-Zinsertrag</span><span class="detail-item__value" data-benchmark-interest></span></div>
+            <div class="detail-item" data-benchmark-tax-detail hidden><span class="detail-item__label" data-benchmark-tax-label>Steuer im Benchmark</span><span class="detail-item__value" data-benchmark-tax></span></div>
+            <div class="detail-item" data-benchmark-detail hidden><span class="detail-item__label">ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage></span></div>
           </div>
           <p class="method-note" data-fund-method></p>
           <div class="source-links">
             <a href="https://data.ecb.europa.eu/data/datasets/MIR/MIR.M.AT.B.L21.A.R.A.2250.EUR.N" target="_blank" rel="noopener noreferrer">ECB: österreichische täglich fällige Haushaltseinlagen</a>
+            <a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA" target="_blank" rel="noopener noreferrer">ECB: 3-Monats-Euribor, Monatsdurchschnitt</a>
             <a href="https://data.ecb.europa.eu/help/api/data" target="_blank" rel="noopener noreferrer">ECB Data Portal API</a>
           </div>
         </details>
 
         <aside class="fund-general-note">
-          <strong>Hinweis:</strong> Der Fondsrechner bildet keine österreichische Fondsbesteuerung nach. Ausschüttungen, ausschüttungsgleiche Erträge, Steuern, Gebühren und sonstige Belastungen werden über die tatsächlich angefallenen Netto-Cashflows erfasst. Der historische Sparvergleich ist ein statistischer Benchmark mit österreichischen Durchschnittszinsen und kein konkretes Bankangebot.
+          <strong>Hinweis:</strong> Der Fondsrechner bildet keine österreichische Fondsbesteuerung nach. Ausschüttungen, ausschüttungsgleiche Erträge, Steuern, Gebühren und sonstige Belastungen werden über die tatsächlich angefallenen Netto-Cashflows erfasst. Die historischen Vergleiche sind Benchmarks: Die Spareinlage verwendet österreichische Durchschnittszinsen; der 3-Monats-Euribor ist ein Brutto-Marktzinssatz und kein konkretes Anlageprodukt.
         </aside>
       </div>
     </section>
