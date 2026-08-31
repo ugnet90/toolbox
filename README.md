@@ -1,6 +1,6 @@
 # Toolbox
 
-**Version:** 0.2.0
+**Version:** 0.2.1
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -30,9 +30,11 @@ Bei Monatsrechnungen wird kalendarisch gerechnet. Existiert der Ausgangstag im Z
 
 ### Bundesschatz-Vergleich
 
-Der Rechner lädt beim Öffnen die aktuell veröffentlichten Bundesschatz-Produkte aus der öffentlichen Bundesschatz-Schnittstelle:
+Der Rechner lädt beim Öffnen die aktuell veröffentlichten Bundesschatz-Produkte über einen schlanken Cloudflare-Worker-Proxy:
 
-`https://www.bundesschatz.at/customer-backend/api/public-products`
+`https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev/bundesschatz`
+
+Der Worker ruft seinerseits ausschließlich die öffentliche Bundesschatz-Schnittstelle ab. Er speichert keine Zinssätze und enthält keine feste Laufzeitenliste. Der Proxy ist notwendig, weil die Bundesschatz-Schnittstelle direkte Browserabrufe von GitHub Pages per CORS nicht zulässt.
 
 Die Laufzeiten werden **nicht fest im Quellcode hinterlegt**. Alle von der Schnittstelle für den relevanten Valutatag gelieferten und unterstützten Laufzeiten werden dynamisch angezeigt. Dadurch können Produkte hinzukommen oder wegfallen, ohne dass die Auswahl manuell geändert werden muss.
 
@@ -57,7 +59,16 @@ Bundesschatz wird entsprechend der veröffentlichten Berechnungsmethode gerechne
 
 Die Website verwendet keine fest gespeicherten Ersatz-Zinssätze. Scheitert der Live-Abruf, wird dies sichtbar gemeldet, anstatt möglicherweise veraltete Werte zu verwenden.
 
-## Änderungen in Version 0.2.0
+## Änderungen in Version 0.2.1
+
+- Live-Abruf der Bundesschatz-Produkte auf den Cloudflare-Worker `toolbox-bundesschatz-proxy` umgestellt,
+- CORS-Problem des direkten Browserzugriffs auf die Bundesschatz-Schnittstelle behoben,
+- dynamische Laufzeiten- und Zinssatzlogik unverändert beibehalten,
+- keine fest gespeicherten Ersatzwerte eingeführt.
+
+## Frühere Änderungen
+
+### Version 0.2.0
 
 - neuen Rechner **Bundesschatz-Vergleich** ergänzt,
 - Bundesschatz-Angebote und Zinssätze werden beim Öffnen dynamisch aus der öffentlichen Schnittstelle geladen,
@@ -68,8 +79,6 @@ Die Website verwendet keine fest gespeicherten Ersatz-Zinssätze. Scheitert der 
 - neue Berechnungslogik durch eigene Node-Tests abgesichert,
 - Navigation und Dashboard um die Kategorie **Finanzen** erweitert,
 - Dashboard auf Mobilgeräten kompakter gemacht: Einleitung wird ausgeblendet, damit die Tool-Karten schneller sichtbar sind.
-
-## Frühere Änderungen
 
 ### Version 0.1.4
 
@@ -195,4 +204,4 @@ Für einen neuen Rechner sind im Regelfall folgende Schritte nötig:
 
 Die Projektversion steht in `VERSION` und wird zusätzlich im Dashboard und Footer angezeigt.
 
-Aktuelle Version: **0.2.0**
+Aktuelle Version: **0.2.1**
