@@ -1,8 +1,8 @@
 # Toolbox
 
-**Aktuell: v0.4.2** – Navigation in Dashboard, About, Datum & Zeit und Finanzen gegliedert.
+**Aktuell: v0.4.4** – 3-Monats-Euribor mit 25 % KESt als Sparbenchmark; KESt-Befreiungserklärung für Fonds- und Benchmarkebene.
 
-**Version:** 0.4.2
+**Version:** 0.4.4
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -66,10 +66,21 @@ Die effektive Nettorendite wird als datumsgenaue XIRR aus allen Anleger-Cashflow
 Optional kann derselbe historische Zahlungsstrom mit zwei Benchmarks verglichen werden:
 
 - **Ø täglich fällige Einlagen Österreich**: monatliche ECB-MIR-Serie `MIR.M.AT.B.L21.A.R.A.2250.EUR.N`; statistischer Durchschnitt österreichischer Haushaltseinlagen, positive Zinsen mit 25 % KESt.
-- **3-Monats-Euribor**: monatliche Durchschnittsreihe `FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA`; Brutto-Marktbenchmark ohne fiktiven Steuerabzug, da Euribor selbst kein konkretes Anlageprodukt ist.
+- **3-Monats-Euribor**: monatliche Durchschnittsreihe `FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA`; für den Vergleich wie ein fiktives Sparprodukt behandelt, daher grundsätzlich 25 % KESt auf positive Zinsen.
 
 Die historischen Zinsen werden über den bestehenden Cloudflare-Worker geladen. Bei beiden Benchmarks wird nach dem letzten verfügbaren offiziellen ECB-Monat der letzte Wert bis zum Vergleichsende unverändert fortgeführt und in der Oberfläche entsprechend gekennzeichnet.
 
+Zusätzlich kann angegeben werden, ob eine **wirksame KESt-Befreiungserklärung** vorliegt. Bei aktivierter Befreiung werden die beiden historischen Zinsbenchmarks mit 0 % KESt gerechnet. Auf Fondsebene werden Cashflows der Kategorie „KESt / Steuer auf ausschüttungsgleichen Ertrag“ aus der XIRR-Berechnung entfernt. Bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Option bildet ausschließlich den KESt-Abzug ab und nicht eine allfällige Körperschaftsteuer oder sonstige Steuerfolgen.
+
+
+
+## Änderungen in Version 0.4.4
+
+- 3-Monats-Euribor-Benchmark wird wie ein fiktives Sparprodukt behandelt und grundsätzlich mit 25 % KESt auf positive Zinsen gerechnet.
+- zentrale Auswahl „KESt-Befreiungserklärung“ im Fondsrechner ergänzt.
+- bei aktiver Befreiung werden Spareinlagen- und Euribor-Benchmark ohne KESt-Abzug gerechnet.
+- auf Fondsebene werden ausdrücklich als KESt/Steuer auf ausschüttungsgleichen Ertrag kategorisierte Cashflows bei aktiver Befreiung ignoriert.
+- Berechnungsdetails und Hinweise zeigen die gewählte KESt-Behandlung transparent an.
 
 ## Änderungen in Version 0.4.3
 
