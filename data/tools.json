@@ -9,6 +9,15 @@
       "icon": "📅",
       "href": "date_calculator.html",
       "status": "active"
+    },
+    {
+      "id": "bundesschatz-compare",
+      "title": "Bundesschatz-Vergleich",
+      "description": "Aktuelle Bundesschatz-Konditionen mit dem erforderlichen Zinssatz einer österreichischen Spareinlage vergleichen.",
+      "category": "Finanzen",
+      "icon": "⚖️",
+      "href": "bundesschatz_compare.html",
+      "status": "active"
     }
   ]
 }
