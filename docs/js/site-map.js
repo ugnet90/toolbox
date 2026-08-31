@@ -8,6 +8,11 @@ export const SITE_MAP = {
     label: "Datumsrechner",
     href: "date_calculator.html",
     parent: "dashboard"
+  },
+  bundesschatzCompare: {
+    label: "Bundesschatz-Vergleich",
+    href: "bundesschatz_compare.html",
+    parent: "dashboard"
   }
 };
 
@@ -19,5 +24,9 @@ export const SITE_NAV = [
   {
     label: "Datum & Zeit",
     items: ["dateCalculator"]
+  },
+  {
+    label: "Finanzen",
+    items: ["bundesschatzCompare"]
   }
 ];
