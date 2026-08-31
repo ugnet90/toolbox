@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -53,11 +54,21 @@ def main() -> None:
     if registry_path.read_bytes() != public_registry_path.read_bytes():
         fail("data/tools.json und docs/data/tools.json sind nicht synchron")
 
+    version_path = ROOT / "VERSION"
+    if not version_path.exists():
+        fail("VERSION fehlt")
+    version = version_path.read_text(encoding="utf-8").strip()
+    site_map_text = (DOCS / "js" / "site-map.js").read_text(encoding="utf-8")
+    match = re.search(r'SITE_VERSION\s*=\s*"([^"]+)"', site_map_text)
+    if not match or match.group(1) != version:
+        fail("VERSION und SITE_VERSION in docs/js/site-map.js stimmen nicht überein")
+
     required_files = [
         DOCS / "index.html",
         DOCS / "date_calculator.html",
         DOCS / "bundesschatz_compare.html",
         DOCS / "effective_interest.html",
+        DOCS / "fund_return.html",
         DOCS / "about.html",
         DOCS / "js" / "site-map.js",
         DOCS / "js" / "navigation.js",
@@ -65,11 +76,15 @@ def main() -> None:
         DOCS / "js" / "bundesschatz-utils.js",
         DOCS / "js" / "effective-interest.js",
         DOCS / "js" / "effective-interest-utils.js",
+        DOCS / "js" / "fund-return.js",
+        DOCS / "js" / "fund-return-utils.js",
         DOCS / "css" / "bundesschatz.css",
         DOCS / "css" / "effective-interest.css",
+        DOCS / "css" / "fund-return.css",
         DOCS / "css" / "about.css",
         ROOT / "scripts" / "test_bundesschatz_utils.mjs",
         ROOT / "scripts" / "test_effective_interest_utils.mjs",
+        ROOT / "scripts" / "test_fund_return_utils.mjs",
         DOCS / "assets" / "logo" / "toolbox-dashboard-logo.png",
         DOCS / "assets" / "favicon" / "favicon.ico",
         DOCS / "assets" / "favicon" / "favicon-16x16.png",
