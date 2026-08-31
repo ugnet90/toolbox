@@ -19,19 +19,46 @@ function createBreadcrumbTrail(pageKey) {
 }
 
 function renderDesktopNavigation(activeKey) {
-  return SITE_NAV.flatMap((group) => group.items)
-    .map((key) => {
+  return SITE_NAV.map((entry) => {
+    if (entry.type === "link") {
+      const page = SITE_MAP[entry.key];
+      const activeClass = entry.key === activeKey ? " is-active" : "";
+      const ariaCurrent = entry.key === activeKey ? ' aria-current="page"' : "";
+      return `<a class="topnav__link${activeClass}" href="${page.href}"${ariaCurrent}>${entry.label ?? page.label}</a>`;
+    }
+
+    const groupActive = entry.items.includes(activeKey);
+    const items = entry.items.map((key) => {
       const page = SITE_MAP[key];
       const activeClass = key === activeKey ? " is-active" : "";
       const ariaCurrent = key === activeKey ? ' aria-current="page"' : "";
-      return `<a class="topnav__link${activeClass}" href="${page.href}"${ariaCurrent}>${page.label}</a>`;
-    })
-    .join("");
+      return `<a class="topnav-dropdown__link${activeClass}" href="${page.href}"${ariaCurrent}>${page.label}</a>`;
+    }).join("");
+
+    return `
+      <details class="topnav-dropdown${groupActive ? " is-active" : ""}">
+        <summary class="topnav-dropdown__summary">
+          <span>${entry.label}</span>
+          <span class="topnav-dropdown__chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="topnav-dropdown__panel">
+          ${items}
+        </div>
+      </details>
+    `;
+  }).join("");
 }
 
 function renderMobileNavigation(activeKey) {
-  return SITE_NAV.map((group) => {
-    const items = group.items.map((key) => {
+  return SITE_NAV.map((entry) => {
+    if (entry.type === "link") {
+      const page = SITE_MAP[entry.key];
+      const activeClass = entry.key === activeKey ? " is-active" : "";
+      const ariaCurrent = entry.key === activeKey ? ' aria-current="page"' : "";
+      return `<a class="mobile-nav__link mobile-nav__link--top${activeClass}" href="${page.href}"${ariaCurrent}>${entry.label ?? page.label}</a>`;
+    }
+
+    const items = entry.items.map((key) => {
       const page = SITE_MAP[key];
       const activeClass = key === activeKey ? " is-active" : "";
       const ariaCurrent = key === activeKey ? ' aria-current="page"' : "";
@@ -40,7 +67,7 @@ function renderMobileNavigation(activeKey) {
 
     return `
       <section class="mobile-nav__group">
-        <h2 class="mobile-nav__heading">${group.label}</h2>
+        <h2 class="mobile-nav__heading">${entry.label}</h2>
         ${items}
       </section>
     `;
@@ -58,6 +85,44 @@ function renderBreadcrumbs(activeKey) {
 
     return `<a class="breadcrumbs__link" href="${page.href}">${page.label}</a><span class="breadcrumbs__separator" aria-hidden="true">›</span>`;
   }).join("");
+}
+
+function closeDesktopDropdowns(except = null) {
+  document.querySelectorAll(".topnav-dropdown[open]").forEach((details) => {
+    if (details !== except) {
+      details.removeAttribute("open");
+    }
+  });
+}
+
+function setupDesktopDropdowns(headerHost) {
+  const dropdowns = headerHost.querySelectorAll(".topnav-dropdown");
+
+  dropdowns.forEach((details) => {
+    details.addEventListener("toggle", () => {
+      if (details.open) {
+        closeDesktopDropdowns(details);
+      }
+    });
+
+    details.addEventListener("click", (event) => {
+      if (event.target.closest("a")) {
+        details.removeAttribute("open");
+      }
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".topnav-dropdown")) {
+      closeDesktopDropdowns();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeDesktopDropdowns();
+    }
+  });
 }
 
 function setupMenu(button, panel, backdrop) {
@@ -128,6 +193,8 @@ function initNavigation() {
   document.querySelectorAll(".site-footer").forEach((footer) => {
     footer.textContent = `Toolbox · v${SITE_VERSION}`;
   });
+
+  setupDesktopDropdowns(headerHost);
 
   const button = headerHost.querySelector(".menu-button");
   const panel = headerHost.querySelector(".mobile-nav");

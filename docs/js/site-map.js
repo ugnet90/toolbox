@@ -1,4 +1,4 @@
-export const SITE_VERSION = "0.4.1";
+export const SITE_VERSION = "0.4.2";
 
 export const SITE_MAP = {
   dashboard: {
@@ -35,14 +35,22 @@ export const SITE_MAP = {
 
 export const SITE_NAV = [
   {
-    label: "Übersicht",
-    items: ["dashboard", "about"]
+    type: "link",
+    key: "dashboard",
+    label: "Dashboard"
   },
   {
+    type: "link",
+    key: "about",
+    label: "About"
+  },
+  {
+    type: "group",
     label: "Datum & Zeit",
     items: ["dateCalculator"]
   },
   {
+    type: "group",
     label: "Finanzen",
     items: ["bundesschatzCompare", "effectiveInterest", "fundReturn"]
   }
