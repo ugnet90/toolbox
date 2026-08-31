@@ -1,6 +1,6 @@
 # Toolbox
 
-**Version:** 0.3.3
+**Version:** 0.4.0
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -44,6 +44,33 @@ Bei **Brutto-Auszahlung** werden zusätzlich eingeblendet:
 Eine Versicherungssteuer ist im Einzahlungsbetrag enthalten und wird bei Brutto-Berechnung durch Division durch 1,04 bzw. 1,11 herausgerechnet. KESt wird auf einen positiven Ertrag gegenüber dem netto veranlagten Betrag gerechnet. Bei Versicherungssteuer > 0 % zusammen mit KESt > 0 % erscheint ein Plausibilitätshinweis.
 
 Ausgegeben werden Netto-Gesamtrendite, annualisierter Netto-Effektivzins und der Bruttozinssatz einer österreichischen Spareinlage, die nach 25 % KESt bei gleichem tatsächlichem Einzahlungsbetrag denselben Netto-Endbetrag erreicht. Der angezeigte Vergleichszinssatz wird kaufmännisch auf zwei Nachkommastellen gerundet; der exakte Rechenwert bleibt in den Berechnungsdetails sichtbar. Betragsfelder werden beim Verlassen im österreichischen Zahlenformat formatiert.
+
+
+### Fondsrendite & Vergleich
+
+Der Rechner bildet Fondsveranlagungen als datierte Zahlungsströme aus Sicht des Anlegers ab. Unterstützt werden insbesondere:
+
+- Startinvestition mit Brutto-/Netto-Auswahl und Kaufspesen/Ausgabeaufschlag,
+- unregelmäßige Zuzahlungen und Sparraten,
+- automatisch erzeugte regelmäßige Zahlungen (monatlich, vierteljährlich, halbjährlich oder jährlich),
+- Ausschüttungen – auch negative Beträge,
+- Steuerbelastungen, z. B. für ausschüttungsgleiche Erträge,
+- Depot-/sonstige Gebühren,
+- Entnahmen und sonstige Cashflows,
+- End-/Verkaufswert zum Bewertungsdatum.
+
+Die effektive Nettorendite wird als datumsgenaue XIRR aus allen Anleger-Cashflows berechnet. Eine österreichische Fondsbesteuerung wird bewusst nicht pauschal nachgebildet; steuerliche Belastungen werden über die tatsächlich angefallenen Netto-Cashflows erfasst.
+
+Optional wird derselbe historische Zahlungsstrom mit einem fiktiven österreichischen Sparkonto verglichen. Grundlage ist die monatliche ECB-MIR-Serie `MIR.M.AT.B.L21.A.R.A.2250.EUR.N` (österreichische täglich fällige Haushaltseinlagen, durchschnittlicher Jahreszinssatz). Die historischen Zinsen werden über den bestehenden Cloudflare-Worker geladen. Der Benchmark ist ein statistischer Durchschnitt und kein Bestzins einzelner Banken. Für positive Sparzinsen werden 25 % KESt angenommen.
+
+## Änderungen in Version 0.4.0
+
+- neuen Rechner **Fondsrendite & Vergleich** ergänzt.
+- beliebig viele datierte, editierbare Zahlungsströme sowie Generator für regelmäßige Zahlungen ergänzt.
+- datumsgenaue XIRR-Berechnung mit Testabdeckung ergänzt.
+- historischen Vergleich mit österreichischen täglich fälligen Haushaltseinlagen über ECB/OeNB-Daten ergänzt.
+- Cloudflare-Worker um einen normalisierten `/savings-rates`-Endpunkt erweitert.
+- sichtbare Versionsnummer wird nun zentral über `SITE_VERSION` in `docs/js/site-map.js` gesetzt; künftige Versionssprünge ändern daher nicht mehr alle HTML-Seiten nur wegen des Footers.
 
 ## Änderungen in Version 0.3.3
 
@@ -101,6 +128,7 @@ toolbox/
 │  │  ├─ calculator.css
 │  │  ├─ dashboard.css
 │  │  ├─ effective-interest.css
+│  │  ├─ fund-return.css
 │  │  └─ navigation.css
 │  ├─ data/
 │  │  └─ tools.json
@@ -112,17 +140,21 @@ toolbox/
 │  │  ├─ date-utils.js
 │  │  ├─ effective-interest.js
 │  │  ├─ effective-interest-utils.js
+│  │  ├─ fund-return.js
+│  │  ├─ fund-return-utils.js
 │  │  ├─ navigation.js
 │  │  └─ site-map.js
 │  ├─ about.html
 │  ├─ bundesschatz_compare.html
 │  ├─ date_calculator.html
 │  ├─ effective_interest.html
+│  ├─ fund_return.html
 │  └─ index.html
 ├─ scripts/
 │  ├─ test_bundesschatz_utils.mjs
 │  ├─ test_date_utils.mjs
-│  └─ test_effective_interest_utils.mjs
+│  ├─ test_effective_interest_utils.mjs
+│  └─ test_fund_return_utils.mjs
 ├─ tools/
 │  ├─ sync_public_data.py
 │  └─ validate_project.py
@@ -155,7 +187,7 @@ Die Tool-Karten werden aus `data/tools.json` erzeugt. `docs/data/tools.json` ist
 
 ## Datenschutz und externe Daten
 
-Rechner-Eingaben werden lokal im Browser verarbeitet und nicht gespeichert. Der Bundesschatz-Vergleich ruft öffentliche Konditionsdaten über den Cloudflare-Worker ab; eingegebene persönliche Rechenwerte werden dabei nicht übertragen.
+Rechner-Eingaben werden lokal im Browser verarbeitet und nicht gespeichert. Der Bundesschatz-Vergleich ruft öffentliche Konditionsdaten über den Cloudflare-Worker ab. Der Fondsrechner lädt bei aktiviertem historischem Vergleich ausschließlich den benötigten Monatsbereich der öffentlichen ECB-Zinsserie; die eingegebenen Fonds-Cashflows werden nicht an den Worker übertragen.
 
 ## GitHub Pages
 
@@ -173,6 +205,6 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 ## Versionierung
 
-Die Projektversion steht in `VERSION` und zusätzlich in den Seiten-Footern.
+Die Projektversion steht in `VERSION`. Für die sichtbaren Seiten-Footer wird sie zentral als `SITE_VERSION` in `docs/js/site-map.js` gesetzt und von `docs/js/navigation.js` ausgegeben.
 
-Aktuelle Version: **0.3.3**
+Aktuelle Version: **0.4.0**
