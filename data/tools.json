@@ -31,7 +31,7 @@
     {
       "id": "fund-return",
       "title": "Fondsrendite & Vergleich",
-      "description": "Datumsgenaue Rendite aus beliebigen Zahlungsströmen berechnen und optional mit historischen österreichischen Sparzinsen vergleichen.",
+      "description": "Datumsgenaue Rendite aus beliebigen Zahlungsströmen berechnen und optional mit historischen österreichischen Sparzinsen oder dem 3-Monats-Euribor vergleichen.",
       "category": "Finanzen",
       "icon": "📊",
       "href": "fund_return.html",
