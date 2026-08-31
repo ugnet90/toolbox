@@ -16,7 +16,7 @@
 }
 
 .fund-form__end-grid {
-  grid-template-columns: minmax(150px, 0.75fr) minmax(220px, 1fr) minmax(300px, 1.45fr);
+  grid-template-columns: minmax(145px, 0.7fr) minmax(200px, 0.9fr) minmax(270px, 1.25fr) minmax(240px, 1.05fr);
 }
 
 .input-suffix {
