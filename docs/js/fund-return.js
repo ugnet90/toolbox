@@ -1,3 +1,4 @@
+import { SITE_VERSION } from "./site-map.js";
 import {
   applyKestExemption,
   calculateXirr,
@@ -45,6 +46,8 @@ const comparisonChart = document.querySelector("[data-comparison-chart]");
 const valueChart = document.querySelector("[data-value-chart]");
 const returnChart = document.querySelector("[data-return-chart]");
 const resetButton = document.querySelector("[data-reset-fund]");
+const printButton = document.querySelector("[data-print-fund]");
+const printReport = document.querySelector("[data-print-report]");
 
 const benchmarkCards = Object.fromEntries(
   Object.keys(BENCHMARKS).map((kind) => [kind, document.querySelector(`[data-benchmark-card="${kind}"]`)])
@@ -166,6 +169,8 @@ function clearCalculation() {
   if (comparisonChart) comparisonChart.hidden = true;
   if (valueChart) valueChart.innerHTML = "";
   if (returnChart) returnChart.innerHTML = "";
+  if (printButton) printButton.hidden = true;
+  if (printReport) printReport.innerHTML = "";
 }
 
 function showError(message) {
@@ -458,6 +463,137 @@ function renderComparisonCharts(calc, fundXirrResult, benchmarkResults) {
   comparisonChart.hidden = false;
 }
 
+function formatReportDate(iso) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+  if (!match) return String(iso || "–");
+  return `${match[3]}.${match[2]}.${match[1]}`;
+}
+
+function selectedOptionText(select) {
+  return select?.selectedOptions?.[0]?.textContent?.trim() || "–";
+}
+
+function printItem(label, value) {
+  return `
+    <div class="print-report__item">
+      <span class="print-report__item-label">${escapeHtml(label)}</span>
+      <span class="print-report__item-value">${escapeHtml(value)}</span>
+    </div>
+  `;
+}
+
+function buildPrintReport() {
+  if (!printReport || !resultsNode || resultsNode.hidden) return false;
+
+  const startAmountValue = parseGermanNumber(initialAmount?.value);
+  const endAmountValue = parseGermanNumber(endValue?.value);
+  const feeValue = Number(purchaseFee?.value || 0);
+  const createdAt = new Intl.DateTimeFormat("de-AT", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date());
+
+  const inputItems = [
+    ["Kauf-/Startdatum", formatReportDate(purchaseDate?.value)],
+    ["Startbetrag", Number.isFinite(startAmountValue) ? currency.format(startAmountValue) : "–"],
+    ["Startbetrag ist", selectedOptionText(initialAmountMode)],
+    ["Kaufspesen / Ausgabeaufschlag", `${percent.format(Number.isFinite(feeValue) ? feeValue : 0)} %`],
+    ["End-/Bewertungsdatum", formatReportDate(endDate?.value)],
+    ["End-/Verkaufswert", Number.isFinite(endAmountValue) ? currency.format(endAmountValue) : "–"],
+    ["Historischer Vergleich", selectedOptionText(historicalCompare)],
+    ["KESt-Befreiungserklärung", selectedOptionText(kestExemption)]
+  ];
+
+  const flowRows = [...cashflows]
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id)
+    .map((flow) => `
+      <tr>
+        <td>${escapeHtml(formatReportDate(flow.date))}</td>
+        <td>${escapeHtml(typeLabels[flow.type] || flow.type)}</td>
+        <td>${escapeHtml(currency.format(flow.amount))}</td>
+        <td>${escapeHtml(flow.note || "")}</td>
+      </tr>
+    `).join("");
+
+  printReport.innerHTML = `
+    <header class="print-report__header">
+      <div class="print-report__brand">
+        <img src="assets/logo/toolbox-dashboard-logo.png" alt="Toolbox">
+        <div class="print-report__title">
+          <h1>Fondsrendite &amp; Vergleich</h1>
+          <p>Berechnungsbericht</p>
+        </div>
+      </div>
+      <div class="print-report__meta">
+        <p>Erstellt: ${escapeHtml(createdAt)}</p>
+        <p>Toolbox · v${escapeHtml(SITE_VERSION)}</p>
+      </div>
+    </header>
+
+    <section class="print-report__section">
+      <h2>Eingaben</h2>
+      <div class="print-report__input-grid">
+        ${inputItems.map(([label, value]) => printItem(label, value)).join("")}
+      </div>
+    </section>
+
+    <section class="print-report__section">
+      <h2>Weitere Zahlungsströme</h2>
+      ${flowRows ? `
+        <table class="print-report__cashflows">
+          <thead><tr><th>Datum</th><th>Art</th><th>Betrag</th><th>Notiz</th></tr></thead>
+          <tbody>${flowRows}</tbody>
+        </table>
+      ` : '<p class="print-report__small">Keine weiteren Zahlungsströme erfasst.</p>'}
+    </section>
+  `;
+
+  const resultSection = document.createElement("section");
+  resultSection.className = "print-report__section";
+  resultSection.innerHTML = "<h2>Ergebnisse</h2>";
+  const resultClone = resultsNode.cloneNode(true);
+  resultClone.removeAttribute("hidden");
+  resultClone.removeAttribute("aria-live");
+  resultSection.append(resultClone);
+  printReport.append(resultSection);
+
+  if (comparisonChart && !comparisonChart.hidden) {
+    const chartSection = document.createElement("section");
+    chartSection.className = "print-report__section";
+    chartSection.innerHTML = "<h2>Grafischer Vergleich</h2>";
+    const chartClone = comparisonChart.cloneNode(true);
+    chartClone.removeAttribute("hidden");
+    chartClone.removeAttribute("aria-labelledby");
+    chartSection.append(chartClone);
+    printReport.append(chartSection);
+  }
+
+  if (detailsNode && !detailsNode.hidden) {
+    const detailSection = document.createElement("section");
+    detailSection.className = "print-report__section";
+    detailSection.innerHTML = "<h2>Berechnungsdetails</h2>";
+    const detailsClone = detailsNode.cloneNode(true);
+    detailsClone.removeAttribute("hidden");
+    detailsClone.open = true;
+    detailSection.append(detailsClone);
+    printReport.append(detailSection);
+  }
+
+  if (warningNode && !warningNode.hidden && warningNode.textContent.trim()) {
+    const warningClone = warningNode.cloneNode(true);
+    warningClone.removeAttribute("hidden");
+    warningClone.removeAttribute("aria-live");
+    printReport.append(warningClone);
+  }
+
+  const generalNote = document.querySelector(".fund-general-note");
+  if (generalNote) {
+    printReport.append(generalNote.cloneNode(true));
+  }
+
+  return true;
+}
+
 [initialAmount, endValue, cashflowAmount, recurringAmount].forEach((input) => {
   input?.addEventListener("blur", () => formatAmountInput(input));
 });
@@ -544,6 +680,17 @@ document.querySelector("[data-add-recurring]")?.addEventListener("click", () => 
 });
 
 
+printButton?.addEventListener("click", () => {
+  if (!buildPrintReport()) return;
+  const previousTitle = document.title;
+  const suffix = endDate?.value ? `_${endDate.value}` : "";
+  document.title = `Toolbox_Fondsrendite${suffix}`;
+  window.print();
+  window.setTimeout(() => {
+    document.title = previousTitle;
+  }, 500);
+});
+
 resetButton?.addEventListener("click", () => {
   form?.reset();
   cashflows = [];
@@ -601,6 +748,8 @@ form?.addEventListener("submit", async (event) => {
       });
       renderComparisonCharts(calc, xirrResult, rendered);
     }
+    if (runRevision !== calculationRevision) return;
+    if (printButton) printButton.hidden = false;
   } catch (error) {
     showError(error.message || "Berechnung nicht möglich.");
   }
