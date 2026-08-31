@@ -1,6 +1,6 @@
 # Toolbox
 
-**Version:** 0.3.0
+**Version:** 0.3.1
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -29,22 +29,30 @@ Kann der Live-Abruf nicht durchgeführt werden, erscheint automatisch eine manue
 
 Eingaben:
 
-- Einzahlungsbetrag vor Versicherungssteuer,
-- Auszahlungsbetrag,
+- tatsächlich bezahlter Einzahlungsbetrag,
+- bereits netto vorliegender Auszahlungsbetrag,
 - Laufzeit in Tagen, Monaten oder Jahren,
-- KESt-frei: Ja/Nein,
+- KESt-Satz: 0 %, 25 % oder 27,5 %,
 - Versicherungssteuer: 0 %, 4 % oder 11 %.
 
 Berechnet werden:
 
-- gesamter Kapitaleinsatz inklusive Versicherungssteuer,
-- allfällige KESt auf einen positiven Ertrag,
-- Netto-Auszahlung,
-- Netto-Rendite über die gesamte Laufzeit,
+- bei Versicherungssteuer der daraus resultierende netto veranlagte Betrag (`Einzahlung / 1,04` bzw. `/ 1,11`),
+- Versicherungssteueranteil im Einzahlungsbetrag,
+- Netto-Rendite über die gesamte Laufzeit aus Kundensicht,
 - annualisierter Netto-Effektivzins,
-- Bruttozinssatz einer österreichischen Spareinlage, die nach 25 % KESt denselben Netto-Endbetrag erreicht.
+- rechnerisch bereits in der Netto-Auszahlung enthaltene KESt,
+- Bruttozinssatz einer österreichischen Spareinlage, die nach 25 % KESt bei gleichem tatsächlichem Einzahlungsbetrag denselben Netto-Endbetrag erreicht.
 
-Bei `KESt-frei = Nein` wird als Vergleichsannahme 27,5 % KESt auf den positiven Ertrag aus Auszahlungsbetrag minus Einzahlungsbetrag verwendet. Die Versicherungssteuer wird als zusätzlicher Aufwand zum eingegebenen Einzahlungsbetrag gerechnet.
+Der Auszahlungsbetrag wird nicht nochmals um KESt vermindert. Bei einer Kombination aus Versicherungssteuer > 0 % und KESt > 0 % zeigt der Rechner einen Plausibilitätshinweis, lässt die Berechnung aber zu. Sobald eine Eingabe geändert wird, wird ein vorhandenes Ergebnis gelöscht und erst nach erneutem Klick auf **Effektivzins berechnen** wieder angezeigt.
+
+## Änderungen in Version 0.3.1
+
+- Versicherungssteuer wird aus dem tatsächlich bezahlten Einzahlungsbetrag herausgerechnet statt aufgeschlagen.
+- KESt-Auswahl auf 0 %, 25 % und 27,5 % umgestellt.
+- Auszahlungsbetrag wird als bereits netto nach allfälliger KESt behandelt.
+- Plausibilitätshinweis für Versicherungssteuer > 0 % zusammen mit KESt > 0 % ergänzt.
+- bestehende Berechnung wird bei jeder Eingabeänderung sofort zurückgesetzt.
 
 ## Änderungen in Version 0.3.0
 
@@ -149,4 +157,4 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 Die Projektversion steht in `VERSION` und zusätzlich in den Seiten-Footern.
 
-Aktuelle Version: **0.3.0**
+Aktuelle Version: **0.3.1**
