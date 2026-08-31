@@ -74,11 +74,20 @@
             <div class="field">
               <label for="historicalCompare">Historischer Vergleich</label>
               <select id="historicalCompare" name="historicalCompare">
-                <option value="overnight" selected>Ø täglich fällige Einlagen AT (ECB/OeNB)</option>
-                <option value="euribor3m">3-Monats-Euribor (ECB, brutto)</option>
+                <option value="both" selected>Beide Benchmarks</option>
+                <option value="overnight">Ø täglich fällige Einlagen AT (ECB/OeNB)</option>
+                <option value="euribor3m">3-Monats-Euribor (ECB)</option>
                 <option value="none">Kein Vergleich</option>
               </select>
-              <span class="field__hint">Spareinlage: österreichischer Durchschnitt nach 25 % KESt. Euribor: monatlicher Brutto-Marktzinssatz als Referenzbenchmark.</span>
+              <span class="field__hint">Spareinlage und 3-Monats-Euribor werden als fiktive Sparprodukte behandelt: positive Zinsen unterliegen grundsätzlich 25 % KESt; bei wirksamer KESt-Befreiungserklärung 0 %.</span>
+            </div>
+            <div class="field">
+              <label for="kestExemption">KESt-Befreiungserklärung</label>
+              <select id="kestExemption" name="kestExemption">
+                <option value="no" selected>Nein</option>
+                <option value="yes">Ja – liegt wirksam vor</option>
+              </select>
+              <span class="field__hint">Bei „Ja“ werden KESt-Cashflows auf Fondsebene ignoriert und die historischen Zinsbenchmarks ohne KESt-Abzug gerechnet. Die Option betrifft nur den KESt-Abzug, nicht Körperschaftsteuer oder sonstige Steuern.</span>
             </div>
           </div>
 
@@ -100,7 +109,7 @@
                 <select id="cashflowType">
                   <option value="contribution">Zuzahlung / Sparrate</option>
                   <option value="distribution">Ausschüttung</option>
-                  <option value="tax">Steuer / ausschüttungsgleicher Ertrag</option>
+                  <option value="tax">KESt / Steuer auf ausschüttungsgleichen Ertrag</option>
                   <option value="fee">Depot-/sonstige Gebühr</option>
                   <option value="withdrawal">Entnahme</option>
                   <option value="other">Sonstiger Cashflow</option>
@@ -143,7 +152,7 @@
                     <option value="contribution">Zuzahlung / Sparrate</option>
                     <option value="fee">Depot-/sonstige Gebühr</option>
                     <option value="distribution">Ausschüttung</option>
-                    <option value="tax">Steuer</option>
+                    <option value="tax">KESt / Steuer auf agE</option>
                     <option value="other">Sonstiger Cashflow</option>
                   </select>
                 </div>
@@ -179,12 +188,15 @@
 
           <p class="form-message form-message--error" data-fund-error hidden></p>
           <p class="form-message fund-warning" data-fund-warning hidden></p>
-          <button class="primary-button" type="submit">Fondsrendite berechnen</button>
+          <div class="fund-form__actions">
+            <button class="primary-button" type="submit">Fondsrendite berechnen</button>
+            <button class="secondary-button" type="button" data-reset-fund>Zurücksetzen</button>
+          </div>
         </form>
 
         <div class="fund-results" data-fund-results hidden aria-live="polite">
           <div class="fund-result-card fund-result-card--primary">
-            <span class="fund-result-card__label">Effektive Nettorendite</span>
+            <span class="fund-result-card__label">Fonds · effektive Nettorendite</span>
             <strong class="fund-result-card__value" data-xirr></strong>
             <span class="fund-result-card__meta">XIRR · datumsgenau p.a.</span>
           </div>
@@ -193,17 +205,34 @@
             <strong class="fund-result-card__value" data-economic-result></strong>
             <span class="fund-result-card__meta">alle Anleger-Cashflows inkl. Endwert</span>
           </div>
-          <div class="fund-result-card fund-result-card--compare" data-benchmark-card hidden>
-            <span class="fund-result-card__label" data-benchmark-label></span>
-            <strong class="fund-result-card__value" data-benchmark-value></strong>
-            <span class="fund-result-card__meta" data-benchmark-meta></span>
+          <div class="fund-result-card fund-result-card--compare" data-benchmark-card="overnight" hidden>
+            <span class="fund-result-card__label">Historische Spareinlage</span>
+            <strong class="fund-result-card__value" data-benchmark-rate="overnight"></strong>
+            <span class="fund-result-card__meta" data-benchmark-meta="overnight"></span>
           </div>
-          <div class="fund-result-card" data-benchmark-diff-card hidden>
-            <span class="fund-result-card__label" data-benchmark-diff-label></span>
-            <strong class="fund-result-card__value" data-benchmark-difference></strong>
-            <span class="fund-result-card__meta">Mehr-/Minderwert am Enddatum</span>
+          <div class="fund-result-card fund-result-card--compare" data-benchmark-card="euribor3m" hidden>
+            <span class="fund-result-card__label">3-Monats-Euribor</span>
+            <strong class="fund-result-card__value" data-benchmark-rate="euribor3m"></strong>
+            <span class="fund-result-card__meta" data-benchmark-meta="euribor3m"></span>
           </div>
         </div>
+
+        <section class="comparison-chart" data-comparison-chart hidden aria-labelledby="comparison-chart-heading">
+          <div class="comparison-chart__header">
+            <h3 id="comparison-chart-heading">Vergleich auf einen Blick</h3>
+            <p>Fonds und ausgewählte Benchmarks mit denselben Anleger-Zahlungszeitpunkten.</p>
+          </div>
+          <div class="comparison-chart__grid">
+            <div class="comparison-chart__panel">
+              <h4>Endwert am Bewertungsdatum</h4>
+              <div class="comparison-bars" data-value-chart></div>
+            </div>
+            <div class="comparison-chart__panel">
+              <h4>Effektivrendite p.a.</h4>
+              <div class="comparison-bars comparison-bars--return" data-return-chart></div>
+            </div>
+          </div>
+        </section>
 
         <details class="fund-details" data-fund-details hidden>
           <summary>Berechnungsdetails</summary>
@@ -213,11 +242,24 @@
             <div class="detail-item"><span class="detail-item__label">Kaufspesen</span><span class="detail-item__value" data-start-fee></span></div>
             <div class="detail-item"><span class="detail-item__label">Weitere Belastungen</span><span class="detail-item__value" data-other-outflows></span></div>
             <div class="detail-item"><span class="detail-item__label">Zwischenzeitliche Zuflüsse</span><span class="detail-item__value" data-intermediate-inflows></span></div>
-            <div class="detail-item"><span class="detail-item__label">End-/Verkaufswert</span><span class="detail-item__value" data-terminal-value></span></div>
+            <div class="detail-item"><span class="detail-item__label">End-/Verkaufswert Fonds</span><span class="detail-item__value" data-terminal-value></span></div>
             <div class="detail-item"><span class="detail-item__label">Anzahl Cashflows</span><span class="detail-item__value" data-cashflow-count></span></div>
-            <div class="detail-item" data-benchmark-detail hidden><span class="detail-item__label" data-benchmark-interest-label>Benchmark-Zinsertrag</span><span class="detail-item__value" data-benchmark-interest></span></div>
-            <div class="detail-item" data-benchmark-tax-detail hidden><span class="detail-item__label" data-benchmark-tax-label>Steuer im Benchmark</span><span class="detail-item__value" data-benchmark-tax></span></div>
-            <div class="detail-item" data-benchmark-detail hidden><span class="detail-item__label">ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage></span></div>
+            <div class="detail-item"><span class="detail-item__label">KESt-Befreiung</span><span class="detail-item__value" data-kest-status></span></div>
+            <div class="detail-item" data-ignored-kest-detail hidden><span class="detail-item__label">Saldo ignorierter KESt-Cashflows</span><span class="detail-item__value" data-ignored-kest></span></div>
+
+            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Endwert</span><span class="detail-item__value" data-benchmark-end="overnight"></span></div>
+            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="overnight"></span></div>
+            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="overnight"></span></div>
+            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · KESt</span><span class="detail-item__value" data-benchmark-tax="overnight"></span></div>
+            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Fonds vs. Spareinlage</span><span class="detail-item__value" data-benchmark-difference="overnight"></span></div>
+            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="overnight"></span></div>
+
+            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Endwert</span><span class="detail-item__value" data-benchmark-end="euribor3m"></span></div>
+            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="euribor3m"></span></div>
+            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="euribor3m"></span></div>
+            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · KESt</span><span class="detail-item__value" data-benchmark-tax="euribor3m"></span></div>
+            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">Fonds vs. 3M-Euribor</span><span class="detail-item__value" data-benchmark-difference="euribor3m"></span></div>
+            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="euribor3m"></span></div>
           </div>
           <p class="method-note" data-fund-method></p>
           <div class="source-links">
@@ -228,7 +270,7 @@
         </details>
 
         <aside class="fund-general-note">
-          <strong>Hinweis:</strong> Der Fondsrechner bildet keine österreichische Fondsbesteuerung nach. Ausschüttungen, ausschüttungsgleiche Erträge, Steuern, Gebühren und sonstige Belastungen werden über die tatsächlich angefallenen Netto-Cashflows erfasst. Die historischen Vergleiche sind Benchmarks: Die Spareinlage verwendet österreichische Durchschnittszinsen; der 3-Monats-Euribor ist ein Brutto-Marktzinssatz und kein konkretes Anlageprodukt.
+          <strong>Hinweis:</strong> Der Fondsrechner bildet keine österreichische Fondsbesteuerung vollständig nach. Ausschüttungen, Steuern, Gebühren und sonstige Belastungen werden grundsätzlich über die tatsächlich angefallenen Cashflows erfasst. Liegt eine wirksame KESt-Befreiungserklärung vor, werden nur als „KESt / Steuer auf ausschüttungsgleichen Ertrag“ erfasste Cashflows aus der Fondsrendite entfernt; bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Befreiung vom KESt-Abzug bedeutet außerdem nicht automatisch Steuerfreiheit auf Körperschaftsebene. Beide historischen Zinsbenchmarks werden als fiktive Sparprodukte behandelt und unterliegen ohne Befreiungserklärung 25 % KESt auf positive Zinsen.
         </aside>
       </div>
     </section>
