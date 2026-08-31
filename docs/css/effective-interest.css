@@ -9,6 +9,7 @@
 
 .effective-form__money,
 .effective-form__term,
+.effective-form__payout-settings,
 .effective-form__taxes {
   display: grid;
   gap: 12px;
@@ -23,12 +24,21 @@
   grid-template-columns: 260px 160px;
 }
 
+.effective-form__payout-settings {
+  grid-template-columns: 280px 372px;
+  align-items: end;
+}
+
 .effective-form__payout-mode {
-  width: min(100%, 280px);
+  min-width: 0;
 }
 
 .effective-form__taxes {
   grid-template-columns: repeat(2, minmax(0, 180px));
+}
+
+.effective-form__taxes[hidden] {
+  display: none !important;
 }
 
 .effective-form .field {
@@ -37,6 +47,29 @@
 
 .effective-form .primary-button {
   justify-self: start;
+}
+
+
+.effective-form__term input,
+.effective-form__term select {
+  height: 46px;
+  min-height: 46px;
+  box-sizing: border-box;
+}
+
+.effective-general-note {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  color: var(--text-muted);
+  background: var(--surface-soft);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.effective-general-note strong {
+  color: var(--text);
 }
 
 .effective-results {
@@ -167,13 +200,13 @@
     grid-template-columns: minmax(0, 1fr) minmax(120px, 0.6fr);
   }
 
+  .effective-form__payout-settings {
+    grid-template-columns: 1fr;
+  }
+
   /* KESt und VersSt bleiben mobil bewusst nebeneinander. */
   .effective-form__taxes {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .effective-form__payout-mode {
-    width: 100%;
   }
 
   .effective-form .primary-button {
