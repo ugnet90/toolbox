@@ -1,4 +1,5 @@
 import {
+  applyKestExemption,
   calculateXirr,
   formatGermanNumber,
   generateRecurringDates,
@@ -14,23 +15,21 @@ const BENCHMARKS = {
     endpoint: "/savings-rates",
     label: "Historische Spareinlage",
     differenceLabel: "Fonds vs. Spareinlage",
-    meta: "Vergleichswert am Enddatum nach 25 % KESt",
     interestLabel: "Spareinlagen-Bruttozinsen",
     taxLabel: "KESt Spareinlage",
     taxPercent: 25,
     seriesLabel: "historische Spareinlagen-Zinsen",
-    methodText: "Der historische Sparvergleich verwendet die monatliche ECB-MIR-Serie für täglich fällige österreichische Haushaltseinlagen. Der jeweilige Jahreszinssatz wird taggenau (act/365) auf das alternative Sparguthaben angewendet; positive Zinsen werden zum Jahresende bzw. Vergleichsende mit 25 % KESt belastet."
+    methodText: "Der historische Sparvergleich verwendet die monatliche ECB-MIR-Serie für täglich fällige österreichische Haushaltseinlagen. Der jeweilige Jahreszinssatz wird taggenau (act/365) auf das alternative Sparguthaben angewendet."
   },
   euribor3m: {
     endpoint: "/euribor-3m",
     label: "3-Monats-Euribor",
     differenceLabel: "Fonds vs. 3M-Euribor",
-    meta: "fiktiver Vergleichswert · brutto · Marktbenchmark",
-    interestLabel: "Euribor-Zinsertrag",
-    taxLabel: "Steuer im Euribor-Benchmark",
-    taxPercent: 0,
+    interestLabel: "Euribor-Bruttozinsen",
+    taxLabel: "KESt Euribor-Vergleich",
+    taxPercent: 25,
     seriesLabel: "3-Monats-Euribor-Daten",
-    methodText: "Der 3-Monats-Euribor-Vergleich verwendet den monatlichen Durchschnitt der offiziellen ECB-Serie FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA. Der jeweilige Brutto-Jahreszinssatz wird taggenau (act/365) auf ein fiktives Referenzguthaben angewendet. Es wird keine Steuer abgezogen, da Euribor selbst kein konkretes Anlageprodukt ist, sondern ein Marktzinssatz-Benchmark."
+    methodText: "Der 3-Monats-Euribor-Vergleich verwendet den monatlichen Durchschnitt der offiziellen ECB-Serie FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA. Der jeweilige Jahreszinssatz wird taggenau (act/365) auf ein fiktives Sparguthaben angewendet. Euribor dient dabei nur als Referenzzinssatz; für den Vergleich wird er wie ein Sparprodukt behandelt."
   }
 };
 
@@ -45,6 +44,7 @@ const benchmarkCard = document.querySelector("[data-benchmark-card]");
 const benchmarkDiffCard = document.querySelector("[data-benchmark-diff-card]");
 const benchmarkDetailNodes = [...document.querySelectorAll("[data-benchmark-detail]")];
 const benchmarkTaxDetail = document.querySelector("[data-benchmark-tax-detail]");
+const ignoredKestDetail = document.querySelector("[data-ignored-kest-detail]");
 
 const purchaseDate = document.querySelector("#purchaseDate");
 const initialAmount = document.querySelector("#initialAmount");
@@ -53,6 +53,7 @@ const purchaseFee = document.querySelector("#purchaseFee");
 const endDate = document.querySelector("#endDate");
 const endValue = document.querySelector("#endValue");
 const historicalCompare = document.querySelector("#historicalCompare");
+const kestExemption = document.querySelector("#kestExemption");
 
 const cashflowDate = document.querySelector("#cashflowDate");
 const cashflowType = document.querySelector("#cashflowType");
@@ -81,6 +82,8 @@ const nodes = {
   intermediateInflows: document.querySelector("[data-intermediate-inflows]"),
   terminalValue: document.querySelector("[data-terminal-value]"),
   cashflowCount: document.querySelector("[data-cashflow-count]"),
+  kestStatus: document.querySelector("[data-kest-status]"),
+  ignoredKest: document.querySelector("[data-ignored-kest]"),
   benchmarkInterestLabel: document.querySelector("[data-benchmark-interest-label]"),
   benchmarkInterest: document.querySelector("[data-benchmark-interest]"),
   benchmarkTaxLabel: document.querySelector("[data-benchmark-tax-label]"),
@@ -104,7 +107,7 @@ const percent = new Intl.NumberFormat("de-AT", {
 const typeLabels = {
   contribution: "Zuzahlung / Sparrate",
   distribution: "Ausschüttung",
-  tax: "Steuer / agE",
+  tax: "KESt / Steuer auf agE",
   fee: "Depot-/sonstige Gebühr",
   withdrawal: "Entnahme",
   other: "Sonstiger Cashflow"
@@ -145,6 +148,7 @@ function clearCalculation() {
   if (benchmarkDiffCard) benchmarkDiffCard.hidden = true;
   benchmarkDetailNodes.forEach((node) => { node.hidden = true; });
   if (benchmarkTaxDetail) benchmarkTaxDetail.hidden = true;
+  if (ignoredKestDetail) ignoredKestDetail.hidden = true;
 }
 
 function showError(message) {
@@ -154,6 +158,13 @@ function showError(message) {
 
 function showWarning(message) {
   warningNode.textContent = message;
+  warningNode.hidden = false;
+}
+
+function appendWarning(message) {
+  if (!warningNode) return;
+  const current = warningNode.hidden ? "" : warningNode.textContent.trim();
+  warningNode.textContent = current ? `${current} ${message}` : message;
   warningNode.hidden = false;
 }
 
@@ -239,10 +250,14 @@ function buildCalculation() {
     throw new Error("Der End-/Verkaufswert muss mindestens 0 sein.");
   }
 
-  const intermediate = [...cashflows].sort((a, b) => a.date.localeCompare(b.date));
-  if (intermediate.some((flow) => flow.date < startDate || flow.date > finishDate)) {
+  const enteredIntermediate = [...cashflows].sort((a, b) => a.date.localeCompare(b.date));
+  if (enteredIntermediate.some((flow) => flow.date < startDate || flow.date > finishDate)) {
     throw new Error("Alle weiteren Zahlungsströme müssen zwischen Start- und Enddatum liegen.");
   }
+
+  const isKestExempt = kestExemption?.value === "yes";
+  const kestAdjusted = applyKestExemption(enteredIntermediate, isKestExempt);
+  const intermediate = kestAdjusted.cashflows;
 
   const investorFlows = [
     { date: startDate, amount: -start.customerOutflow, type: "start", note: "Startinvestition" },
@@ -251,7 +266,19 @@ function buildCalculation() {
   ];
 
   const benchmarkFlows = investorFlows.filter((flow) => flow.type !== "terminal");
-  return { start, terminalValue, investorFlows, benchmarkFlows, startDate, finishDate, intermediate };
+  return {
+    start,
+    terminalValue,
+    investorFlows,
+    benchmarkFlows,
+    startDate,
+    finishDate,
+    intermediate,
+    enteredIntermediate,
+    isKestExempt,
+    ignoredKestCashflows: kestAdjusted.ignoredTaxCashflows,
+    ignoredKestNet: kestAdjusted.ignoredTaxNet
+  };
 }
 
 function renderCoreResults(calc, xirrResult) {
@@ -266,27 +293,40 @@ function renderCoreResults(calc, xirrResult) {
   nodes.intermediateInflows.textContent = currency.format(Math.max(intermediateSummary.inflows, 0));
   nodes.terminalValue.textContent = currency.format(calc.terminalValue);
   nodes.cashflowCount.textContent = String(calc.investorFlows.length);
+  nodes.kestStatus.textContent = calc.isKestExempt ? "Ja – KESt-Abzug nicht berücksichtigt" : "Nein";
+  if (ignoredKestDetail) {
+    ignoredKestDetail.hidden = !calc.isKestExempt || calc.ignoredKestCashflows.length === 0;
+  }
+  if (nodes.ignoredKest) nodes.ignoredKest.textContent = currency.format(calc.ignoredKestNet);
 
   const multipleRootText = xirrResult.rootCount > 1
     ? " Die Zahlungsstromfolge besitzt mehrere mathematisch mögliche IRR-Lösungen; angezeigt wird die betragsmäßig nächstliegende Lösung zu 0 %."
     : "";
 
-  nodes.method.textContent = `Die Rendite wird als datumsgenaue XIRR aus allen Anleger-Cashflows berechnet. Der Start-Cashflow entspricht dem tatsächlichen Kundenaufwand; Kaufspesen beeinflussen daher die Rendite, ohne dass eine Fondsbesteuerung modelliert wird.${multipleRootText}`;
+  const kestMethodText = calc.isKestExempt
+    ? " Eine wirksame KESt-Befreiungserklärung wurde angesetzt; als KESt/Steuer auf agE kategorisierte Cashflows werden in der Fondsrendite nicht berücksichtigt. Dies bildet nur den KESt-Abzug ab, nicht Körperschaftsteuer oder andere Steuern."
+    : " Eine KESt-Befreiungserklärung wurde nicht angesetzt; erfasste Steuer-Cashflows wirken daher wie eingegeben auf die Fondsrendite.";
+  nodes.method.textContent = `Die Rendite wird als datumsgenaue XIRR aus allen berücksichtigten Anleger-Cashflows berechnet. Der Start-Cashflow entspricht dem tatsächlichen Kundenaufwand; Kaufspesen beeinflussen daher die Rendite, ohne dass eine vollständige Fondsbesteuerung modelliert wird.${kestMethodText}${multipleRootText}`;
+  if (calc.isKestExempt && calc.ignoredKestCashflows.length > 0) {
+    appendWarning(`Hinweis: ${calc.ignoredKestCashflows.length} als KESt/Steuer auf agE erfasste Cashflow(s) werden wegen der aktivierten KESt-Befreiung nicht berücksichtigt.`);
+  }
   if (xirrResult.rootCount > 1) {
-    showWarning("Hinweis: Für diese Zahlungsstromfolge existieren mehrere mathematisch mögliche Effektivzinssätze. Details beachten.");
+    appendWarning("Hinweis: Für diese Zahlungsstromfolge existieren mehrere mathematisch mögliche Effektivzinssätze. Details beachten.");
   }
 
   resultsNode.hidden = false;
   detailsNode.hidden = false;
 }
 
-function renderBenchmark(calc, config, apiData, benchmark) {
+function renderBenchmark(calc, config, apiData, benchmark, effectiveTaxPercent) {
   const difference = calc.terminalValue - benchmark.balance;
   const coverage = benchmark.rateCoverage;
 
   nodes.benchmarkLabel.textContent = config.label;
   nodes.benchmarkValue.textContent = currency.format(benchmark.balance);
-  nodes.benchmarkMeta.textContent = config.meta;
+  nodes.benchmarkMeta.textContent = effectiveTaxPercent === 0
+    ? "fiktiver Vergleichswert · 0 % KESt (Befreiungserklärung)"
+    : "fiktiver Vergleichswert · nach 25 % KESt";
   nodes.benchmarkDiffLabel.textContent = config.differenceLabel;
   nodes.benchmarkDifference.textContent = `${difference >= 0 ? "+" : ""}${currency.format(difference)}`;
   nodes.benchmarkInterestLabel.textContent = config.interestLabel;
@@ -296,7 +336,7 @@ function renderBenchmark(calc, config, apiData, benchmark) {
 
   if (coverage?.carriedForward) {
     nodes.rateCoverage.textContent = `${coverage.firstOfficialPeriod} bis ${coverage.lastOfficialPeriod}; ab ${coverage.lastOfficialPeriod} mit ${percent.format(coverage.carriedRate)} % p.a. bis ${coverage.requiredEndPeriod} fortgeführt`;
-    showWarning(`Hinweis: Offizielle ECB-Daten für „${config.label}“ sind nur bis ${coverage.lastOfficialPeriod} verfügbar. Für die Zeit danach bis ${coverage.requiredEndPeriod} wurde der zuletzt verfügbare Zinssatz von ${percent.format(coverage.carriedRate)} % p.a. unverändert fortgeführt.`);
+    appendWarning(`Hinweis: Offizielle ECB-Daten für „${config.label}“ sind nur bis ${coverage.lastOfficialPeriod} verfügbar. Für die Zeit danach bis ${coverage.requiredEndPeriod} wurde der zuletzt verfügbare Zinssatz von ${percent.format(coverage.carriedRate)} % p.a. unverändert fortgeführt.`);
   } else {
     nodes.rateCoverage.textContent = `${apiData.first_period} bis ${apiData.last_period}`;
   }
@@ -304,9 +344,12 @@ function renderBenchmark(calc, config, apiData, benchmark) {
   benchmarkCard.hidden = false;
   benchmarkDiffCard.hidden = false;
   benchmarkDetailNodes.forEach((node) => { node.hidden = false; });
-  if (benchmarkTaxDetail) benchmarkTaxDetail.hidden = config.taxPercent === 0;
+  if (benchmarkTaxDetail) benchmarkTaxDetail.hidden = false;
 
-  nodes.method.textContent += ` ${config.methodText}`;
+  const benchmarkTaxText = effectiveTaxPercent === 0
+    ? " Wegen der aktivierten KESt-Befreiungserklärung wird im Benchmark kein KESt-Abzug vorgenommen."
+    : " Positive Zinsen werden zum Jahresende bzw. Vergleichsende mit 25 % KESt belastet.";
+  nodes.method.textContent += ` ${config.methodText}${benchmarkTaxText}`;
   if (coverage?.carriedForward) {
     nodes.method.textContent += ` Nach dem letzten verfügbaren ECB-Monat ${coverage.lastOfficialPeriod} wird dessen Zinssatz unverändert bis zum Vergleichsende fortgeschrieben.`;
   }
@@ -415,14 +458,15 @@ form?.addEventListener("submit", async (event) => {
         if (apiData.first_period > expectedStartMonth) {
           throw new Error(`ECB-Daten beginnen erst mit ${apiData.first_period}; benötigt wird ${expectedStartMonth}.`);
         }
+        const effectiveTaxPercent = calc.isKestExempt ? 0 : config.taxPercent;
         const benchmark = simulateHistoricalRateBenchmark({
           cashflows: calc.benchmarkFlows,
           endDate: calc.finishDate,
           observations: apiData.observations,
-          taxPercent: config.taxPercent,
+          taxPercent: effectiveTaxPercent,
           seriesLabel: config.seriesLabel
         });
-        renderBenchmark(calc, config, apiData, benchmark);
+        renderBenchmark(calc, config, apiData, benchmark, effectiveTaxPercent);
       } catch (error) {
         const label = BENCHMARKS[historicalCompare.value]?.label || "Historischer Vergleich";
         showWarning(`Fondsrendite wurde berechnet. Vergleich „${label}“ nicht möglich: ${error.message || error}`);

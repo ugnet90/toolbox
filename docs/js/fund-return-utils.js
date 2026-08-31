@@ -364,6 +364,23 @@ export function simulateHistoricalSavings(options) {
   });
 }
 
+
+export function applyKestExemption(cashflows, isExempt = false) {
+  const source = Array.isArray(cashflows) ? cashflows.map((item) => ({ ...item })) : [];
+  if (!isExempt) {
+    return { cashflows: source, ignoredTaxCashflows: [], ignoredTaxNet: 0 };
+  }
+
+  const ignoredTaxCashflows = source.filter((item) => item.type === "tax");
+  const filtered = source.filter((item) => item.type !== "tax");
+  const ignoredTaxNet = ignoredTaxCashflows.reduce((sum, item) => {
+    const amount = Number(item.amount);
+    return Number.isFinite(amount) ? sum + amount : sum;
+  }, 0);
+
+  return { cashflows: filtered, ignoredTaxCashflows, ignoredTaxNet };
+}
+
 export function summarizeCashflows(cashflows) {
   const result = {
     outflows: 0,
