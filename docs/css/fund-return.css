@@ -493,3 +493,271 @@
     padding: 13px;
   }
 }
+
+
+.fund-print-report {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .fund-form__actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .fund-form__actions > [data-print-fund] {
+    grid-column: 1 / -1;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  body > [data-site-header],
+  body > main,
+  body > .site-footer {
+    display: none !important;
+  }
+
+  body > .fund-print-report {
+    display: block !important;
+  }
+
+  .fund-print-report {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.35;
+    color: #111;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-report__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #316880;
+  }
+
+  .print-report__brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .print-report__brand img {
+    width: 132px;
+    max-height: 44px;
+    object-fit: contain;
+    object-position: left center;
+  }
+
+  .print-report__title h1,
+  .print-report__title p,
+  .print-report__meta p,
+  .print-report__section h2,
+  .print-report__section p {
+    margin: 0;
+  }
+
+  .print-report__title h1 {
+    font-size: 17pt;
+    line-height: 1.1;
+  }
+
+  .print-report__title p,
+  .print-report__meta,
+  .print-report__small {
+    color: #5b6773;
+  }
+
+  .print-report__meta {
+    text-align: right;
+    white-space: nowrap;
+    font-size: 8.5pt;
+  }
+
+  .print-report__section {
+    margin-top: 12px;
+  }
+
+  .print-report__section h2 {
+    margin-bottom: 7px;
+    font-size: 12pt;
+  }
+
+  .print-report__input-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid #cfd7dc;
+    border-radius: 5px;
+    background: #cfd7dc;
+  }
+
+  .print-report__item {
+    min-width: 0;
+    padding: 7px 8px;
+    background: #fff;
+  }
+
+  .print-report__item-label {
+    display: block;
+    margin-bottom: 2px;
+    color: #5b6773;
+    font-size: 7.7pt;
+  }
+
+  .print-report__item-value {
+    display: block;
+    overflow-wrap: anywhere;
+    font-weight: 700;
+  }
+
+  .print-report__cashflows {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+  }
+
+  .print-report__cashflows thead {
+    display: table-header-group;
+  }
+
+  .print-report__cashflows th,
+  .print-report__cashflows td {
+    padding: 5px 6px;
+    border: 1px solid #d8dee3;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .print-report__cashflows th {
+    background: #eef3f5;
+  }
+
+  .print-report__cashflows td:nth-child(3),
+  .print-report__cashflows th:nth-child(3) {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .fund-print-report .fund-results {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 0;
+  }
+
+  .fund-print-report .fund-result-card {
+    padding: 9px 10px;
+    border-color: #cfd7dc;
+    background: #f7f9fa;
+    break-inside: avoid;
+  }
+
+  .fund-print-report .fund-result-card--primary,
+  .fund-print-report .fund-result-card--compare {
+    border-color: #89b5c5;
+    background: #eaf4f7;
+  }
+
+  .fund-print-report .fund-result-card__value {
+    font-size: 15pt;
+  }
+
+  .fund-print-report .comparison-chart {
+    display: block !important;
+    margin-top: 0;
+    padding: 9px;
+    border: 1px solid #cfd7dc;
+    background: #fff;
+    break-inside: avoid;
+  }
+
+  .fund-print-report .comparison-chart__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 9px;
+  }
+
+  .fund-print-report .comparison-bar-row {
+    grid-template-columns: minmax(88px, 0.85fr) minmax(95px, 1.7fr) minmax(72px, auto);
+    gap: 6px;
+  }
+
+  .fund-print-report .comparison-bar-row__track {
+    height: 13px;
+  }
+
+  .fund-print-report .comparison-bar-row__label,
+  .fund-print-report .comparison-bar-row__value,
+  .fund-print-report .comparison-chart__header p {
+    font-size: 7.7pt;
+  }
+
+  .fund-print-report .fund-details {
+    margin-top: 0;
+    border-color: #cfd7dc;
+    background: #fff;
+    break-inside: auto;
+  }
+
+  .fund-print-report .fund-details > summary {
+    display: none;
+  }
+
+  .fund-print-report .detail-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    background: #d8dee3;
+  }
+
+  .fund-print-report .detail-item {
+    padding: 7px 8px;
+  }
+
+  .fund-print-report .method-note,
+  .fund-print-report .source-links {
+    margin: 8px 10px;
+    font-size: 7.5pt;
+  }
+
+  .fund-print-report .source-links {
+    display: block;
+  }
+
+  .fund-print-report .source-links a {
+    display: block;
+    margin-bottom: 2px;
+    color: #111;
+    text-decoration: none;
+  }
+
+  .fund-print-report .fund-general-note,
+  .fund-print-report .form-message {
+    margin-top: 8px;
+    padding: 7px 9px;
+    border: 1px solid #d8dee3;
+    border-left: 3px solid #316880;
+    background: #f7f9fa;
+    font-size: 7.7pt;
+    break-inside: avoid;
+  }
+
+  .fund-print-report .fund-warning {
+    border-left-color: #8a6a00;
+    background: #fff8df;
+  }
+}
