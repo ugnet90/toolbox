@@ -149,3 +149,10 @@
     width: 100%;
   }
 }
+
+.effective-tax-warning {
+  margin-top: -2px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--text);
+  background: var(--accent-soft);
+}
