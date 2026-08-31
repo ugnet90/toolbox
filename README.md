@@ -1,8 +1,8 @@
 # Toolbox
 
-**Aktuell: v0.4.5** – Fondsrechner mit beiden historischen Benchmarks, Benchmark-XIRR, grafischem Vergleich und Reset-Funktion.
+**Aktuell: v0.4.6** – Fondsrechner mit beiden historischen Benchmarks, Benchmark-XIRR, grafischem Vergleich und Reset-Funktion.
 
-**Version:** 0.4.5
+**Version:** 0.4.6
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -76,7 +76,7 @@ Zusätzlich kann angegeben werden, ob eine **wirksame KESt-Befreiungserklärung*
 
 
 
-## Änderungen in Version 0.4.5
+## Änderungen in Version 0.4.6
 
 - JavaScript-Ausgabe im Fondsrechner gegen fehlende DOM-Elemente abgesichert; der gemeldete `textContent`-Fehler wird damit behoben.
 - historischer Vergleich standardmäßig auf **beide Benchmarks** erweitert; Einzelbenchmark oder kein Vergleich bleiben auswählbar.
@@ -252,3 +252,5 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 Die Projektversion steht in `VERSION`. Für die sichtbaren Seiten-Footer wird sie zentral als `SITE_VERSION` in `docs/js/site-map.js` gesetzt und von `docs/js/navigation.js` ausgegeben.
 
 Aktuelle Version: **0.4.1**
+
+- Fondsrendite-Ergebnisse können über **PDF / Drucken** als A4-Bericht mit Eingaben, Cashflows, Ergebnissen, Benchmarks, Vergleichsgrafiken und Berechnungsdetails ausgegeben werden.
