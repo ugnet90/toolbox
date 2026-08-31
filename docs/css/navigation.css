@@ -41,17 +41,86 @@
   margin-left: auto;
 }
 
-.topnav__link {
+.topnav__link,
+.topnav-dropdown__summary {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 8px 11px;
   border-radius: 9px;
   color: var(--text-muted);
   text-decoration: none;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .topnav__link:hover,
-.topnav__link.is-active {
+.topnav__link.is-active,
+.topnav-dropdown.is-active > .topnav-dropdown__summary,
+.topnav-dropdown[open] > .topnav-dropdown__summary {
   color: var(--text);
+  background: var(--accent-soft);
+}
+
+.topnav-dropdown {
+  position: relative;
+}
+
+.topnav-dropdown__summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.topnav-dropdown__summary::-webkit-details-marker {
+  display: none;
+}
+
+.topnav-dropdown__summary::marker {
+  content: "";
+}
+
+.topnav-dropdown__chevron {
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.topnav-dropdown[open] .topnav-dropdown__chevron {
+  margin-top: 3px;
+  transform: rotate(225deg);
+}
+
+.topnav-dropdown__panel {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 70;
+  min-width: 235px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+}
+
+.topnav-dropdown__link {
+  display: block;
+  padding: 10px 11px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.topnav-dropdown__link:hover,
+.topnav-dropdown__link.is-active {
   background: var(--accent-soft);
 }
 
@@ -105,7 +174,7 @@
   display: none;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 860px) {
   .site-header__inner {
     width: min(calc(100% - 24px), var(--content-width));
   }
@@ -158,6 +227,14 @@
   .mobile-nav__title {
     font-size: 1.06rem;
     font-weight: 850;
+  }
+
+  .mobile-nav__link--top {
+    margin-top: 8px;
+  }
+
+  .mobile-nav__link--top + .mobile-nav__link--top {
+    margin-top: 2px;
   }
 
   .mobile-nav__group {
