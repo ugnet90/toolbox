@@ -3,6 +3,7 @@ import {
   calculateXirr,
   generateRecurringDates,
   initialInvestment,
+  simulateHistoricalRateBenchmark,
   simulateHistoricalSavings
 } from "../docs/js/fund-return-utils.js";
 
@@ -43,6 +44,27 @@ const expectedTax = expectedGrossInterest * 0.25;
 assert.ok(Math.abs(savings.grossInterest - expectedGrossInterest) < 1e-6);
 assert.ok(Math.abs(savings.tax - expectedTax) < 1e-6);
 assert.ok(Math.abs(savings.balance - (1000 + expectedGrossInterest - expectedTax)) < 1e-6);
+
+const euriborBenchmark = simulateHistoricalRateBenchmark({
+  cashflows: [{ date: "2020-01-01", amount: -1000 }],
+  endDate: "2021-01-01",
+  observations,
+  taxPercent: 0,
+  seriesLabel: "3-Monats-Euribor-Daten"
+});
+assert.ok(Math.abs(euriborBenchmark.grossInterest - expectedGrossInterest) < 1e-6);
+assert.equal(euriborBenchmark.tax, 0);
+assert.ok(Math.abs(euriborBenchmark.balance - (1000 + expectedGrossInterest)) < 1e-6);
+
+const negativeBenchmark = simulateHistoricalRateBenchmark({
+  cashflows: [{ date: "2020-01-01", amount: -1000 }],
+  endDate: "2020-02-01",
+  observations: [{ period: "2020-01", rate: -1 }],
+  taxPercent: 0,
+  seriesLabel: "3-Monats-Euribor-Daten"
+});
+assert.ok(negativeBenchmark.balance < 1000);
+assert.equal(negativeBenchmark.tax, 0);
 
 assert.throws(
   () => simulateHistoricalSavings({
