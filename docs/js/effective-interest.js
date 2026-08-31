@@ -44,12 +44,6 @@ const currency = new Intl.NumberFormat("de-AT", {
   maximumFractionDigits: 2
 });
 
-const amountFormat = new Intl.NumberFormat("de-AT", {
-  useGrouping: true,
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-});
-
 const percent = new Intl.NumberFormat("de-AT", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
@@ -82,10 +76,20 @@ function parseAmount(value) {
   return Number(normalized);
 }
 
+function formatAmountValue(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+
+  const sign = number < 0 ? "-" : "";
+  const [integerPart, fractionPart] = Math.abs(number).toFixed(2).split(".");
+  const grouped = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${sign}${grouped},${fractionPart}`;
+}
+
 function formatAmountInput(input) {
   if (!input || !input.value.trim()) return;
   const value = parseAmount(input.value);
-  if (Number.isFinite(value)) input.value = amountFormat.format(value);
+  if (Number.isFinite(value)) input.value = formatAmountValue(value);
 }
 
 function clearCalculation() {
