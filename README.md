@@ -1,6 +1,8 @@
 # Toolbox
 
-**Version:** 0.4.1
+**Aktuell: v0.4.2** – Navigation in Dashboard, About, Datum & Zeit und Finanzen gegliedert.
+
+**Version:** 0.4.2
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -62,6 +64,13 @@ Der Rechner bildet Fondsveranlagungen als datierte Zahlungsströme aus Sicht des
 Die effektive Nettorendite wird als datumsgenaue XIRR aus allen Anleger-Cashflows berechnet. Eine österreichische Fondsbesteuerung wird bewusst nicht pauschal nachgebildet; steuerliche Belastungen werden über die tatsächlich angefallenen Netto-Cashflows erfasst.
 
 Optional wird derselbe historische Zahlungsstrom mit einem fiktiven österreichischen Sparkonto verglichen. Grundlage ist die monatliche ECB-MIR-Serie `MIR.M.AT.B.L21.A.R.A.2250.EUR.N` (österreichische täglich fällige Haushaltseinlagen, durchschnittlicher Jahreszinssatz). Die historischen Zinsen werden über den bestehenden Cloudflare-Worker geladen. Der Benchmark ist ein statistischer Durchschnitt und kein Bestzins einzelner Banken. Für positive Sparzinsen werden 25 % KESt angenommen.
+
+## Änderungen in Version 0.4.2
+
+- Hauptnavigation in die Bereiche `Dashboard`, `About`, `Datum & Zeit` und `Finanzen` gegliedert.
+- `Datum & Zeit` und `Finanzen` erscheinen am Desktop als Dropdown-Menüs.
+- mobiles Hamburger-Menü verwendet dieselbe Gruppierung.
+- aktive Unterseite markiert zugleich die zugehörige Navigationsgruppe.
 
 ## Änderungen in Version 0.4.1
 
@@ -183,7 +192,7 @@ Webseiten werden bewusst nicht im Ordner `tools/` abgelegt.
 
 ## Navigation
 
-Die Navigation wird zentral über `SITE_MAP` und `SITE_NAV` in `docs/js/site-map.js` gepflegt. Daraus werden Desktop-Navigation, mobiles Hamburger-Menü, Breadcrumbs und die Markierung der aktiven Seite erzeugt.
+Die Navigation wird zentral über `SITE_MAP` und `SITE_NAV` in `docs/js/site-map.js` gepflegt. Auf dem Desktop erscheinen `Dashboard` und `About` als direkte Menüpunkte sowie `Datum & Zeit` und `Finanzen` als Dropdown-Gruppen. Im mobilen Hamburger-Menü werden dieselben Bereiche gruppiert dargestellt. Breadcrumbs und die Markierung der aktiven Seite werden ebenfalls daraus erzeugt.
 
 ## Dashboard
 
