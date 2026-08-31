@@ -1,6 +1,6 @@
 # Toolbox
 
-**Version:** 0.4.0
+**Version:** 0.4.1
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -62,6 +62,12 @@ Der Rechner bildet Fondsveranlagungen als datierte Zahlungsströme aus Sicht des
 Die effektive Nettorendite wird als datumsgenaue XIRR aus allen Anleger-Cashflows berechnet. Eine österreichische Fondsbesteuerung wird bewusst nicht pauschal nachgebildet; steuerliche Belastungen werden über die tatsächlich angefallenen Netto-Cashflows erfasst.
 
 Optional wird derselbe historische Zahlungsstrom mit einem fiktiven österreichischen Sparkonto verglichen. Grundlage ist die monatliche ECB-MIR-Serie `MIR.M.AT.B.L21.A.R.A.2250.EUR.N` (österreichische täglich fällige Haushaltseinlagen, durchschnittlicher Jahreszinssatz). Die historischen Zinsen werden über den bestehenden Cloudflare-Worker geladen. Der Benchmark ist ein statistischer Durchschnitt und kein Bestzins einzelner Banken. Für positive Sparzinsen werden 25 % KESt angenommen.
+
+## Änderungen in Version 0.4.1
+
+- historischer Sparvergleich: fehlen nur Monate nach dem letzten verfügbaren ECB-Datenpunkt, wird der zuletzt verfügbare Zinssatz bis zum Vergleichsende unverändert fortgeschrieben.
+- die Oberfläche weist in diesem Fall ausdrücklich auf den verwendeten letzten offiziellen Monat, den fortgeschriebenen Zinssatz und den Fortführungszeitraum hin.
+- echte Lücken innerhalb der historischen ECB-Datenreihe bleiben ein Fehler und werden nicht stillschweigend aufgefüllt.
 
 ## Änderungen in Version 0.4.0
 
@@ -207,4 +213,4 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 Die Projektversion steht in `VERSION`. Für die sichtbaren Seiten-Footer wird sie zentral als `SITE_VERSION` in `docs/js/site-map.js` gesetzt und von `docs/js/navigation.js` ausgegeben.
 
-Aktuelle Version: **0.4.0**
+Aktuelle Version: **0.4.1**
