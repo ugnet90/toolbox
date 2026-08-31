@@ -4,6 +4,11 @@ export const SITE_MAP = {
     href: "index.html",
     parent: null
   },
+  about: {
+    label: "Über die Toolbox",
+    href: "about.html",
+    parent: "dashboard"
+  },
   dateCalculator: {
     label: "Datumsrechner",
     href: "date_calculator.html",
@@ -13,13 +18,18 @@ export const SITE_MAP = {
     label: "Bundesschatz-Vergleich",
     href: "bundesschatz_compare.html",
     parent: "dashboard"
+  },
+  effectiveInterest: {
+    label: "Effektivzins & Vergleich",
+    href: "effective_interest.html",
+    parent: "dashboard"
   }
 };
 
 export const SITE_NAV = [
   {
     label: "Übersicht",
-    items: ["dashboard"]
+    items: ["dashboard", "about"]
   },
   {
     label: "Datum & Zeit",
@@ -27,6 +37,6 @@ export const SITE_NAV = [
   },
   {
     label: "Finanzen",
-    items: ["bundesschatzCompare"]
+    items: ["bundesschatzCompare", "effectiveInterest"]
   }
 ];

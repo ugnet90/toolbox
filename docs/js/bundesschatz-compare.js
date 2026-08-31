@@ -1,12 +1,12 @@
 import {
-  BUNDESSCHATZ_KEST,
-  SPAREINLAGE_KEST,
   calculateComparison,
   ceilPercentToHundredth,
   chooseValueDate,
   formatIsoDate,
+  formatTerm,
   normalizeProducts,
-  productsForValueDate
+  productsForValueDate,
+  viennaDateTimeParts
 } from "./bundesschatz-utils.js";
 
 const API_URL = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev/bundesschatz";
@@ -21,6 +21,9 @@ const elements = {
   form: document.querySelector("[data-comparison-form]"),
   select: document.querySelector("[data-product-select]"),
   retry: document.querySelector("[data-retry]"),
+  manualForm: document.querySelector("[data-manual-form]"),
+  manualError: document.querySelector("[data-manual-error]"),
+  manualValueDate: document.querySelector("#manualValueDate"),
   resultNodes: [...document.querySelectorAll("[data-comparison-result]")],
   valueDate: document.querySelector("[data-value-date]"),
   bsTerm: document.querySelector("[data-bs-term]"),
@@ -59,18 +62,18 @@ function populateProducts(products) {
   elements.select.disabled = false;
 }
 
-function renderComparison(product) {
+function renderComparison(product, manual = false) {
   const comparison = calculateComparison(product);
   elements.valueDate.textContent = formatIsoDate(product.valueDate);
   elements.bsTerm.textContent = product.label;
   elements.bsRate.textContent = `${percentFormatter.format(product.interestRate)} % p.a.`;
   elements.maturity.textContent = formatIsoDate(comparison.maturityDate);
   elements.netReturn.textContent = `${percentFormatter.format(comparison.bundesschatz.netReturn * 100)} %`;
-  elements.productKind.textContent = product.green ? "Grüner Bundesschatz" : "Bundesschatz";
+  elements.productKind.textContent = manual ? "Bundesschatz · manuell" : (product.green ? "Grüner Bundesschatz" : "Bundesschatz");
 
   if (comparison.bankRate === null) {
     elements.bankRate.textContent = "nicht vergleichbar";
-    elements.exactBankRate.textContent = "Bei einer Laufzeit unter 14 Tagen ist eine gewöhnliche Spareinlage nach der hier verwendeten gesetzlichen Vergleichslogik nicht verzinst.";
+    elements.exactBankRate.textContent = "Bei einer Laufzeit unter 14 Tagen ist eine gewöhnliche Spareinlage nach der hier verwendeten Vergleichslogik nicht verzinst.";
   } else {
     const displayRate = ceilPercentToHundredth(comparison.bankRate);
     elements.bankRate.textContent = `${percentFormatter.format(displayRate)} % p.a.`;
@@ -86,7 +89,7 @@ function renderSelected() {
   if (!product) return;
 
   try {
-    renderComparison(product);
+    renderComparison(product, false);
   } catch (error) {
     console.error(error);
     setStatus("error", `Berechnung nicht möglich: ${error.message}`);
@@ -94,9 +97,23 @@ function renderSelected() {
   }
 }
 
+function parsePercent(value) {
+  const normalized = String(value ?? "").trim().replace(/\s/g, "").replace(",", ".");
+  return Number(normalized);
+}
+
+function showManualFallback() {
+  elements.manualForm.hidden = false;
+  if (elements.manualValueDate && !elements.manualValueDate.value) {
+    elements.manualValueDate.value = viennaDateTimeParts().date;
+  }
+}
+
 async function loadProducts() {
   elements.select.disabled = true;
   elements.retry.hidden = true;
+  elements.manualForm.hidden = true;
+  elements.manualError.hidden = true;
   elements.resultNodes.forEach((node) => { node.hidden = true; });
   setStatus("loading", "Aktuelle Bundesschatz-Konditionen werden geladen …");
 
@@ -130,16 +147,51 @@ async function loadProducts() {
     console.error(error);
     setStatus(
       "error",
-      "Die aktuellen Bundesschatz-Konditionen konnten nicht geladen werden. Es werden keine veralteten Ersatzwerte verwendet."
+      "Die aktuellen Bundesschatz-Konditionen konnten nicht geladen werden. Du kannst die Konditionen darunter manuell eingeben."
     );
     elements.select.innerHTML = '<option value="">Keine Live-Daten verfügbar</option>';
     elements.select.disabled = true;
     elements.retry.hidden = false;
+    showManualFallback();
   }
 }
 
 elements.form?.addEventListener("submit", (event) => event.preventDefault());
 elements.select?.addEventListener("change", renderSelected);
 elements.retry?.addEventListener("click", loadProducts);
+
+elements.manualForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = new FormData(elements.manualForm);
+
+  try {
+    const periodValue = Number(data.get("termValue"));
+    const periodInterval = String(data.get("termUnit"));
+    const interestRate = parsePercent(data.get("interestRate"));
+    const valueDate = String(data.get("valueDate") ?? "");
+
+    if (!Number.isInteger(periodValue) || periodValue <= 0) throw new Error("Die Laufzeit muss eine positive ganze Zahl sein.");
+    if (!["D", "W", "M", "Y"].includes(periodInterval)) throw new Error("Ungültige Laufzeiteinheit.");
+    if (!Number.isFinite(interestRate) || interestRate < 0) throw new Error("Bitte einen gültigen Zinssatz eingeben.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(valueDate)) throw new Error("Bitte ein gültiges Valutadatum eingeben.");
+
+    const product = {
+      productKey: "manual",
+      periodValue,
+      periodInterval,
+      interestRate,
+      valueDate,
+      green: false,
+      label: formatTerm(periodValue, periodInterval)
+    };
+
+    elements.manualError.hidden = true;
+    renderComparison(product, true);
+  } catch (error) {
+    elements.manualError.textContent = error.message || "Manuelle Berechnung nicht möglich.";
+    elements.manualError.hidden = false;
+    elements.resultNodes.forEach((node) => { node.hidden = true; });
+  }
+});
 
 loadProducts();
