@@ -56,8 +56,23 @@ def main() -> None:
     required_files = [
         DOCS / "index.html",
         DOCS / "date_calculator.html",
+        DOCS / "bundesschatz_compare.html",
         DOCS / "js" / "site-map.js",
         DOCS / "js" / "navigation.js",
+        DOCS / "js" / "bundesschatz-compare.js",
+        DOCS / "js" / "bundesschatz-utils.js",
+        DOCS / "css" / "bundesschatz.css",
+        ROOT / "scripts" / "test_bundesschatz_utils.mjs",
+        DOCS / "assets" / "logo" / "toolbox-dashboard-logo.png",
+        DOCS / "assets" / "favicon" / "favicon.ico",
+        DOCS / "assets" / "favicon" / "favicon-16x16.png",
+        DOCS / "assets" / "favicon" / "favicon-32x32.png",
+        DOCS / "assets" / "favicon" / "favicon-48x48.png",
+        DOCS / "assets" / "favicon" / "favicon-master-512.png",
+        DOCS / "assets" / "favicon" / "apple-touch-icon.png",
+        DOCS / "assets" / "favicon" / "android-chrome-192x192.png",
+        DOCS / "assets" / "favicon" / "android-chrome-512x512.png",
+        DOCS / "assets" / "favicon" / "site.webmanifest",
     ]
 
     for path in required_files:
