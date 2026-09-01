@@ -6,6 +6,7 @@ import {
   generateRecurringDates,
   initialInvestment,
   normalizeFundReturnData,
+  parseBankTransactionsCsv,
   simulateHistoricalRateBenchmark,
   simulateHistoricalSavings
 } from "../docs/js/fund-return-utils.js";
@@ -174,5 +175,29 @@ assert.throws(
   }),
   /unbekannte Art/
 );
+
+
+const bankCsv = [
+  "ISIN;Titel;Menge;Einheit;Abrechnungsbetrag;Währung;Stichtag;Geschäftsart;Abrechnungsnummer;Abrechnungsdatum;Ausführungsnummer;Ausführungsdatum",
+  "DE0008491051;UNIGLOBAL ANTEILSSCH.KL.;0,467;Stk;-249,65;EUR;12.08.2026;Kauf aus Dauerauftrag;75273135;17.08.2026;75938106;14.08.2026",
+  ";;;;;;;;;;;"
+].join("\r\n");
+const importedBankCsv = parseBankTransactionsCsv(bankCsv);
+assert.equal(importedBankCsv.cashflows.length, 1);
+assert.deepEqual(importedBankCsv.cashflows[0], {
+  date: "2026-08-17",
+  type: "contribution",
+  amount: -249.65,
+  note: "Kauf aus Dauerauftrag"
+});
+assert.equal(importedBankCsv.unknownBusinessTypes, 0);
+
+const unknownCsv = [
+  "Abrechnungsbetrag;Geschäftsart;Abrechnungsdatum",
+  "12,50;Sonderbuchung;01.02.2025"
+].join("\n");
+const importedUnknownCsv = parseBankTransactionsCsv(unknownCsv);
+assert.equal(importedUnknownCsv.cashflows[0].type, "other");
+assert.equal(importedUnknownCsv.unknownBusinessTypes, 1);
 
 console.log("OK: fund return utils");
