@@ -30,8 +30,8 @@
     },
     {
       "id": "fund-return",
-      "title": "Fondsrendite & Vergleich",
-      "description": "Datumsgenaue Rendite aus beliebigen Zahlungsströmen berechnen und optional mit historischen österreichischen Sparzinsen oder dem 3-Monats-Euribor vergleichen.",
+      "title": "Depotrendite & Vergleich",
+      "description": "Datumsgenaue Depotrendite aus beliebigen Zahlungsströmen berechnen, Sparpläne erkennen und mit mehreren historischen Zinsbenchmarks vergleichen.",
       "category": "Finanzen",
       "icon": "📊",
       "href": "fund_return.html",
