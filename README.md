@@ -1,8 +1,8 @@
 # Toolbox
 
-**Aktuell: v0.4.6** – Fondsrechner mit beiden historischen Benchmarks, Benchmark-XIRR, grafischem Vergleich und Reset-Funktion.
+**Aktuell: v0.4.7** – Fondsrechner mit vollständigem JSON-Import/-Export der Berechnungsdaten und verbessertem Tabulator-Verhalten bei Datumsfeldern.
 
-**Version:** 0.4.6
+**Version:** 0.4.7
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -75,6 +75,12 @@ Die historischen Zinsen werden über den bestehenden Cloudflare-Worker geladen. 
 Zusätzlich kann angegeben werden, ob eine **wirksame KESt-Befreiungserklärung** vorliegt. Bei aktivierter Befreiung werden die beiden historischen Zinsbenchmarks mit 0 % KESt gerechnet. Auf Fondsebene werden Cashflows der Kategorie „KESt / Steuer auf ausschüttungsgleichen Ertrag“ aus der XIRR-Berechnung entfernt. Bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Option bildet ausschließlich den KESt-Abzug ab und nicht eine allfällige Körperschaftsteuer oder sonstige Steuerfolgen.
 
 
+
+## Änderungen in Version 0.4.7
+
+- vollständigen JSON-Import/-Export für Fondsrechner-Berechnungsdaten ergänzt: Start-/Enddaten, Beträge, Kaufspesen, Brutto/Netto-Modus, Benchmark-Auswahl, KESt-Befreiung und sämtliche zusätzlichen Zahlungsströme.
+- Importdateien werden vor Übernahme validiert und anschließend bewusst nicht automatisch berechnet.
+- Tabulator-Navigation bei HTML-Datumsfeldern zentral verbessert: der Fokus springt direkt zum nächsten bzw. vorherigen Formularfeld und überspringt das interne Kalender-Steuerelement des Browsers.
 
 ## Änderungen in Version 0.4.6
 
@@ -231,7 +237,7 @@ Die Tool-Karten werden aus `data/tools.json` erzeugt. `docs/data/tools.json` ist
 
 ## Datenschutz und externe Daten
 
-Rechner-Eingaben werden lokal im Browser verarbeitet und nicht gespeichert. Der Bundesschatz-Vergleich ruft öffentliche Konditionsdaten über den Cloudflare-Worker ab. Der Fondsrechner lädt bei aktiviertem historischem Vergleich ausschließlich den benötigten Monatsbereich der ausgewählten öffentlichen ECB-Zinsserie (österreichische täglich fällige Einlagen oder 3-Monats-Euribor); die eingegebenen Fonds-Cashflows werden nicht an den Worker übertragen.
+Rechner-Eingaben werden lokal im Browser verarbeitet und nicht gespeichert. Exportierte Fondsrechner-JSON-Dateien werden ausschließlich lokal erzeugt bzw. lokal eingelesen und nicht hochgeladen. Der Bundesschatz-Vergleich ruft öffentliche Konditionsdaten über den Cloudflare-Worker ab. Der Fondsrechner lädt bei aktiviertem historischem Vergleich ausschließlich den benötigten Monatsbereich der ausgewählten öffentlichen ECB-Zinsserie (österreichische täglich fällige Einlagen oder 3-Monats-Euribor); die eingegebenen Fonds-Cashflows werden nicht an den Worker übertragen.
 
 ## GitHub Pages
 
@@ -251,6 +257,6 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 Die Projektversion steht in `VERSION`. Für die sichtbaren Seiten-Footer wird sie zentral als `SITE_VERSION` in `docs/js/site-map.js` gesetzt und von `docs/js/navigation.js` ausgegeben.
 
-Aktuelle Version: **0.4.1**
+Aktuelle Version: **0.4.7**
 
 - Fondsrendite-Ergebnisse können über **PDF / Drucken** als A4-Bericht mit Eingaben, Cashflows, Ergebnissen, Benchmarks, Vergleichsgrafiken und Berechnungsdetails ausgegeben werden.
