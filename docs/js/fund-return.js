@@ -230,18 +230,49 @@ function currentFundData() {
   });
 }
 
-function downloadJsonFile(data) {
-  const text = `${JSON.stringify(data, null, 2)}\n`;
+function exportFilename() {
+  const suffix = endDate?.value || new Date().toISOString().slice(0, 10);
+  return `toolbox_fondsrendite_${suffix}.json`;
+}
+
+function downloadJsonFallback(text, filename) {
   const blob = new Blob([text], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  const suffix = endDate?.value || new Date().toISOString().slice(0, 10);
   link.href = url;
-  link.download = `toolbox_fondsrendite_${suffix}.json`;
+  link.download = filename;
   document.body.append(link);
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+async function saveJsonFile(data) {
+  const text = `${JSON.stringify(data, null, 2)}\n`;
+  const filename = exportFilename();
+
+  if (window.isSecureContext && typeof window.showSaveFilePicker === "function") {
+    try {
+      const handle = await window.showSaveFilePicker({
+        id: "toolbox-fund-return-export",
+        suggestedName: filename,
+        types: [{
+          description: "Toolbox Fondsrendite (JSON)",
+          accept: { "application/json": [".json"] }
+        }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(text);
+      await writable.close();
+      return { saved: true, picker: true };
+    } catch (error) {
+      if (error?.name === "AbortError") return { saved: false, cancelled: true };
+      throw error;
+    }
+  }
+
+  downloadJsonFallback(text, filename);
+  return { saved: true, picker: false };
 }
 
 function applyImportedFundData(data) {
@@ -466,10 +497,10 @@ function renderBenchmark(calc, kind, config, apiData, benchmark, effectiveTaxPer
   return { kind, config, benchmark, xirrResult, effectiveTaxPercent };
 }
 
-function appendSimpleBar(container, label, value, maxValue) {
+function appendSimpleBar(container, label, value, maxValue, category) {
   if (!container) return;
   const row = document.createElement("div");
-  row.className = "comparison-bar-row";
+  row.className = `comparison-bar-row comparison-bar-row--${category === "fund" ? "fund" : "benchmark"}`;
   const safeMax = Math.max(maxValue, 0.000001);
   const width = Math.max(0, Math.min(100, (Math.max(value, 0) / safeMax) * 100));
   row.innerHTML = `
@@ -483,10 +514,10 @@ function appendSimpleBar(container, label, value, maxValue) {
   container.append(row);
 }
 
-function appendReturnBar(container, label, rate, minRate, maxRate) {
+function appendReturnBar(container, label, rate, minRate, maxRate, category) {
   if (!container) return;
   const row = document.createElement("div");
-  row.className = "comparison-bar-row comparison-bar-row--return";
+  row.className = `comparison-bar-row comparison-bar-row--return comparison-bar-row--${category === "fund" ? "fund" : "benchmark"}`;
   const low = Math.min(minRate, 0);
   const high = Math.max(maxRate, 0);
   const range = Math.max(high - low, 0.000001);
@@ -519,19 +550,19 @@ function renderComparisonCharts(calc, fundXirrResult, benchmarkResults) {
   returnChart.innerHTML = "";
 
   const valueItems = [
-    { label: "Fonds", value: calc.terminalValue },
-    ...benchmarkResults.map((item) => ({ label: item.config.label, value: item.benchmark.balance }))
+    { label: "Fonds", value: calc.terminalValue, category: "fund" },
+    ...benchmarkResults.map((item) => ({ label: item.config.label, value: item.benchmark.balance, category: "benchmark" }))
   ];
   const maxValue = Math.max(...valueItems.map((item) => item.value), 0);
-  valueItems.forEach((item) => appendSimpleBar(valueChart, item.label, item.value, maxValue));
+  valueItems.forEach((item) => appendSimpleBar(valueChart, item.label, item.value, maxValue, item.category));
 
   const returnItems = [
-    { label: "Fonds", rate: fundXirrResult.rate },
-    ...benchmarkResults.map((item) => ({ label: item.config.label, rate: item.xirrResult.rate }))
+    { label: "Fonds", rate: fundXirrResult.rate, category: "fund" },
+    ...benchmarkResults.map((item) => ({ label: item.config.label, rate: item.xirrResult.rate, category: "benchmark" }))
   ];
   const minRate = Math.min(...returnItems.map((item) => item.rate), 0);
   const maxRate = Math.max(...returnItems.map((item) => item.rate), 0);
-  returnItems.forEach((item) => appendReturnBar(returnChart, item.label, item.rate, minRate, maxRate));
+  returnItems.forEach((item) => appendReturnBar(returnChart, item.label, item.rate, minRate, maxRate, item.category));
 
   comparisonChart.hidden = false;
 }
@@ -753,12 +784,14 @@ document.querySelector("[data-add-recurring]")?.addEventListener("click", () => 
 });
 
 
-exportButton?.addEventListener("click", () => {
+exportButton?.addEventListener("click", async () => {
   try {
     const data = currentFundData();
-    downloadJsonFile(data);
+    const result = await saveJsonFile(data);
+    if (result.cancelled) return;
     const flowLabel = data.cashflows.length === 1 ? "1 zusätzlicher Zahlungsstrom" : `${data.cashflows.length} zusätzliche Zahlungsströme`;
-    showDataStatus(`Berechnungsdaten exportiert (${flowLabel}).`);
+    const locationNote = result.picker ? " Speicherort wurde ausgewählt." : " Browser-Download verwendet.";
+    showDataStatus(`Berechnungsdaten exportiert (${flowLabel}).${locationNote}`);
   } catch (error) {
     showError(error.message || "Daten konnten nicht exportiert werden.");
   }
