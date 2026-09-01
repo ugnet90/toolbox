@@ -1,8 +1,8 @@
 # Toolbox
 
-**Aktuell: v0.4.8** – klar getrennte Fonds-/Benchmark-Darstellung, dauerhaft sichtbare Hauptaktionen und Export mit Speicherort-Auswahl.
+**Aktuell: v0.4.9** – CSV-Buchungsimport, automatischer Ergebnis-Sprung und druckfeste Vergleichsbalken.
 
-**Version:** 0.4.8
+**Version:** 0.4.9
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -75,6 +75,13 @@ Die historischen Zinsen werden über den bestehenden Cloudflare-Worker geladen. 
 Zusätzlich kann angegeben werden, ob eine **wirksame KESt-Befreiungserklärung** vorliegt. Bei aktivierter Befreiung werden die beiden historischen Zinsbenchmarks mit 0 % KESt gerechnet. Auf Fondsebene werden Cashflows der Kategorie „KESt / Steuer auf ausschüttungsgleichen Ertrag“ aus der XIRR-Berechnung entfernt. Bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Option bildet ausschließlich den KESt-Abzug ab und nicht eine allfällige Körperschaftsteuer oder sonstige Steuerfolgen.
 
 
+
+## Änderungen in Version 0.4.9
+
+- Nach „Fondsrendite berechnen“ wird automatisch zum Ergebnisbereich gescrollt.
+- Vergleichsbalken werden im A4-/PDF-Druck auch ohne aktivierte Hintergrundgrafiken sichtbar gezeichnet.
+- CSV-Import für Buchungsexporte mit `Abrechnungsbetrag`, `Geschäftsart` und `Abrechnungsdatum` ergänzt; Windows-1252 und UTF-8 werden unterstützt.
+- `Kauf` wird als Zuzahlung/Sparrate erkannt; weitere bekannte Geschäftsarten werden kategorisiert, unbekannte als sonstiger Cashflow mit Originaltext in der Notiz übernommen.
 
 ## Änderungen in Version 0.4.8
 
