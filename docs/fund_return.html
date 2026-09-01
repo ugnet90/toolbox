@@ -188,8 +188,12 @@
 
           <p class="form-message form-message--error" data-fund-error hidden></p>
           <p class="form-message fund-warning" data-fund-warning hidden></p>
+          <p class="fund-data-status" data-fund-data-status hidden aria-live="polite"></p>
+          <input type="file" accept="application/json,.json" data-import-fund-file hidden>
           <div class="fund-form__actions">
             <button class="primary-button" type="submit">Fondsrendite berechnen</button>
+            <button class="secondary-button" type="button" data-import-fund>Daten importieren</button>
+            <button class="secondary-button" type="button" data-export-fund>Daten exportieren</button>
             <button class="secondary-button" type="button" data-reset-fund>Zurücksetzen</button>
             <button class="secondary-button" type="button" data-print-fund hidden>PDF / Drucken</button>
           </div>
