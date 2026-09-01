@@ -1,300 +1,265 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="de">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Fondsrendite mit datierten Zahlungsströmen berechnen und mit historischen österreichischen Spareinlagen-Zinsen vergleichen.">
-  <link rel="icon" href="assets/favicon/favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon/favicon-48x48.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
-  <link rel="manifest" href="assets/favicon/site.webmanifest">
-  <meta name="theme-color" content="#316880">
-  <title>Toolbox – Fondsrendite & Vergleich</title>
-  <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/fund-return.css">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="Depotrendite mit datierten Zahlungsströmen berechnen und mit historischen Zinsbenchmarks vergleichen." name="description"/>
+<link href="assets/favicon/favicon.ico" rel="icon" sizes="any"/>
+<link href="assets/favicon/favicon-48x48.png" rel="icon" sizes="48x48" type="image/png"/>
+<link href="assets/favicon/favicon-32x32.png" rel="icon" sizes="32x32" type="image/png"/>
+<link href="assets/favicon/favicon-16x16.png" rel="icon" sizes="16x16" type="image/png"/>
+<link href="assets/favicon/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180"/>
+<link href="assets/favicon/site.webmanifest" rel="manifest"/>
+<meta content="#316880" name="theme-color"/>
+<title>Toolbox – Depotrendite &amp; Vergleich</title>
+<link href="css/base.css" rel="stylesheet"/>
+<link href="css/navigation.css" rel="stylesheet"/>
+<link href="css/fund-return.css" rel="stylesheet"/>
 </head>
 <body>
-  <div data-site-header></div>
+<div data-site-header=""></div>
+<main>
+<nav aria-label="Breadcrumb" class="breadcrumbs" data-breadcrumbs=""></nav>
+<header class="page-heading page-heading--compact-mobile">
+<p class="page-heading__eyebrow">Finanzen</p>
+<h1>Depotrendite &amp; Vergleich</h1>
+<p>Datumsgenaue Nettorendite eines Depots aus Einzahlungen, Zuzahlungen, Ausschüttungen, Steuern, Gebühren und Endwert berechnen – optional mit mehreren historischen Zinsbenchmarks.</p>
+</header>
+<section class="panel fund-panel">
+<div class="panel__header">
+<h2>Start und Endwert</h2>
+<p>Alle Zahlungsströme werden aus Sicht des Anlegers betrachtet. Zahlungen vom Anleger sind negativ, Zuflüsse zum Anleger positiv.</p>
+</div>
+<div class="panel__body">
+<form class="fund-form" data-fund-form="">
+<div class="fund-form__meta-grid"><div class="field fund-form__designation"><label for="designation">Bezeichnung <span class="label-optional">(optional)</span></label><input autocomplete="off" id="designation" maxlength="100" name="designation" placeholder="z. B. Depot Muster / Strategie 1" type="text"/><span class="field__hint">Wird nur lokal im Browser sowie in Export/PDF verwendet und nicht an GitHub übertragen.</span></div></div><div class="fund-form__start-grid">
+<div class="field">
+<label for="purchaseDate">Kauf-/Startdatum</label>
+<input id="purchaseDate" name="purchaseDate" required="" type="date"/>
+</div>
+<div class="field">
+<label for="initialAmount">Startbetrag</label>
+<input autocomplete="off" id="initialAmount" inputmode="decimal" name="initialAmount" placeholder="z. B. 50.000,00" required="" type="text"/>
+</div>
+<div class="field">
+<label for="initialAmountMode">Startbetrag ist</label>
+<select id="initialAmountMode" name="initialAmountMode">
+<option selected="" value="gross">Brutto – Kundenaufwand inkl. Kaufspesen</option>
+<option value="net">Netto – tatsächlich investiert</option>
+</select>
+</div>
+<div class="field">
+<label for="purchaseFee">Kaufspesen / Ausgabeaufschlag</label>
+<div class="input-suffix">
+<input id="purchaseFee" inputmode="decimal" max="100" min="0" name="purchaseFee" step="0.01" type="number" value="0"/>
+<span>%</span>
+</div>
+<span class="field__hint">Spesensatz auf den Nettoanlagebetrag; Brutto = Netto × (1 + Spesensatz).</span>
+</div>
+</div>
+<div class="fund-form__end-grid">
+<div class="field">
+<label for="endDate">End-/Bewertungsdatum</label>
+<input id="endDate" name="endDate" required="" type="date"/>
+</div>
+<div class="field">
+<label for="endValue">End-/Verkaufswert</label>
+<input autocomplete="off" id="endValue" inputmode="decimal" name="endValue" placeholder="z. B. 72.500,00" required="" type="text"/>
+<span class="field__hint">Bei Verkauf möglichst den tatsächlich verbleibenden Nettoerlös verwenden.</span>
+</div>
 
-  <main>
-    <nav class="breadcrumbs" aria-label="Breadcrumb" data-breadcrumbs></nav>
-
-    <header class="page-heading page-heading--compact-mobile">
-      <p class="page-heading__eyebrow">Finanzen</p>
-      <h1>Fondsrendite & Vergleich</h1>
-      <p>Datumsgenaue Nettorendite aus Einzahlungen, Zuzahlungen, Ausschüttungen, Steuern, Gebühren und Endwert berechnen – optional mit historischem Sparzins- oder 3-Monats-Euribor-Vergleich.</p>
-    </header>
-
-    <section class="panel fund-panel">
-      <div class="panel__header">
-        <h2>Start und Endwert</h2>
-        <p>Alle Zahlungsströme werden aus Sicht des Anlegers betrachtet. Zahlungen vom Anleger sind negativ, Zuflüsse zum Anleger positiv.</p>
-      </div>
-      <div class="panel__body">
-        <form class="fund-form" data-fund-form>
-          <div class="fund-form__start-grid">
-            <div class="field">
-              <label for="purchaseDate">Kauf-/Startdatum</label>
-              <input id="purchaseDate" name="purchaseDate" type="date" required>
-            </div>
-            <div class="field">
-              <label for="initialAmount">Startbetrag</label>
-              <input id="initialAmount" name="initialAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 50.000,00" required>
-            </div>
-            <div class="field">
-              <label for="initialAmountMode">Startbetrag ist</label>
-              <select id="initialAmountMode" name="initialAmountMode">
-                <option value="gross" selected>Brutto – Kundenaufwand inkl. Kaufspesen</option>
-                <option value="net">Netto – tatsächlich investiert</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="purchaseFee">Kaufspesen / Ausgabeaufschlag</label>
-              <div class="input-suffix">
-                <input id="purchaseFee" name="purchaseFee" type="number" inputmode="decimal" min="0" max="100" step="0.01" value="0">
-                <span>%</span>
-              </div>
-              <span class="field__hint">Spesensatz auf den Nettoanlagebetrag; Brutto = Netto × (1 + Spesensatz).</span>
-            </div>
-          </div>
-
-          <div class="fund-form__end-grid">
-            <div class="field">
-              <label for="endDate">End-/Bewertungsdatum</label>
-              <input id="endDate" name="endDate" type="date" required>
-            </div>
-            <div class="field">
-              <label for="endValue">End-/Verkaufswert</label>
-              <input id="endValue" name="endValue" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 72.500,00" required>
-              <span class="field__hint">Bei Verkauf möglichst den tatsächlich verbleibenden Nettoerlös verwenden.</span>
-            </div>
-            <div class="field">
-              <label for="historicalCompare">Historischer Vergleich</label>
-              <select id="historicalCompare" name="historicalCompare">
-                <option value="both" selected>Beide Benchmarks</option>
-                <option value="overnight">Ø täglich fällige Einlagen AT (ECB/OeNB)</option>
-                <option value="euribor3m">3-Monats-Euribor (ECB)</option>
-                <option value="none">Kein Vergleich</option>
-              </select>
-              <span class="field__hint">Spareinlage und 3-Monats-Euribor werden als fiktive Sparprodukte behandelt: positive Zinsen unterliegen grundsätzlich 25 % KESt; bei wirksamer KESt-Befreiungserklärung 0 %.</span>
-            </div>
-            <div class="field">
-              <label for="kestExemption">KESt-Befreiungserklärung</label>
-              <select id="kestExemption" name="kestExemption">
-                <option value="no" selected>Nein</option>
-                <option value="yes">Ja – liegt wirksam vor</option>
-              </select>
-              <span class="field__hint">Bei „Ja“ werden KESt-Cashflows auf Fondsebene ignoriert und die historischen Zinsbenchmarks ohne KESt-Abzug gerechnet. Die Option betrifft nur den KESt-Abzug, nicht Körperschaftsteuer oder sonstige Steuern.</span>
-            </div>
-          </div>
-
-          <section class="cashflow-section" aria-labelledby="cashflow-heading">
-            <div class="section-heading-row">
-              <div>
-                <h3 id="cashflow-heading">Weitere Zahlungsströme</h3>
-                <p>Ausschüttungen dürfen ausdrücklich auch negativ erfasst werden, z. B. wenn eine Steuerbelastung den Nettozufluss übersteigt.</p>
-              </div>
-            </div>
-
-            <div class="cashflow-entry">
-              <div class="field">
-                <label for="cashflowDate">Datum</label>
-                <input id="cashflowDate" type="date">
-              </div>
-              <div class="field">
-                <label for="cashflowType">Art</label>
-                <select id="cashflowType">
-                  <option value="contribution">Zuzahlung / Sparrate</option>
-                  <option value="distribution">Ausschüttung</option>
-                  <option value="tax">KESt / Steuer auf ausschüttungsgleichen Ertrag</option>
-                  <option value="fee">Depot-/sonstige Gebühr</option>
-                  <option value="withdrawal">Entnahme</option>
-                  <option value="other">Sonstiger Cashflow</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="cashflowAmount">Betrag</label>
-                <input id="cashflowAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 200,00 oder -35,00">
-              </div>
-              <div class="field cashflow-entry__note">
-                <label for="cashflowNote">Notiz</label>
-                <input id="cashflowNote" type="text" maxlength="80" placeholder="optional">
-              </div>
-              <button class="secondary-button cashflow-entry__button" type="button" data-add-cashflow>Zahlung hinzufügen</button>
-            </div>
-
-            <p class="cashflow-sign-note"><strong>Vorzeichen:</strong> negativ = Zahlung/Belastung des Anlegers, positiv = Zufluss. Bei Zuzahlung, Steuer und Gebühr wird ein positiv eingegebener Betrag automatisch als Belastung übernommen.</p>
-
-            <div class="cashflow-table-wrap" data-cashflow-table-wrap hidden>
-              <table class="cashflow-table">
-                <thead>
-                  <tr>
-                    <th>Datum</th>
-                    <th>Art</th>
-                    <th class="cashflow-table__amount">Betrag</th>
-                    <th>Notiz</th>
-                    <th><span class="sr-only">Aktion</span></th>
-                  </tr>
-                </thead>
-                <tbody data-cashflow-body></tbody>
-              </table>
-            </div>
-
-            <details class="recurring-box">
-              <summary>Regelmäßige Zahlungen erzeugen</summary>
-              <div class="recurring-grid">
-                <div class="field">
-                  <label for="recurringType">Art</label>
-                  <select id="recurringType">
-                    <option value="contribution">Zuzahlung / Sparrate</option>
-                    <option value="fee">Depot-/sonstige Gebühr</option>
-                    <option value="distribution">Ausschüttung</option>
-                    <option value="tax">KESt / Steuer auf agE</option>
-                    <option value="other">Sonstiger Cashflow</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="recurringAmount">Betrag je Zahlung</label>
-                  <input id="recurringAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 200,00">
-                </div>
-                <div class="field">
-                  <label for="recurringInterval">Intervall</label>
-                  <select id="recurringInterval">
-                    <option value="1" selected>monatlich</option>
-                    <option value="3">vierteljährlich</option>
-                    <option value="6">halbjährlich</option>
-                    <option value="12">jährlich</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="recurringFirst">Erste Zahlung</label>
-                  <input id="recurringFirst" type="date">
-                </div>
-                <div class="field">
-                  <label for="recurringLast">Letzte Zahlung</label>
-                  <input id="recurringLast" type="date">
-                </div>
-                <div class="field recurring-grid__note">
-                  <label for="recurringNote">Notiz</label>
-                  <input id="recurringNote" type="text" maxlength="80" placeholder="optional">
-                </div>
-              </div>
-              <button class="secondary-button" type="button" data-add-recurring>Zahlungen erzeugen</button>
-            </details>
-          </section>
-
-          <p class="form-message form-message--error" data-fund-error hidden></p>
-          <p class="form-message fund-warning" data-fund-warning hidden></p>
-          <p class="fund-data-status" data-fund-data-status hidden aria-live="polite"></p>
-          <input type="file" accept="application/json,.json" data-import-fund-file hidden>
-          <input type="file" accept=".csv,text/csv" data-import-bank-csv-file hidden>
-          <div class="fund-form__actions" role="group" aria-label="Fondsrechner Aktionen">
-            <button class="primary-button" type="submit">Fondsrendite berechnen</button>
-            <button class="secondary-button" type="button" data-import-fund>Daten importieren</button>
-            <button class="secondary-button" type="button" data-import-bank-csv>CSV importieren</button>
-            <button class="secondary-button" type="button" data-export-fund>Daten exportieren</button>
-            <button class="secondary-button" type="button" data-reset-fund>Zurücksetzen</button>
-          </div>
-        </form>
-
-        <div class="fund-results" data-fund-results hidden aria-live="polite">
-          <div class="fund-result-card fund-result-card--primary fund-result-card--fund">
-            <span class="fund-result-card__label">Fonds · effektive Nettorendite</span>
-            <strong class="fund-result-card__value" data-xirr></strong>
-            <span class="fund-result-card__meta">XIRR · datumsgenau p.a.</span>
-          </div>
-          <div class="fund-result-card fund-result-card--fund">
-            <span class="fund-result-card__label">Wirtschaftlicher Überschuss</span>
-            <strong class="fund-result-card__value" data-economic-result></strong>
-            <span class="fund-result-card__meta">alle Anleger-Cashflows inkl. Endwert</span>
-          </div>
-          <div class="fund-result-card fund-result-card--compare fund-result-card--benchmark" data-benchmark-card="overnight" hidden>
-            <span class="fund-result-card__label">Historische Spareinlage</span>
-            <strong class="fund-result-card__value" data-benchmark-rate="overnight"></strong>
-            <span class="fund-result-card__meta" data-benchmark-meta="overnight"></span>
-          </div>
-          <div class="fund-result-card fund-result-card--compare fund-result-card--benchmark" data-benchmark-card="euribor3m" hidden>
-            <span class="fund-result-card__label">3-Monats-Euribor</span>
-            <strong class="fund-result-card__value" data-benchmark-rate="euribor3m"></strong>
-            <span class="fund-result-card__meta" data-benchmark-meta="euribor3m"></span>
-          </div>
-        </div>
-
-        <div class="fund-result-actions">
-          <button class="secondary-button" type="button" data-print-fund hidden>PDF / Drucken</button>
-        </div>
-
-        <section class="comparison-chart" data-comparison-chart hidden aria-labelledby="comparison-chart-heading">
-          <div class="comparison-chart__header">
-            <h3 id="comparison-chart-heading">Vergleich auf einen Blick</h3>
-            <p>Fonds und ausgewählte Benchmarks mit denselben Anleger-Zahlungszeitpunkten.</p>
-            <div class="comparison-chart__legend" aria-label="Farblegende">
-              <span class="comparison-chart__legend-item comparison-chart__legend-item--fund">Fonds</span>
-              <span class="comparison-chart__legend-item comparison-chart__legend-item--benchmark">Benchmarks</span>
-            </div>
-          </div>
-          <div class="comparison-chart__grid">
-            <div class="comparison-chart__panel">
-              <h4>Endwert am Bewertungsdatum</h4>
-              <div class="comparison-bars" data-value-chart></div>
-            </div>
-            <div class="comparison-chart__panel">
-              <h4>Effektivrendite p.a.</h4>
-              <div class="comparison-bars comparison-bars--return" data-return-chart></div>
-            </div>
-          </div>
-        </section>
-
-        <details class="fund-details" data-fund-details hidden>
-          <summary>Berechnungsdetails</summary>
-          <div class="detail-grid">
-            <div class="detail-item detail-item--fund"><span class="detail-item__label">Kundenaufwand Start</span><span class="detail-item__value" data-start-outflow></span></div>
-            <div class="detail-item detail-item--fund"><span class="detail-item__label">Davon netto investiert</span><span class="detail-item__value" data-start-net></span></div>
-            <div class="detail-item detail-item--fund"><span class="detail-item__label">Kaufspesen</span><span class="detail-item__value" data-start-fee></span></div>
-            <div class="detail-item detail-item--fund"><span class="detail-item__label">Weitere Belastungen</span><span class="detail-item__value" data-other-outflows></span></div>
-            <div class="detail-item detail-item--fund"><span class="detail-item__label">Zwischenzeitliche Zuflüsse</span><span class="detail-item__value" data-intermediate-inflows></span></div>
-            <div class="detail-item detail-item--fund"><span class="detail-item__label">End-/Verkaufswert Fonds</span><span class="detail-item__value" data-terminal-value></span></div>
-            <div class="detail-item detail-item--fund"><span class="detail-item__label">Anzahl Cashflows</span><span class="detail-item__value" data-cashflow-count></span></div>
-            <div class="detail-item detail-item--fund"><span class="detail-item__label">KESt-Befreiung</span><span class="detail-item__value" data-kest-status></span></div>
-            <div class="detail-item detail-item--fund" data-ignored-kest-detail hidden><span class="detail-item__label">Saldo ignorierter KESt-Cashflows</span><span class="detail-item__value" data-ignored-kest></span></div>
-
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Endwert</span><span class="detail-item__value" data-benchmark-end="overnight"></span></div>
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="overnight"></span></div>
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="overnight"></span></div>
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · KESt</span><span class="detail-item__value" data-benchmark-tax="overnight"></span></div>
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Fonds vs. Spareinlage</span><span class="detail-item__value" data-benchmark-difference="overnight"></span></div>
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="overnight"></span></div>
-
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Endwert</span><span class="detail-item__value" data-benchmark-end="euribor3m"></span></div>
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="euribor3m"></span></div>
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="euribor3m"></span></div>
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · KESt</span><span class="detail-item__value" data-benchmark-tax="euribor3m"></span></div>
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">Fonds vs. 3M-Euribor</span><span class="detail-item__value" data-benchmark-difference="euribor3m"></span></div>
-            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="euribor3m"></span></div>
-          </div>
-          <p class="method-note" data-fund-method></p>
-          <div class="source-links">
-            <a href="https://data.ecb.europa.eu/data/datasets/MIR/MIR.M.AT.B.L21.A.R.A.2250.EUR.N" target="_blank" rel="noopener noreferrer">ECB: österreichische täglich fällige Haushaltseinlagen</a>
-            <a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA" target="_blank" rel="noopener noreferrer">ECB: 3-Monats-Euribor, Monatsdurchschnitt</a>
-            <a href="https://data.ecb.europa.eu/help/api/data" target="_blank" rel="noopener noreferrer">ECB Data Portal API</a>
-          </div>
-        </details>
-
-        <aside class="fund-general-note">
-          <strong>Hinweis:</strong> Der Fondsrechner bildet keine österreichische Fondsbesteuerung vollständig nach. Ausschüttungen, Steuern, Gebühren und sonstige Belastungen werden grundsätzlich über die tatsächlich angefallenen Cashflows erfasst. Liegt eine wirksame KESt-Befreiungserklärung vor, werden nur als „KESt / Steuer auf ausschüttungsgleichen Ertrag“ erfasste Cashflows aus der Fondsrendite entfernt; bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Befreiung vom KESt-Abzug bedeutet außerdem nicht automatisch Steuerfreiheit auf Körperschaftsebene. Beide historischen Zinsbenchmarks werden als fiktive Sparprodukte behandelt und unterliegen ohne Befreiungserklärung 25 % KESt auf positive Zinsen.
-        </aside>
-      </div>
-    </section>
-  </main>
-
-  <section class="fund-print-report" data-print-report aria-hidden="true"></section>
-
-  <footer class="site-footer">Toolbox</footer>
-
-  <script type="module" src="js/navigation.js"></script>
-  <script type="module" src="js/fund-return.js"></script>
+<div class="field">
+<label for="kestExemption">KESt-Befreiungserklärung</label>
+<select id="kestExemption" name="kestExemption">
+<option selected="" value="no">Nein</option>
+<option value="yes">Ja – liegt wirksam vor</option>
+</select>
+<span class="field__hint">Bei „Ja“ werden KESt-Cashflows auf Fondsebene ignoriert und die historischen Zinsbenchmarks ohne KESt-Abzug gerechnet. Die Option betrifft nur den KESt-Abzug, nicht Körperschaftsteuer oder sonstige Steuern.</span>
+</div>
+</div><fieldset class="benchmark-picker" data-benchmark-picker=""><legend>Historische Benchmarks</legend><p class="benchmark-picker__hint">Ausgewählte Benchmarks werden mit denselben Anleger-Zahlungszeitpunkten berechnet. Nach einer Berechnung kannst du Benchmarks ein- oder ausblenden; der Vergleich wird automatisch neu berechnet.</p><div class="benchmark-picker__grid"><label class="benchmark-check benchmark-check--overnight"><input checked="" data-benchmark-checkbox="" type="checkbox" value="overnight"/> <span>Ø täglich fällige Einlagen AT</span></label><label class="benchmark-check benchmark-check--euribor3m"><input checked="" data-benchmark-checkbox="" type="checkbox" value="euribor3m"/> <span>3-Monats-Euribor</span></label><label class="benchmark-check benchmark-check--euribor6m"><input data-benchmark-checkbox="" type="checkbox" value="euribor6m"/> <span>6-Monats-Euribor</span></label><label class="benchmark-check benchmark-check--euribor12m"><input data-benchmark-checkbox="" type="checkbox" value="euribor12m"/> <span>12-Monats-Euribor</span></label></div><p class="field__hint">Alle Zinsbenchmarks werden als fiktive Sparprodukte behandelt: positive Zinsen unterliegen grundsätzlich 25 % KESt; bei wirksamer KESt-Befreiungserklärung 0 %.</p></fieldset>
+<section aria-labelledby="cashflow-heading" class="cashflow-section">
+<div class="section-heading-row">
+<div>
+<h3 id="cashflow-heading">Weitere Zahlungsströme</h3>
+<p>Ausschüttungen dürfen ausdrücklich auch negativ erfasst werden, z. B. wenn eine Steuerbelastung den Nettozufluss übersteigt.</p>
+</div>
+</div>
+<div class="cashflow-entry">
+<div class="field">
+<label for="cashflowDate">Datum</label>
+<input id="cashflowDate" type="date"/>
+</div>
+<div class="field">
+<label for="cashflowType">Art</label>
+<select id="cashflowType">
+<option value="contribution">Zuzahlung / Sparrate</option>
+<option value="distribution">Ausschüttung</option>
+<option value="tax">KESt / Steuer auf ausschüttungsgleichen Ertrag</option>
+<option value="fee">Depot-/sonstige Gebühr</option>
+<option value="withdrawal">Entnahme</option>
+<option value="other">Sonstiger Cashflow</option>
+</select>
+</div>
+<div class="field">
+<label for="cashflowAmount">Betrag</label>
+<input autocomplete="off" id="cashflowAmount" inputmode="decimal" placeholder="z. B. 200,00 oder -35,00" type="text"/>
+</div>
+<div class="field cashflow-entry__title"><label for="cashflowTitle">Titel <span class="label-optional">(optional)</span></label><input id="cashflowTitle" maxlength="120" placeholder="z. B. Fonds XY" type="text"/></div><div class="field cashflow-entry__note">
+<label for="cashflowNote">Notiz</label>
+<input id="cashflowNote" maxlength="80" placeholder="optional" type="text"/>
+</div>
+<button class="secondary-button cashflow-entry__button" data-add-cashflow="" type="button">Zahlung hinzufügen</button>
+</div>
+<p class="cashflow-sign-note"><strong>Vorzeichen:</strong> negativ = Zahlung/Belastung des Anlegers, positiv = Zufluss. Bei Zuzahlung, Steuer und Gebühr wird ein positiv eingegebener Betrag automatisch als Belastung übernommen.</p>
+<details class="cashflow-list" data-cashflow-list="" hidden=""><summary data-cashflow-summary="">Zahlungsströme anzeigen</summary><div class="cashflow-table-wrap" data-cashflow-table-wrap=""><table class="cashflow-table">
+<thead>
+<tr>
+<th>Datum</th>
+<th>Art</th>
+<th class="cashflow-table__amount">Betrag</th>
+<th>Titel</th><th>Notiz</th>
+<th><span class="sr-only">Aktion</span></th>
+</tr>
+</thead>
+<tbody data-cashflow-body=""></tbody>
+</table></div></details>
+<details class="recurring-box">
+<summary>Regelmäßige Zahlungen erzeugen</summary>
+<div class="recurring-grid">
+<div class="field">
+<label for="recurringType">Art</label>
+<select id="recurringType">
+<option value="contribution">Zuzahlung / Sparrate</option>
+<option value="fee">Depot-/sonstige Gebühr</option>
+<option value="distribution">Ausschüttung</option>
+<option value="tax">KESt / Steuer auf agE</option>
+<option value="other">Sonstiger Cashflow</option>
+</select>
+</div>
+<div class="field">
+<label for="recurringAmount">Betrag je Zahlung</label>
+<input autocomplete="off" id="recurringAmount" inputmode="decimal" placeholder="z. B. 200,00" type="text"/>
+</div>
+<div class="field">
+<label for="recurringInterval">Intervall</label>
+<select id="recurringInterval">
+<option selected="" value="1">monatlich</option>
+<option value="3">vierteljährlich</option>
+<option value="6">halbjährlich</option>
+<option value="12">jährlich</option>
+</select>
+</div>
+<div class="field">
+<label for="recurringFirst">Erste Zahlung</label>
+<input id="recurringFirst" type="date"/>
+</div>
+<div class="field">
+<label for="recurringLast">Letzte Zahlung</label>
+<input id="recurringLast" type="date"/>
+</div>
+<div class="field recurring-grid__title"><label for="recurringTitle">Titel <span class="label-optional">(optional)</span></label><input id="recurringTitle" maxlength="120" placeholder="z. B. Fonds XY" type="text"/></div><div class="field recurring-grid__note">
+<label for="recurringNote">Notiz</label>
+<input id="recurringNote" maxlength="80" placeholder="optional" type="text"/>
+</div>
+</div>
+<button class="secondary-button" data-add-recurring="" type="button">Zahlungen erzeugen</button>
+</details>
+</section>
+<p class="form-message form-message--error" data-fund-error="" hidden=""></p>
+<p class="form-message fund-warning" data-fund-warning="" hidden=""></p>
+<p aria-live="polite" class="fund-data-status" data-fund-data-status="" hidden=""></p>
+<input accept="application/json,.json" data-import-fund-file="" hidden="" type="file"/>
+<input accept=".csv,text/csv" data-import-bank-csv-file="" hidden="" type="file"/>
+<div aria-label="Depotrendite-Rechner Aktionen" class="fund-form__actions" role="group">
+<button class="primary-button" type="submit">Depotrendite berechnen</button>
+<button class="secondary-button" data-import-fund="" type="button">Daten importieren</button>
+<button class="secondary-button" data-import-bank-csv="" type="button">CSV importieren</button>
+<button class="secondary-button" data-export-fund="" type="button">Daten exportieren</button>
+<button class="secondary-button" data-reset-fund="" type="button">Zurücksetzen</button>
+</div>
+</form>
+<div aria-live="polite" class="fund-results" data-fund-results="" hidden="">
+<div class="fund-result-card fund-result-card--primary fund-result-card--fund">
+<span class="fund-result-card__label">Depot · effektive Nettorendite</span>
+<strong class="fund-result-card__value" data-xirr=""></strong>
+<span class="fund-result-card__meta">XIRR · datumsgenau p.a.</span>
+</div>
+<div class="fund-result-card fund-result-card--fund">
+<span class="fund-result-card__label">Wirtschaftlicher Überschuss</span>
+<strong class="fund-result-card__value" data-economic-result=""></strong>
+<span class="fund-result-card__meta">alle Anleger-Cashflows inkl. Depot-Endwert</span>
+</div>
+<div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--overnight" data-benchmark-card="overnight" hidden="">
+<span class="fund-result-card__label">Historische Spareinlage</span>
+<strong class="fund-result-card__value" data-benchmark-rate="overnight"></strong>
+<span class="fund-result-card__meta" data-benchmark-meta="overnight"></span>
+</div>
+<div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--euribor3m" data-benchmark-card="euribor3m" hidden="">
+<span class="fund-result-card__label">3-Monats-Euribor</span>
+<strong class="fund-result-card__value" data-benchmark-rate="euribor3m"></strong>
+<span class="fund-result-card__meta" data-benchmark-meta="euribor3m"></span>
+</div><div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--euribor6m" data-benchmark-card="euribor6m" hidden=""><span class="fund-result-card__label">6-Monats-Euribor</span><strong class="fund-result-card__value" data-benchmark-rate="euribor6m"></strong><span class="fund-result-card__meta" data-benchmark-meta="euribor6m"></span></div><div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--euribor12m" data-benchmark-card="euribor12m" hidden=""><span class="fund-result-card__label">12-Monats-Euribor</span><strong class="fund-result-card__value" data-benchmark-rate="euribor12m"></strong><span class="fund-result-card__meta" data-benchmark-meta="euribor12m"></span></div>
+</div>
+<div class="fund-result-actions">
+<button class="secondary-button" data-print-fund="" hidden="" type="button">PDF / Drucken</button>
+</div>
+<section class="savings-plan-summary" data-savings-plan-summary="" hidden=""><h3>Erkannte Sparpläne</h3><p>Aus regelmäßigen Kaufbuchungen mit gleichem Titel erkannte Vermögensaufbau-Raten (Betragstoleranz etwa ±1 %).</p><ul data-savings-plan-list=""></ul></section><section aria-labelledby="comparison-chart-heading" class="comparison-chart" data-comparison-chart="" hidden="">
+<div class="comparison-chart__header">
+<h3 id="comparison-chart-heading">Vergleich auf einen Blick</h3>
+<p>Depot und ausgewählte Benchmarks mit denselben Anleger-Zahlungszeitpunkten.</p>
+<div aria-label="Farblegende" class="comparison-chart__legend"><span class="comparison-chart__legend-item comparison-chart__legend-item--fund">Depot</span><span class="comparison-chart__legend-item comparison-chart__legend-item--overnight">Spareinlage</span><span class="comparison-chart__legend-item comparison-chart__legend-item--euribor3m">3M-Euribor</span><span class="comparison-chart__legend-item comparison-chart__legend-item--euribor6m">6M-Euribor</span><span class="comparison-chart__legend-item comparison-chart__legend-item--euribor12m">12M-Euribor</span></div>
+</div>
+<div class="comparison-chart__grid">
+<div class="comparison-chart__panel">
+<h4>Endwert am Bewertungsdatum</h4>
+<div class="comparison-bars" data-value-chart=""></div>
+</div>
+<div class="comparison-chart__panel">
+<h4>Effektivrendite p.a.</h4>
+<div class="comparison-bars comparison-bars--return" data-return-chart=""></div>
+</div>
+</div>
+</section>
+<details class="fund-details" data-fund-details="" hidden="">
+<summary>Berechnungsdetails</summary>
+<div class="detail-grid">
+<div class="detail-item detail-item--fund"><span class="detail-item__label">Kundenaufwand Start</span><span class="detail-item__value" data-start-outflow=""></span></div>
+<div class="detail-item detail-item--fund"><span class="detail-item__label">Davon netto investiert</span><span class="detail-item__value" data-start-net=""></span></div>
+<div class="detail-item detail-item--fund"><span class="detail-item__label">Kaufspesen</span><span class="detail-item__value" data-start-fee=""></span></div>
+<div class="detail-item detail-item--fund"><span class="detail-item__label">Weitere Belastungen</span><span class="detail-item__value" data-other-outflows=""></span></div>
+<div class="detail-item detail-item--fund"><span class="detail-item__label">Zwischenzeitliche Zuflüsse</span><span class="detail-item__value" data-intermediate-inflows=""></span></div>
+<div class="detail-item detail-item--fund"><span class="detail-item__label">End-/Verkaufswert Depot</span><span class="detail-item__value" data-terminal-value=""></span></div>
+<div class="detail-item detail-item--fund"><span class="detail-item__label">Anzahl Cashflows</span><span class="detail-item__value" data-cashflow-count=""></span></div>
+<div class="detail-item detail-item--fund"><span class="detail-item__label">KESt-Befreiung</span><span class="detail-item__value" data-kest-status=""></span></div>
+<div class="detail-item detail-item--fund" data-ignored-kest-detail="" hidden=""><span class="detail-item__label">Saldo ignorierter KESt-Cashflows</span><span class="detail-item__value" data-ignored-kest=""></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--overnight" data-benchmark-detail="overnight" hidden=""><span class="detail-item__label">Spareinlage · Endwert</span><span class="detail-item__value" data-benchmark-end="overnight"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--overnight" data-benchmark-detail="overnight" hidden=""><span class="detail-item__label">Spareinlage · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="overnight"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--overnight" data-benchmark-detail="overnight" hidden=""><span class="detail-item__label">Spareinlage · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="overnight"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--overnight" data-benchmark-detail="overnight" hidden=""><span class="detail-item__label">Spareinlage · KESt</span><span class="detail-item__value" data-benchmark-tax="overnight"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--overnight" data-benchmark-detail="overnight" hidden=""><span class="detail-item__label">Depot vs. Spareinlage</span><span class="detail-item__value" data-benchmark-difference="overnight"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--overnight" data-benchmark-detail="overnight" hidden=""><span class="detail-item__label">Spareinlage · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="overnight"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--euribor3m" data-benchmark-detail="euribor3m" hidden=""><span class="detail-item__label">3M-Euribor · Endwert</span><span class="detail-item__value" data-benchmark-end="euribor3m"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--euribor3m" data-benchmark-detail="euribor3m" hidden=""><span class="detail-item__label">3M-Euribor · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="euribor3m"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--euribor3m" data-benchmark-detail="euribor3m" hidden=""><span class="detail-item__label">3M-Euribor · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="euribor3m"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--euribor3m" data-benchmark-detail="euribor3m" hidden=""><span class="detail-item__label">3M-Euribor · KESt</span><span class="detail-item__value" data-benchmark-tax="euribor3m"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--euribor3m" data-benchmark-detail="euribor3m" hidden=""><span class="detail-item__label">Depot vs. 3M-Euribor</span><span class="detail-item__value" data-benchmark-difference="euribor3m"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--euribor3m" data-benchmark-detail="euribor3m" hidden=""><span class="detail-item__label">3M-Euribor · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="euribor3m"></span></div>
+<div class="detail-item detail-item--benchmark benchmark-tone--euribor6m" data-benchmark-detail="euribor6m" hidden=""><span class="detail-item__label">6M-Euribor · Endwert</span><span class="detail-item__value" data-benchmark-end="euribor6m"></span></div><div class="detail-item detail-item--benchmark benchmark-tone--euribor6m" data-benchmark-detail="euribor6m" hidden=""><span class="detail-item__label">6M-Euribor · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="euribor6m"></span></div><div class="detail-item detail-item--benchmark benchmark-tone--euribor6m" data-benchmark-detail="euribor6m" hidden=""><span class="detail-item__label">6M-Euribor · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="euribor6m"></span></div><div class="detail-item detail-item--benchmark benchmark-tone--euribor6m" data-benchmark-detail="euribor6m" hidden=""><span class="detail-item__label">6M-Euribor · KESt</span><span class="detail-item__value" data-benchmark-tax="euribor6m"></span></div><div class="detail-item detail-item--benchmark benchmark-tone--euribor6m" data-benchmark-detail="euribor6m" hidden=""><span class="detail-item__label">Depot vs. 6M-Euribor</span><span class="detail-item__value" data-benchmark-difference="euribor6m"></span></div><div class="detail-item detail-item--benchmark benchmark-tone--euribor6m" data-benchmark-detail="euribor6m" hidden=""><span class="detail-item__label">6M-Euribor · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="euribor6m"></span></div><div class="detail-item detail-item--benchmark benchmark-tone--euribor12m" data-benchmark-detail="euribor12m" hidden=""><span class="detail-item__label">12M-Euribor · Endwert</span><span class="detail-item__value" data-benchmark-end="euribor12m"></span></div><div class="detail-item detail-item--benchmark benchmark-tone--euribor12m" data-benchmark-detail="euribor12m" hidden=""><span class="detail-item__label">12M-Euribor · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="euribor12m"></span></div><div class="detail-item detail-item--benchmark benchmark-tone--euribor12m" data-benchmark-detail="euribor12m" hidden=""><span class="detail-item__label">12M-Euribor · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="euribor12m"></span></div><div class="detail-item detail-item--benchmark benchmark-tone--euribor12m" data-benchmark-detail="euribor12m" hidden=""><span class="detail-item__label">12M-Euribor · KESt</span><span class="detail-item__value" data-benchmark-tax="euribor12m"></span></div><div class="detail-item detail-item--benchmark benchmark-tone--euribor12m" data-benchmark-detail="euribor12m" hidden=""><span class="detail-item__label">Depot vs. 12M-Euribor</span><span class="detail-item__value" data-benchmark-difference="euribor12m"></span></div><div class="detail-item detail-item--benchmark benchmark-tone--euribor12m" data-benchmark-detail="euribor12m" hidden=""><span class="detail-item__label">12M-Euribor · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="euribor12m"></span></div></div>
+<p class="method-note" data-fund-method=""></p>
+<div class="source-links">
+<a href="https://data.ecb.europa.eu/data/datasets/MIR/MIR.M.AT.B.L21.A.R.A.2250.EUR.N" rel="noopener noreferrer" target="_blank">ECB: österreichische täglich fällige Haushaltseinlagen</a>
+<a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 3-Monats-Euribor, Monatsdurchschnitt</a>
+<a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR6MD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 6-Monats-Euribor, Monatsdurchschnitt</a><a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR1YD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 12-Monats-Euribor, Monatsdurchschnitt</a><a href="https://data.ecb.europa.eu/help/api/data" rel="noopener noreferrer" target="_blank">ECB Data Portal API</a>
+</div>
+</details>
+<aside class="fund-general-note"><strong>Hinweis:</strong> Der Depotrendite-Rechner bildet keine österreichische Fondsbesteuerung vollständig nach. Ausschüttungen, Steuern, Gebühren und sonstige Belastungen werden grundsätzlich über die tatsächlich angefallenen Cashflows erfasst. Liegt eine wirksame KESt-Befreiungserklärung vor, werden nur als „KESt / Steuer auf ausschüttungsgleichen Ertrag“ erfasste Cashflows aus der Depotrendite entfernt; bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Befreiung vom KESt-Abzug bedeutet außerdem nicht automatisch Steuerfreiheit auf Körperschaftsebene. Historische Zinsbenchmarks werden als fiktive Sparprodukte behandelt und unterliegen ohne Befreiungserklärung 25 % KESt auf positive Zinsen.</aside>
+</div>
+</section>
+</main>
+<section aria-hidden="true" class="fund-print-report" data-print-report=""></section>
+<footer class="site-footer">Toolbox</footer>
+<script src="js/navigation.js" type="module"></script>
+<script src="js/fund-return.js" type="module"></script>
 </body>
 </html>
