@@ -1,8 +1,8 @@
 # Toolbox
 
-**Aktuell: v0.4.7** – Fondsrechner mit vollständigem JSON-Import/-Export der Berechnungsdaten und verbessertem Tabulator-Verhalten bei Datumsfeldern.
+**Aktuell: v0.4.8** – klar getrennte Fonds-/Benchmark-Darstellung, dauerhaft sichtbare Hauptaktionen und Export mit Speicherort-Auswahl.
 
-**Version:** 0.4.7
+**Version:** 0.4.8
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -75,6 +75,14 @@ Die historischen Zinsen werden über den bestehenden Cloudflare-Worker geladen. 
 Zusätzlich kann angegeben werden, ob eine **wirksame KESt-Befreiungserklärung** vorliegt. Bei aktivierter Befreiung werden die beiden historischen Zinsbenchmarks mit 0 % KESt gerechnet. Auf Fondsebene werden Cashflows der Kategorie „KESt / Steuer auf ausschüttungsgleichen Ertrag“ aus der XIRR-Berechnung entfernt. Bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Option bildet ausschließlich den KESt-Abzug ab und nicht eine allfällige Körperschaftsteuer oder sonstige Steuerfolgen.
 
 
+
+## Änderungen in Version 0.4.8
+
+- Fonds-Ergebnisse und Benchmark-Ergebnisse farblich deutlich getrennt; dieselbe Zuordnung gilt für Kennzahlen, Berechnungsdetails und Vergleichsgrafiken.
+- dauerhaft sichtbare Aktionsleiste mit „Fondsrendite berechnen“, Datenimport, Datenexport und Zurücksetzen ergänzt.
+- JSON-Export verwendet in unterstützten Browsern den nativen „Speichern unter …“-Dialog mit frei wählbarem Speicherordner und merkt sich den zuletzt gewählten Ort; nicht unterstützte Browser verwenden weiterhin den Download-Fallback.
+- PDF-/Druckaktion bleibt ergebnisbezogen außerhalb der dauerhaften Aktionsleiste.
+- CSV-Import ist als nächster Ausbau vorgesehen; die konkrete Spaltenzuordnung wird erst nach Festlegung des Quellformats implementiert.
 
 ## Änderungen in Version 0.4.7
 
