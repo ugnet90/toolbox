@@ -190,42 +190,49 @@
           <p class="form-message fund-warning" data-fund-warning hidden></p>
           <p class="fund-data-status" data-fund-data-status hidden aria-live="polite"></p>
           <input type="file" accept="application/json,.json" data-import-fund-file hidden>
-          <div class="fund-form__actions">
+          <div class="fund-form__actions" role="group" aria-label="Fondsrechner Aktionen">
             <button class="primary-button" type="submit">Fondsrendite berechnen</button>
             <button class="secondary-button" type="button" data-import-fund>Daten importieren</button>
             <button class="secondary-button" type="button" data-export-fund>Daten exportieren</button>
             <button class="secondary-button" type="button" data-reset-fund>Zurücksetzen</button>
-            <button class="secondary-button" type="button" data-print-fund hidden>PDF / Drucken</button>
           </div>
         </form>
 
         <div class="fund-results" data-fund-results hidden aria-live="polite">
-          <div class="fund-result-card fund-result-card--primary">
+          <div class="fund-result-card fund-result-card--primary fund-result-card--fund">
             <span class="fund-result-card__label">Fonds · effektive Nettorendite</span>
             <strong class="fund-result-card__value" data-xirr></strong>
             <span class="fund-result-card__meta">XIRR · datumsgenau p.a.</span>
           </div>
-          <div class="fund-result-card">
+          <div class="fund-result-card fund-result-card--fund">
             <span class="fund-result-card__label">Wirtschaftlicher Überschuss</span>
             <strong class="fund-result-card__value" data-economic-result></strong>
             <span class="fund-result-card__meta">alle Anleger-Cashflows inkl. Endwert</span>
           </div>
-          <div class="fund-result-card fund-result-card--compare" data-benchmark-card="overnight" hidden>
+          <div class="fund-result-card fund-result-card--compare fund-result-card--benchmark" data-benchmark-card="overnight" hidden>
             <span class="fund-result-card__label">Historische Spareinlage</span>
             <strong class="fund-result-card__value" data-benchmark-rate="overnight"></strong>
             <span class="fund-result-card__meta" data-benchmark-meta="overnight"></span>
           </div>
-          <div class="fund-result-card fund-result-card--compare" data-benchmark-card="euribor3m" hidden>
+          <div class="fund-result-card fund-result-card--compare fund-result-card--benchmark" data-benchmark-card="euribor3m" hidden>
             <span class="fund-result-card__label">3-Monats-Euribor</span>
             <strong class="fund-result-card__value" data-benchmark-rate="euribor3m"></strong>
             <span class="fund-result-card__meta" data-benchmark-meta="euribor3m"></span>
           </div>
         </div>
 
+        <div class="fund-result-actions">
+          <button class="secondary-button" type="button" data-print-fund hidden>PDF / Drucken</button>
+        </div>
+
         <section class="comparison-chart" data-comparison-chart hidden aria-labelledby="comparison-chart-heading">
           <div class="comparison-chart__header">
             <h3 id="comparison-chart-heading">Vergleich auf einen Blick</h3>
             <p>Fonds und ausgewählte Benchmarks mit denselben Anleger-Zahlungszeitpunkten.</p>
+            <div class="comparison-chart__legend" aria-label="Farblegende">
+              <span class="comparison-chart__legend-item comparison-chart__legend-item--fund">Fonds</span>
+              <span class="comparison-chart__legend-item comparison-chart__legend-item--benchmark">Benchmarks</span>
+            </div>
           </div>
           <div class="comparison-chart__grid">
             <div class="comparison-chart__panel">
@@ -242,29 +249,29 @@
         <details class="fund-details" data-fund-details hidden>
           <summary>Berechnungsdetails</summary>
           <div class="detail-grid">
-            <div class="detail-item"><span class="detail-item__label">Kundenaufwand Start</span><span class="detail-item__value" data-start-outflow></span></div>
-            <div class="detail-item"><span class="detail-item__label">Davon netto investiert</span><span class="detail-item__value" data-start-net></span></div>
-            <div class="detail-item"><span class="detail-item__label">Kaufspesen</span><span class="detail-item__value" data-start-fee></span></div>
-            <div class="detail-item"><span class="detail-item__label">Weitere Belastungen</span><span class="detail-item__value" data-other-outflows></span></div>
-            <div class="detail-item"><span class="detail-item__label">Zwischenzeitliche Zuflüsse</span><span class="detail-item__value" data-intermediate-inflows></span></div>
-            <div class="detail-item"><span class="detail-item__label">End-/Verkaufswert Fonds</span><span class="detail-item__value" data-terminal-value></span></div>
-            <div class="detail-item"><span class="detail-item__label">Anzahl Cashflows</span><span class="detail-item__value" data-cashflow-count></span></div>
-            <div class="detail-item"><span class="detail-item__label">KESt-Befreiung</span><span class="detail-item__value" data-kest-status></span></div>
-            <div class="detail-item" data-ignored-kest-detail hidden><span class="detail-item__label">Saldo ignorierter KESt-Cashflows</span><span class="detail-item__value" data-ignored-kest></span></div>
+            <div class="detail-item detail-item--fund"><span class="detail-item__label">Kundenaufwand Start</span><span class="detail-item__value" data-start-outflow></span></div>
+            <div class="detail-item detail-item--fund"><span class="detail-item__label">Davon netto investiert</span><span class="detail-item__value" data-start-net></span></div>
+            <div class="detail-item detail-item--fund"><span class="detail-item__label">Kaufspesen</span><span class="detail-item__value" data-start-fee></span></div>
+            <div class="detail-item detail-item--fund"><span class="detail-item__label">Weitere Belastungen</span><span class="detail-item__value" data-other-outflows></span></div>
+            <div class="detail-item detail-item--fund"><span class="detail-item__label">Zwischenzeitliche Zuflüsse</span><span class="detail-item__value" data-intermediate-inflows></span></div>
+            <div class="detail-item detail-item--fund"><span class="detail-item__label">End-/Verkaufswert Fonds</span><span class="detail-item__value" data-terminal-value></span></div>
+            <div class="detail-item detail-item--fund"><span class="detail-item__label">Anzahl Cashflows</span><span class="detail-item__value" data-cashflow-count></span></div>
+            <div class="detail-item detail-item--fund"><span class="detail-item__label">KESt-Befreiung</span><span class="detail-item__value" data-kest-status></span></div>
+            <div class="detail-item detail-item--fund" data-ignored-kest-detail hidden><span class="detail-item__label">Saldo ignorierter KESt-Cashflows</span><span class="detail-item__value" data-ignored-kest></span></div>
 
-            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Endwert</span><span class="detail-item__value" data-benchmark-end="overnight"></span></div>
-            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="overnight"></span></div>
-            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="overnight"></span></div>
-            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · KESt</span><span class="detail-item__value" data-benchmark-tax="overnight"></span></div>
-            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Fonds vs. Spareinlage</span><span class="detail-item__value" data-benchmark-difference="overnight"></span></div>
-            <div class="detail-item" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="overnight"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Endwert</span><span class="detail-item__value" data-benchmark-end="overnight"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="overnight"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="overnight"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · KESt</span><span class="detail-item__value" data-benchmark-tax="overnight"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Fonds vs. Spareinlage</span><span class="detail-item__value" data-benchmark-difference="overnight"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="overnight" hidden><span class="detail-item__label">Spareinlage · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="overnight"></span></div>
 
-            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Endwert</span><span class="detail-item__value" data-benchmark-end="euribor3m"></span></div>
-            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="euribor3m"></span></div>
-            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="euribor3m"></span></div>
-            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · KESt</span><span class="detail-item__value" data-benchmark-tax="euribor3m"></span></div>
-            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">Fonds vs. 3M-Euribor</span><span class="detail-item__value" data-benchmark-difference="euribor3m"></span></div>
-            <div class="detail-item" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="euribor3m"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Endwert</span><span class="detail-item__value" data-benchmark-end="euribor3m"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Effektivrendite</span><span class="detail-item__value" data-benchmark-xirr="euribor3m"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · Bruttozinsen</span><span class="detail-item__value" data-benchmark-interest="euribor3m"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · KESt</span><span class="detail-item__value" data-benchmark-tax="euribor3m"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">Fonds vs. 3M-Euribor</span><span class="detail-item__value" data-benchmark-difference="euribor3m"></span></div>
+            <div class="detail-item detail-item--benchmark" data-benchmark-detail="euribor3m" hidden><span class="detail-item__label">3M-Euribor · ECB-Datenabdeckung</span><span class="detail-item__value" data-rate-coverage="euribor3m"></span></div>
           </div>
           <p class="method-note" data-fund-method></p>
           <div class="source-links">
