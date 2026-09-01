@@ -3,6 +3,7 @@ import {
   applyKestExemption,
   calculateXirr,
   createFundReturnData,
+  detectRecurringSavingsPlans,
   generateRecurringDates,
   initialInvestment,
   normalizeFundReturnData,
@@ -138,8 +139,38 @@ assert.ok(exempt.cashflows.every((flow) => flow.type !== "tax"));
 
 
 const exportedData = createFundReturnData({
-  toolboxVersion: "0.4.7",
-  exportedAt: "2026-08-31T15:00:00.000Z",
+  toolboxVersion: "0.5.0",
+  exportedAt: "2026-09-01T12:00:00.000Z",
+  inputs: {
+    designation: "Depot Test",
+    purchaseDate: "2020-01-01",
+    initialAmount: 50000,
+    initialAmountMode: "gross",
+    purchaseFeePercent: 2,
+    endDate: "2026-08-31",
+    endValue: 77500,
+    benchmarkKinds: ["overnight", "euribor3m", "euribor6m"],
+    kestExemption: "no"
+  },
+  cashflows: [
+    { date: "2021-01-15", type: "distribution", amount: 250, title: "Fonds XY", note: "Ausschüttung" },
+    { date: "2022-02-01", type: "fee", amount: -20, title: "", note: "Depotgebühr" }
+  ]
+});
+assert.equal(exportedData.format, "toolbox-depot-return");
+assert.equal(exportedData.schema_version, 2);
+assert.equal(exportedData.inputs.designation, "Depot Test");
+assert.deepEqual(exportedData.inputs.benchmarkKinds, ["overnight", "euribor3m", "euribor6m"]);
+assert.equal(exportedData.cashflows[0].title, "Fonds XY");
+
+const importedData = normalizeFundReturnData(exportedData);
+assert.deepEqual(importedData.inputs, exportedData.inputs);
+assert.deepEqual(importedData.cashflows, exportedData.cashflows);
+
+// Alte v1-Exporte bleiben importierbar.
+const legacyData = {
+  format: "toolbox-fund-return",
+  schema_version: 1,
   inputs: {
     purchaseDate: "2020-01-01",
     initialAmount: 50000,
@@ -150,47 +181,35 @@ const exportedData = createFundReturnData({
     historicalCompare: "both",
     kestExemption: "no"
   },
-  cashflows: [
-    { date: "2021-01-15", type: "distribution", amount: 250, note: "Ausschüttung" },
-    { date: "2022-02-01", type: "fee", amount: -20, note: "Depotgebühr" }
-  ]
-});
-assert.equal(exportedData.format, "toolbox-fund-return");
-assert.equal(exportedData.schema_version, 1);
-assert.equal(exportedData.inputs.initialAmount, 50000);
-assert.equal(exportedData.cashflows.length, 2);
-
-const importedData = normalizeFundReturnData(exportedData);
-assert.deepEqual(importedData.inputs, exportedData.inputs);
-assert.deepEqual(importedData.cashflows, exportedData.cashflows);
+  cashflows: [{ date: "2021-01-15", type: "distribution", amount: 250, note: "Ausschüttung" }]
+};
+const normalizedLegacy = normalizeFundReturnData(legacyData);
+assert.deepEqual(normalizedLegacy.inputs.benchmarkKinds, ["overnight", "euribor3m"]);
+assert.equal(normalizedLegacy.cashflows[0].title, "");
 
 assert.throws(
   () => normalizeFundReturnData({ ...exportedData, format: "other" }),
-  /keine Toolbox-Fondsrendite-Datei/
+  /keine unterstützte Toolbox-Depotrendite-Datei/
 );
-assert.throws(
-  () => normalizeFundReturnData({
-    ...exportedData,
-    cashflows: [{ date: "2021-01-15", type: "invalid", amount: 10, note: "" }]
-  }),
-  /unbekannte Art/
-);
-
 
 const bankCsv = [
   "ISIN;Titel;Menge;Einheit;Abrechnungsbetrag;Währung;Stichtag;Geschäftsart;Abrechnungsnummer;Abrechnungsdatum;Ausführungsnummer;Ausführungsdatum",
   "DE0008491051;UNIGLOBAL ANTEILSSCH.KL.;0,467;Stk;-249,65;EUR;12.08.2026;Kauf aus Dauerauftrag;75273135;17.08.2026;75938106;14.08.2026",
+  "DE0008491051;UNIGLOBAL ANTEILSSCH.KL.;0;Stk;0,00;EUR;12.09.2026;Kauf aus Dauerauftrag;75273136;17.09.2026;75938107;14.09.2026",
   ";;;;;;;;;;;"
 ].join("\r\n");
 const importedBankCsv = parseBankTransactionsCsv(bankCsv);
 assert.equal(importedBankCsv.cashflows.length, 1);
+assert.equal(importedBankCsv.skippedZeroAmounts, 1);
 assert.deepEqual(importedBankCsv.cashflows[0], {
   date: "2026-08-17",
   type: "contribution",
   amount: -249.65,
+  title: "UNIGLOBAL ANTEILSSCH.KL.",
   note: "Kauf aus Dauerauftrag"
 });
 assert.equal(importedBankCsv.unknownBusinessTypes, 0);
+assert.equal(importedBankCsv.hasTitleColumn, true);
 
 const unknownCsv = [
   "Abrechnungsbetrag;Geschäftsart;Abrechnungsdatum",
@@ -198,6 +217,20 @@ const unknownCsv = [
 ].join("\n");
 const importedUnknownCsv = parseBankTransactionsCsv(unknownCsv);
 assert.equal(importedUnknownCsv.cashflows[0].type, "other");
+assert.equal(importedUnknownCsv.cashflows[0].title, "");
 assert.equal(importedUnknownCsv.unknownBusinessTypes, 1);
+assert.equal(importedUnknownCsv.hasTitleColumn, false);
+
+const plans = detectRecurringSavingsPlans([
+  { date: "2025-01-12", type: "contribution", amount: -99.70, title: "Fonds XY" },
+  { date: "2025-02-12", type: "contribution", amount: -100.40, title: "Fonds XY" },
+  { date: "2025-03-13", type: "contribution", amount: -100.90, title: "Fonds XY" },
+  { date: "2025-04-11", type: "contribution", amount: -99.30, title: "Fonds XY" }
+]);
+assert.equal(plans.length, 1);
+assert.equal(plans[0].title, "Fonds XY");
+assert.equal(plans[0].nominalAmount, 100);
+assert.equal(plans[0].firstDate, "2025-01-12");
+assert.equal(plans[0].lastDate, "2025-04-11");
 
 console.log("OK: fund return utils");
