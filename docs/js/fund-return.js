@@ -7,6 +7,7 @@ import {
   generateRecurringDates,
   initialInvestment,
   normalizeFundReturnData,
+  parseBankTransactionsCsv,
   parseGermanNumber,
   simulateHistoricalRateBenchmark,
   summarizeCashflows
@@ -53,6 +54,8 @@ const printReport = document.querySelector("[data-print-report]");
 const importButton = document.querySelector("[data-import-fund]");
 const exportButton = document.querySelector("[data-export-fund]");
 const importFileInput = document.querySelector("[data-import-fund-file]");
+const csvImportButton = document.querySelector("[data-import-bank-csv]");
+const csvImportFileInput = document.querySelector("[data-import-bank-csv-file]");
 const dataStatusNode = document.querySelector("[data-fund-data-status]");
 
 const benchmarkCards = Object.fromEntries(
@@ -294,6 +297,37 @@ function applyImportedFundData(data) {
   clearCalculation();
   const flowLabel = cashflows.length === 1 ? "1 zusätzlicher Zahlungsstrom" : `${cashflows.length} zusätzliche Zahlungsströme`;
   showDataStatus(`Daten importiert: ${flowLabel}. Bitte Fondsrendite neu berechnen.`);
+}
+
+
+function decodeCsvBuffer(buffer) {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch {
+    return new TextDecoder("windows-1252").decode(buffer);
+  }
+}
+
+async function importBankTransactionsCsv(file) {
+  if (file.size > 5_000_000) throw new Error("Die CSV-Datei ist zu groß.");
+  const text = decodeCsvBuffer(await file.arrayBuffer());
+  const parsed = parseBankTransactionsCsv(text);
+  const hadExisting = cashflows.length > 0;
+  for (const flow of parsed.cashflows) {
+    cashflows.push({ ...flow, id: nextCashflowId++ });
+  }
+  renderCashflows();
+  clearCalculation();
+
+  const count = parsed.cashflows.length;
+  const label = count === 1 ? "1 Buchung" : `${count} Buchungen`;
+  showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}. Bitte Fondsrendite neu berechnen.`);
+  if (parsed.unknownBusinessTypes > 0) {
+    appendWarning(`${parsed.unknownBusinessTypes} unbekannte Geschäftsart(en) wurden als „Sonstiger Cashflow“ übernommen; Originaltext steht in der Notiz.`);
+  }
+  if (parsed.normalizedOutflowSigns > 0) {
+    appendWarning(`${parsed.normalizedOutflowSigns} als Belastung erkannte positive Buchungsbeträge wurden automatisch mit negativem Vorzeichen übernommen.`);
+  }
 }
 
 function typeOptions(selected) {
@@ -784,6 +818,23 @@ document.querySelector("[data-add-recurring]")?.addEventListener("click", () => 
 });
 
 
+
+csvImportButton?.addEventListener("click", () => {
+  csvImportFileInput?.click();
+});
+
+csvImportFileInput?.addEventListener("change", async () => {
+  const file = csvImportFileInput.files?.[0];
+  csvImportFileInput.value = "";
+  if (!file) return;
+  clearCalculation();
+  try {
+    await importBankTransactionsCsv(file);
+  } catch (error) {
+    showError(error.message || "CSV-Daten konnten nicht importiert werden.");
+  }
+});
+
 exportButton?.addEventListener("click", async () => {
   try {
     const data = currentFundData();
@@ -846,6 +897,12 @@ form?.addEventListener("submit", async (event) => {
     const calc = buildCalculation();
     const xirrResult = calculateXirr(calc.investorFlows);
     renderCoreResults(calc, xirrResult);
+    window.requestAnimationFrame(() => {
+      resultsNode?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start"
+      });
+    });
 
     const kinds = selectedBenchmarkKinds();
     if (kinds.length) {

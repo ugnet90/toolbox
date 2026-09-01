@@ -128,6 +128,128 @@ export function createFundReturnData({ inputs, cashflows = [], toolboxVersion = 
   };
 }
 
+
+function parseSemicolonCsv(text) {
+  const source = String(text ?? "").replace(/^\uFEFF/, "");
+  const rows = [];
+  let row = [];
+  let field = "";
+  let quoted = false;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    if (quoted) {
+      if (char === '"') {
+        if (source[i + 1] === '"') {
+          field += '"';
+          i += 1;
+        } else {
+          quoted = false;
+        }
+      } else {
+        field += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      quoted = true;
+    } else if (char === ";") {
+      row.push(field);
+      field = "";
+    } else if (char === "\n") {
+      row.push(field.replace(/\r$/, ""));
+      rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += char;
+    }
+  }
+
+  if (quoted) throw new Error("Die CSV-Datei enthält ein nicht geschlossenes Anführungszeichen.");
+  if (field.length || row.length) {
+    row.push(field.replace(/\r$/, ""));
+    rows.push(row);
+  }
+  return rows;
+}
+
+function normalizeCsvHeader(value) {
+  return String(value ?? "").replace(/\u00A0/g, " ").trim().toLocaleLowerCase("de-AT");
+}
+
+function germanDateToIso(value, lineNumber) {
+  const match = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(String(value ?? "").trim());
+  if (!match) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsdatum ist ungültig.`);
+  const iso = `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+  parseIsoDate(iso);
+  return iso;
+}
+
+function mapCsvBusinessType(value) {
+  const raw = String(value ?? "").trim();
+  const normalized = raw.toLocaleLowerCase("de-AT");
+  if (normalized.includes("kauf")) return "contribution";
+  if (normalized.includes("verkauf")) return "withdrawal";
+  if (normalized.includes("ausschütt") || normalized.includes("ausschuett")) return "distribution";
+  if (normalized.includes("kest") || normalized.includes("steuer") || normalized.includes("ausschüttungsgleich") || normalized.includes("ausschuettungsgleich")) return "tax";
+  if (normalized.includes("gebühr") || normalized.includes("gebuehr") || normalized.includes("spesen")) return "fee";
+  return "other";
+}
+
+export function parseBankTransactionsCsv(text) {
+  const rows = parseSemicolonCsv(text);
+  const nonEmptyRows = rows.filter((row) => row.some((cell) => String(cell ?? "").trim() !== ""));
+  if (nonEmptyRows.length < 2) throw new Error("Die CSV-Datei enthält keine Buchungsdaten.");
+
+  const header = nonEmptyRows[0].map(normalizeCsvHeader);
+  const required = {
+    amount: "abrechnungsbetrag",
+    type: "geschäftsart",
+    date: "abrechnungsdatum"
+  };
+  const indexes = Object.fromEntries(
+    Object.entries(required).map(([key, label]) => [key, header.indexOf(label)])
+  );
+  const missing = Object.entries(indexes).filter(([, index]) => index < 0).map(([key]) => required[key]);
+  if (missing.length) throw new Error(`CSV-Spalte(n) fehlen: ${missing.join(", ")}.`);
+
+  const cashflows = [];
+  let unknownBusinessTypes = 0;
+  let normalizedOutflowSigns = 0;
+
+  for (let index = 1; index < nonEmptyRows.length; index += 1) {
+    const row = nonEmptyRows[index];
+    const lineNumber = index + 1;
+    const rawAmount = String(row[indexes.amount] ?? "").trim();
+    const businessType = String(row[indexes.type] ?? "").trim();
+    const rawDate = String(row[indexes.date] ?? "").trim();
+    if (!rawAmount && !businessType && !rawDate) continue;
+    if (!rawAmount || !rawDate) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag oder Abrechnungsdatum fehlt.`);
+
+    let amount = parseGermanNumber(rawAmount);
+    if (!Number.isFinite(amount) || amount === 0) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag ist ungültig.`);
+    const type = mapCsvBusinessType(businessType);
+    if (type === "other") unknownBusinessTypes += 1;
+    if (["contribution", "tax", "fee"].includes(type) && amount > 0) {
+      amount = -amount;
+      normalizedOutflowSigns += 1;
+    }
+
+    cashflows.push({
+      date: germanDateToIso(rawDate, lineNumber),
+      type,
+      amount,
+      note: businessType.slice(0, 80)
+    });
+  }
+
+  if (!cashflows.length) throw new Error("Die CSV-Datei enthält keine importierbaren Buchungen.");
+  if (cashflows.length > 5000) throw new Error("Die CSV-Datei enthält zu viele Buchungen.");
+  return { cashflows, unknownBusinessTypes, normalizedOutflowSigns };
+}
+
 export function parseIsoDate(iso) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? ""));
   if (!match) throw new Error("Ungültiges Datum.");
