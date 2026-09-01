@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import {
   applyKestExemption,
   calculateXirr,
+  createFundReturnData,
   generateRecurringDates,
   initialInvestment,
+  normalizeFundReturnData,
   simulateHistoricalRateBenchmark,
   simulateHistoricalSavings
 } from "../docs/js/fund-return-utils.js";
@@ -132,5 +134,45 @@ assert.equal(exempt.cashflows.length, 2);
 assert.equal(exempt.ignoredTaxCashflows.length, 1);
 assert.equal(exempt.ignoredTaxNet, -75);
 assert.ok(exempt.cashflows.every((flow) => flow.type !== "tax"));
+
+
+const exportedData = createFundReturnData({
+  toolboxVersion: "0.4.7",
+  exportedAt: "2026-08-31T15:00:00.000Z",
+  inputs: {
+    purchaseDate: "2020-01-01",
+    initialAmount: 50000,
+    initialAmountMode: "gross",
+    purchaseFeePercent: 2,
+    endDate: "2026-08-31",
+    endValue: 77500,
+    historicalCompare: "both",
+    kestExemption: "no"
+  },
+  cashflows: [
+    { date: "2021-01-15", type: "distribution", amount: 250, note: "Ausschüttung" },
+    { date: "2022-02-01", type: "fee", amount: -20, note: "Depotgebühr" }
+  ]
+});
+assert.equal(exportedData.format, "toolbox-fund-return");
+assert.equal(exportedData.schema_version, 1);
+assert.equal(exportedData.inputs.initialAmount, 50000);
+assert.equal(exportedData.cashflows.length, 2);
+
+const importedData = normalizeFundReturnData(exportedData);
+assert.deepEqual(importedData.inputs, exportedData.inputs);
+assert.deepEqual(importedData.cashflows, exportedData.cashflows);
+
+assert.throws(
+  () => normalizeFundReturnData({ ...exportedData, format: "other" }),
+  /keine Toolbox-Fondsrendite-Datei/
+);
+assert.throws(
+  () => normalizeFundReturnData({
+    ...exportedData,
+    cashflows: [{ date: "2021-01-15", type: "invalid", amount: 10, note: "" }]
+  }),
+  /unbekannte Art/
+);
 
 console.log("OK: fund return utils");
