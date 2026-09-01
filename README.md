@@ -1,8 +1,8 @@
 # Toolbox
 
-**Aktuell: v0.4.9** – CSV-Buchungsimport, automatischer Ergebnis-Sprung und druckfeste Vergleichsbalken.
+**Aktuell: v0.5.1** – Depotrendite, flexible Benchmark-Auswahl, Sparplan-Erkennung und erweiterter CSV-Import.
 
-**Version:** 0.4.9
+**Version:** 0.5.1
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -48,33 +48,41 @@ Eine Versicherungssteuer ist im Einzahlungsbetrag enthalten und wird bei Brutto-
 Ausgegeben werden Netto-Gesamtrendite, annualisierter Netto-Effektivzins und der Bruttozinssatz einer österreichischen Spareinlage, die nach 25 % KESt bei gleichem tatsächlichem Einzahlungsbetrag denselben Netto-Endbetrag erreicht. Der angezeigte Vergleichszinssatz wird kaufmännisch auf zwei Nachkommastellen gerundet; der exakte Rechenwert bleibt in den Berechnungsdetails sichtbar. Betragsfelder werden beim Verlassen im österreichischen Zahlenformat formatiert.
 
 
-### Fondsrendite & Vergleich
+### Depotrendite & Vergleich
 
-Der Rechner bildet Fondsveranlagungen als datierte Zahlungsströme aus Sicht des Anlegers ab. Unterstützt werden insbesondere:
+Der Rechner bildet ein Depot als datierte Zahlungsströme aus Sicht des Anlegers ab. Unterstützt werden Startinvestition mit Kaufspesen, beliebige Zuzahlungen/Sparraten, Ausschüttungen, Steuerbelastungen, Depotgebühren, Entnahmen und ein End-/Verkaufswert. Die effektive Nettorendite wird als datumsgenaue XIRR berechnet.
 
-- Startinvestition mit Brutto-/Netto-Auswahl und Kaufspesen/Ausgabeaufschlag,
-- unregelmäßige Zuzahlungen und Sparraten,
-- automatisch erzeugte regelmäßige Zahlungen (monatlich, vierteljährlich, halbjährlich oder jährlich),
-- Ausschüttungen – auch negative Beträge,
-- Steuerbelastungen, z. B. für ausschüttungsgleiche Erträge,
-- Depot-/sonstige Gebühren,
-- Entnahmen und sonstige Cashflows,
-- End-/Verkaufswert zum Bewertungsdatum.
+CSV-Buchungsimporte verwenden die Spalten `Abrechnungsbetrag`, `Geschäftsart`, `Abrechnungsdatum` und – sofern vorhanden – `Titel`. Nullbuchungen werden übersprungen. Regelmäßige Kaufbuchungen mit gleichem Titel und nur kleinen, kursbedingten Betragsabweichungen werden als mögliche monatliche Fondssparverträge zusammengefasst und im Ergebnis angezeigt. Die vollständige Detailtabelle der Zahlungsströme ist standardmäßig eingeklappt.
 
-Die effektive Nettorendite wird als datumsgenaue XIRR aus allen Anleger-Cashflows berechnet. Eine österreichische Fondsbesteuerung wird bewusst nicht pauschal nachgebildet; steuerliche Belastungen werden über die tatsächlich angefallenen Netto-Cashflows erfasst.
+Historische Benchmarks werden per Checkbox ausgewählt und können auch nach einer bereits erfolgten Berechnung ein- oder ausgeschaltet werden; die Benchmark-Ergebnisse werden automatisch neu berechnet. Verfügbar sind:
 
-Optional kann derselbe historische Zahlungsstrom mit zwei Benchmarks verglichen werden; standardmäßig werden beide gleichzeitig berechnet:
+- Ø täglich fällige österreichische Haushaltseinlagen,
+- 3-Monats-Euribor,
+- 6-Monats-Euribor,
+- 12-Monats-Euribor.
 
-- **Ø täglich fällige Einlagen Österreich**: monatliche ECB-MIR-Serie `MIR.M.AT.B.L21.A.R.A.2250.EUR.N`; statistischer Durchschnitt österreichischer Haushaltseinlagen, positive Zinsen mit 25 % KESt.
-- **3-Monats-Euribor**: monatliche Durchschnittsreihe `FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA`; für den Vergleich wie ein fiktives Sparprodukt behandelt, daher grundsätzlich 25 % KESt auf positive Zinsen.
+Alle Benchmarks werden wie fiktive Sparprodukte behandelt: positive Zinsen unterliegen grundsätzlich 25 % KESt, bei aktivierter wirksamer KESt-Befreiungserklärung 0 %. Jede Benchmark besitzt eine eigene Abstufung innerhalb einer warmen Farbfamilie; die Depotrendite bleibt davon deutlich in Petrol/Blau getrennt.
 
-Für beide Benchmarks werden neben dem historischen Endwert auch die **datumsgenaue effektive Rendite (XIRR) p.a.** ausgewiesen. Eine grafische Vergleichsdarstellung stellt Fonds, Spareinlage und 3-Monats-Euribor sowohl nach Endwert als auch nach Effektivrendite gegenüber. Ein Reset-Button leert Eingaben, Zahlungsströme und Ergebnisse für eine neue Berechnung.
+Eine optionale lokale **Bezeichnung** kann für Depot, Exportdatei und PDF-Bericht vergeben werden. Sie wird nicht an GitHub oder den Daten-Worker übertragen. Der JSON-Export speichert den vollständigen Rechnerzustand einschließlich Bezeichnung, Benchmark-Auswahl und Zahlungsstrom-Titeln; alte v1-Fondsrendite-JSON-Dateien bleiben importierbar.
 
-Die historischen Zinsen werden über den bestehenden Cloudflare-Worker geladen. Bei beiden Benchmarks wird nach dem letzten verfügbaren offiziellen ECB-Monat der letzte Wert bis zum Vergleichsende unverändert fortgeführt und in der Oberfläche entsprechend gekennzeichnet.
-
-Zusätzlich kann angegeben werden, ob eine **wirksame KESt-Befreiungserklärung** vorliegt. Bei aktivierter Befreiung werden die beiden historischen Zinsbenchmarks mit 0 % KESt gerechnet. Auf Fondsebene werden Cashflows der Kategorie „KESt / Steuer auf ausschüttungsgleichen Ertrag“ aus der XIRR-Berechnung entfernt. Bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Option bildet ausschließlich den KESt-Abzug ab und nicht eine allfällige Körperschaftsteuer oder sonstige Steuerfolgen.
+Beim PDF-/Druckbericht wird vorher gefragt, ob die einzelnen Zahlungsströme mit ausgegeben werden sollen.
 
 
+## Änderungen in Version 0.5.1
+
+- Hotfix: `VERSION` war in der v0.5.0-ZIP versehentlich leer.
+- `VERSION` und `SITE_VERSION` sind wieder synchron.
+
+## Änderungen in Version 0.5.0
+
+- sichtbare Bezeichnung des Tools auf **Depotrendite & Vergleich** umgestellt; bestehende URL bleibt kompatibel.
+- CSV-Import übernimmt zusätzlich `Titel`; Buchungen mit Abrechnungsbetrag 0 werden übersprungen und gemeldet.
+- lange Zahlungsstromlisten standardmäßig eingeklappt; PDF fragt vor dem Druck, ob die Detailbuchungen enthalten sein sollen.
+- automatische Erkennung monatlicher Fondssparverträge bei gleichbleibendem Titel und etwa ±1 % Buchungsabweichung ergänzt.
+- Benchmark-Auswahl auf Checkboxen umgestellt; Ein-/Ausschalten nach Berechnung löst automatisch eine neue Benchmark-Berechnung aus.
+- 6-Monats- und 12-Monats-Euribor ergänzt; alle Benchmarks farblich getrennt und deutlich vom Depot abgegrenzt.
+- optionale lokale Bezeichnung für Export und PDF ergänzt.
+- JSON-Datenformat auf Depotrendite v2 erweitert, mit Rückwärtskompatibilität zu alten Fondsrendite-v1-Exporten.
 
 ## Änderungen in Version 0.4.9
 
@@ -252,7 +260,7 @@ Die Tool-Karten werden aus `data/tools.json` erzeugt. `docs/data/tools.json` ist
 
 ## Datenschutz und externe Daten
 
-Rechner-Eingaben werden lokal im Browser verarbeitet und nicht gespeichert. Exportierte Fondsrechner-JSON-Dateien werden ausschließlich lokal erzeugt bzw. lokal eingelesen und nicht hochgeladen. Der Bundesschatz-Vergleich ruft öffentliche Konditionsdaten über den Cloudflare-Worker ab. Der Fondsrechner lädt bei aktiviertem historischem Vergleich ausschließlich den benötigten Monatsbereich der ausgewählten öffentlichen ECB-Zinsserie (österreichische täglich fällige Einlagen oder 3-Monats-Euribor); die eingegebenen Fonds-Cashflows werden nicht an den Worker übertragen.
+Rechner-Eingaben werden lokal im Browser verarbeitet und nicht gespeichert. Exportierte Depotrendite-JSON-Dateien werden ausschließlich lokal erzeugt bzw. lokal eingelesen und nicht hochgeladen. Der Bundesschatz-Vergleich ruft öffentliche Konditionsdaten über den Cloudflare-Worker ab. Der Depotrendite-Rechner lädt ausschließlich die benötigten Monatsbereiche der ausgewählten öffentlichen ECB-Zinsserien; eingegebene Depot-Cashflows, Titel und Bezeichnungen werden nicht an den Worker übertragen.
 
 ## GitHub Pages
 
@@ -272,6 +280,6 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 Die Projektversion steht in `VERSION`. Für die sichtbaren Seiten-Footer wird sie zentral als `SITE_VERSION` in `docs/js/site-map.js` gesetzt und von `docs/js/navigation.js` ausgegeben.
 
-Aktuelle Version: **0.4.7**
+Aktuelle Version: **0.5.1**
 
-- Fondsrendite-Ergebnisse können über **PDF / Drucken** als A4-Bericht mit Eingaben, Cashflows, Ergebnissen, Benchmarks, Vergleichsgrafiken und Berechnungsdetails ausgegeben werden.
+- Depotrendite-Ergebnisse können über **PDF / Drucken** als A4-Bericht mit Eingaben, optionalen Cashflow-Details, Sparplan-Hinweisen, Benchmarks, Vergleichsgrafiken und Berechnungsdetails ausgegeben werden.
