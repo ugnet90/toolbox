@@ -32,6 +32,102 @@ export function formatGermanNumber(value, decimals = 2) {
   return decimals > 0 ? `${sign}${grouped},${fractionPart}` : `${sign}${grouped}`;
 }
 
+export const FUND_RETURN_DATA_FORMAT = "toolbox-fund-return";
+export const FUND_RETURN_DATA_SCHEMA_VERSION = 1;
+
+const FUND_AMOUNT_MODES = new Set(["gross", "net"]);
+const FUND_BENCHMARK_MODES = new Set(["both", "overnight", "euribor3m", "none"]);
+const FUND_KEST_MODES = new Set(["no", "yes"]);
+const FUND_CASHFLOW_TYPES = new Set(["contribution", "distribution", "tax", "fee", "withdrawal", "other"]);
+
+function requireFiniteNumber(value, label, { min = -Infinity, max = Infinity, greaterThan = null } = {}) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) throw new Error(`${label} ist ungültig.`);
+  if (greaterThan !== null && !(number > greaterThan)) throw new Error(`${label} muss größer als ${greaterThan} sein.`);
+  if (number < min || number > max) throw new Error(`${label} liegt außerhalb des erlaubten Bereichs.`);
+  return number;
+}
+
+export function normalizeFundReturnData(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Die Importdatei enthält keine gültigen Fondsrechner-Daten.");
+  }
+  if (payload.format !== FUND_RETURN_DATA_FORMAT) {
+    throw new Error("Die Datei ist keine Toolbox-Fondsrendite-Datei.");
+  }
+  if (Number(payload.schema_version) !== FUND_RETURN_DATA_SCHEMA_VERSION) {
+    throw new Error(`Nicht unterstützte Datenversion: ${payload.schema_version ?? "unbekannt"}.`);
+  }
+
+  const inputs = payload.inputs;
+  if (!inputs || typeof inputs !== "object" || Array.isArray(inputs)) {
+    throw new Error("Die Importdatei enthält keine vollständigen Eingabedaten.");
+  }
+
+  parseIsoDate(inputs.purchaseDate);
+  parseIsoDate(inputs.endDate);
+  const initialAmount = requireFiniteNumber(inputs.initialAmount, "Startbetrag", { greaterThan: 0 });
+  const purchaseFee = requireFiniteNumber(inputs.purchaseFeePercent, "Kaufspesen", { min: 0, max: 100 });
+  const endValue = requireFiniteNumber(inputs.endValue, "End-/Verkaufswert", { min: 0 });
+  const initialAmountMode = String(inputs.initialAmountMode ?? "");
+  const historicalCompare = String(inputs.historicalCompare ?? "");
+  const kestExemption = String(inputs.kestExemption ?? "");
+
+  if (!FUND_AMOUNT_MODES.has(initialAmountMode)) throw new Error("Ungültige Angabe bei ‚Startbetrag ist‘.");
+  if (!FUND_BENCHMARK_MODES.has(historicalCompare)) throw new Error("Ungültige Benchmark-Auswahl.");
+  if (!FUND_KEST_MODES.has(kestExemption)) throw new Error("Ungültige Angabe zur KESt-Befreiung.");
+
+  const rawCashflows = payload.cashflows ?? [];
+  if (!Array.isArray(rawCashflows)) throw new Error("Die Zahlungsströme sind ungültig.");
+  if (rawCashflows.length > 5000) throw new Error("Die Importdatei enthält zu viele Zahlungsströme.");
+
+  const cashflows = rawCashflows.map((flow, index) => {
+    if (!flow || typeof flow !== "object" || Array.isArray(flow)) {
+      throw new Error(`Zahlungsstrom ${index + 1} ist ungültig.`);
+    }
+    parseIsoDate(flow.date);
+    const type = String(flow.type ?? "");
+    if (!FUND_CASHFLOW_TYPES.has(type)) throw new Error(`Zahlungsstrom ${index + 1} hat eine unbekannte Art.`);
+    const amount = requireFiniteNumber(flow.amount, `Betrag in Zahlungsstrom ${index + 1}`);
+    if (amount === 0) throw new Error(`Betrag in Zahlungsstrom ${index + 1} darf nicht 0 sein.`);
+    const note = String(flow.note ?? "").trim();
+    if (note.length > 80) throw new Error(`Notiz in Zahlungsstrom ${index + 1} ist zu lang.`);
+    return { date: String(flow.date), type, amount, note };
+  });
+
+  return {
+    inputs: {
+      purchaseDate: String(inputs.purchaseDate),
+      initialAmount,
+      initialAmountMode,
+      purchaseFeePercent: purchaseFee,
+      endDate: String(inputs.endDate),
+      endValue,
+      historicalCompare,
+      kestExemption
+    },
+    cashflows
+  };
+}
+
+export function createFundReturnData({ inputs, cashflows = [], toolboxVersion = "", exportedAt = "" }) {
+  const normalized = normalizeFundReturnData({
+    format: FUND_RETURN_DATA_FORMAT,
+    schema_version: FUND_RETURN_DATA_SCHEMA_VERSION,
+    inputs,
+    cashflows
+  });
+
+  return {
+    format: FUND_RETURN_DATA_FORMAT,
+    schema_version: FUND_RETURN_DATA_SCHEMA_VERSION,
+    toolbox_version: String(toolboxVersion || ""),
+    exported_at: String(exportedAt || ""),
+    inputs: normalized.inputs,
+    cashflows: normalized.cashflows
+  };
+}
+
 export function parseIsoDate(iso) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? ""));
   if (!match) throw new Error("Ungültiges Datum.");

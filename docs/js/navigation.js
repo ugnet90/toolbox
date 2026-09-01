@@ -153,6 +153,41 @@ function setupMenu(button, panel, backdrop) {
   });
 }
 
+function setupDateInputTabNavigation() {
+  const selector = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled]):not([type="hidden"])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    'summary',
+    '[tabindex]:not([tabindex="-1"])'
+  ].join(',');
+
+  const visibleTabStops = () => [...document.querySelectorAll(selector)].filter((element) => {
+    if (!(element instanceof HTMLElement)) return false;
+    if (element.closest('[hidden]')) return false;
+    if (element.getAttribute('aria-hidden') === 'true') return false;
+    const style = window.getComputedStyle(element);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return;
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.type !== 'date') return;
+
+    const stops = visibleTabStops();
+    const index = stops.indexOf(target);
+    if (index < 0) return;
+    const nextIndex = index + (event.shiftKey ? -1 : 1);
+    if (nextIndex < 0 || nextIndex >= stops.length) return;
+
+    event.preventDefault();
+    stops[nextIndex].focus();
+  }, true);
+}
+
 function initNavigation() {
   const activeKey = currentPageKey();
   const headerHost = document.querySelector("[data-site-header]");
@@ -200,6 +235,7 @@ function initNavigation() {
   const panel = headerHost.querySelector(".mobile-nav");
   const backdrop = headerHost.querySelector(".mobile-nav-backdrop");
   setupMenu(button, panel, backdrop);
+  setupDateInputTabNavigation();
 }
 
 initNavigation();

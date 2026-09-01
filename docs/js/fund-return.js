@@ -2,9 +2,11 @@ import { SITE_VERSION } from "./site-map.js";
 import {
   applyKestExemption,
   calculateXirr,
+  createFundReturnData,
   formatGermanNumber,
   generateRecurringDates,
   initialInvestment,
+  normalizeFundReturnData,
   parseGermanNumber,
   simulateHistoricalRateBenchmark,
   summarizeCashflows
@@ -48,6 +50,10 @@ const returnChart = document.querySelector("[data-return-chart]");
 const resetButton = document.querySelector("[data-reset-fund]");
 const printButton = document.querySelector("[data-print-fund]");
 const printReport = document.querySelector("[data-print-report]");
+const importButton = document.querySelector("[data-import-fund]");
+const exportButton = document.querySelector("[data-export-fund]");
+const importFileInput = document.querySelector("[data-import-fund-file]");
+const dataStatusNode = document.querySelector("[data-fund-data-status]");
 
 const benchmarkCards = Object.fromEntries(
   Object.keys(BENCHMARKS).map((kind) => [kind, document.querySelector(`[data-benchmark-card="${kind}"]`)])
@@ -148,6 +154,10 @@ function formatAmountInput(input) {
 
 function clearCalculation() {
   calculationRevision += 1;
+  if (dataStatusNode) {
+    dataStatusNode.hidden = true;
+    dataStatusNode.textContent = "";
+  }
   if (errorNode) {
     errorNode.hidden = true;
     errorNode.textContent = "";
@@ -190,6 +200,69 @@ function appendWarning(message) {
   const current = warningNode.hidden ? "" : warningNode.textContent.trim();
   warningNode.textContent = current ? `${current} ${message}` : message;
   warningNode.hidden = false;
+}
+
+function showDataStatus(message) {
+  if (!dataStatusNode) return;
+  dataStatusNode.textContent = message;
+  dataStatusNode.hidden = false;
+}
+
+function currentFundData() {
+  const initial = parseGermanNumber(initialAmount?.value);
+  const terminal = parseGermanNumber(endValue?.value);
+  const fee = Number(purchaseFee?.value || 0);
+
+  return createFundReturnData({
+    toolboxVersion: SITE_VERSION,
+    exportedAt: new Date().toISOString(),
+    inputs: {
+      purchaseDate: purchaseDate?.value,
+      initialAmount: initial,
+      initialAmountMode: initialAmountMode?.value,
+      purchaseFeePercent: fee,
+      endDate: endDate?.value,
+      endValue: terminal,
+      historicalCompare: historicalCompare?.value,
+      kestExemption: kestExemption?.value
+    },
+    cashflows: cashflows.map(({ date, type, amount, note }) => ({ date, type, amount, note }))
+  });
+}
+
+function downloadJsonFile(data) {
+  const text = `${JSON.stringify(data, null, 2)}\n`;
+  const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const suffix = endDate?.value || new Date().toISOString().slice(0, 10);
+  link.href = url;
+  link.download = `toolbox_fondsrendite_${suffix}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function applyImportedFundData(data) {
+  const normalized = normalizeFundReturnData(data);
+  form?.reset();
+
+  purchaseDate.value = normalized.inputs.purchaseDate;
+  initialAmount.value = formatGermanNumber(normalized.inputs.initialAmount);
+  initialAmountMode.value = normalized.inputs.initialAmountMode;
+  purchaseFee.value = String(normalized.inputs.purchaseFeePercent);
+  endDate.value = normalized.inputs.endDate;
+  endValue.value = formatGermanNumber(normalized.inputs.endValue);
+  historicalCompare.value = normalized.inputs.historicalCompare;
+  kestExemption.value = normalized.inputs.kestExemption;
+
+  nextCashflowId = 1;
+  cashflows = normalized.cashflows.map((flow) => ({ ...flow, id: nextCashflowId++ }));
+  renderCashflows();
+  clearCalculation();
+  const flowLabel = cashflows.length === 1 ? "1 zusätzlicher Zahlungsstrom" : `${cashflows.length} zusätzliche Zahlungsströme`;
+  showDataStatus(`Daten importiert: ${flowLabel}. Bitte Fondsrendite neu berechnen.`);
 }
 
 function typeOptions(selected) {
@@ -679,6 +752,35 @@ document.querySelector("[data-add-recurring]")?.addEventListener("click", () => 
   }
 });
 
+
+exportButton?.addEventListener("click", () => {
+  try {
+    const data = currentFundData();
+    downloadJsonFile(data);
+    const flowLabel = data.cashflows.length === 1 ? "1 zusätzlicher Zahlungsstrom" : `${data.cashflows.length} zusätzliche Zahlungsströme`;
+    showDataStatus(`Berechnungsdaten exportiert (${flowLabel}).`);
+  } catch (error) {
+    showError(error.message || "Daten konnten nicht exportiert werden.");
+  }
+});
+
+importButton?.addEventListener("click", () => {
+  importFileInput?.click();
+});
+
+importFileInput?.addEventListener("change", async () => {
+  const file = importFileInput.files?.[0];
+  importFileInput.value = "";
+  if (!file) return;
+  clearCalculation();
+  try {
+    if (file.size > 2_000_000) throw new Error("Die Importdatei ist zu groß.");
+    const payload = JSON.parse(await file.text());
+    applyImportedFundData(payload);
+  } catch (error) {
+    showError(error instanceof SyntaxError ? "Die JSON-Datei ist ungültig." : (error.message || "Daten konnten nicht importiert werden."));
+  }
+});
 
 printButton?.addEventListener("click", () => {
   if (!buildPrintReport()) return;
