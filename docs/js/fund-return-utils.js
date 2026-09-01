@@ -32,11 +32,13 @@ export function formatGermanNumber(value, decimals = 2) {
   return decimals > 0 ? `${sign}${grouped},${fractionPart}` : `${sign}${grouped}`;
 }
 
-export const FUND_RETURN_DATA_FORMAT = "toolbox-fund-return";
-export const FUND_RETURN_DATA_SCHEMA_VERSION = 1;
+export const FUND_RETURN_DATA_FORMAT = "toolbox-depot-return";
+export const FUND_RETURN_DATA_SCHEMA_VERSION = 2;
 
+const LEGACY_FUND_RETURN_DATA_FORMAT = "toolbox-fund-return";
 const FUND_AMOUNT_MODES = new Set(["gross", "net"]);
-const FUND_BENCHMARK_MODES = new Set(["both", "overnight", "euribor3m", "none"]);
+const DEPOT_BENCHMARK_KEYS = ["overnight", "euribor3m", "euribor6m", "euribor12m"];
+const DEPOT_BENCHMARK_SET = new Set(DEPOT_BENCHMARK_KEYS);
 const FUND_KEST_MODES = new Set(["no", "yes"]);
 const FUND_CASHFLOW_TYPES = new Set(["contribution", "distribution", "tax", "fee", "withdrawal", "other"]);
 
@@ -48,15 +50,34 @@ function requireFiniteNumber(value, label, { min = -Infinity, max = Infinity, gr
   return number;
 }
 
+function legacyBenchmarkKinds(value) {
+  const mode = String(value ?? "");
+  if (mode === "both") return ["overnight", "euribor3m"];
+  if (DEPOT_BENCHMARK_SET.has(mode)) return [mode];
+  if (mode === "none" || !mode) return [];
+  throw new Error("Ungültige Benchmark-Auswahl.");
+}
+
+function normalizeBenchmarkKinds(inputs) {
+  if (!Array.isArray(inputs?.benchmarkKinds)) return legacyBenchmarkKinds(inputs?.historicalCompare);
+  const unique = [];
+  for (const raw of inputs.benchmarkKinds) {
+    const key = String(raw ?? "");
+    if (!DEPOT_BENCHMARK_SET.has(key)) throw new Error(`Unbekannter Benchmark: ${key || "leer"}.`);
+    if (!unique.includes(key)) unique.push(key);
+  }
+  return unique;
+}
+
 export function normalizeFundReturnData(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    throw new Error("Die Importdatei enthält keine gültigen Fondsrechner-Daten.");
+    throw new Error("Die Importdatei enthält keine gültigen Depotrendite-Daten.");
   }
-  if (payload.format !== FUND_RETURN_DATA_FORMAT) {
-    throw new Error("Die Datei ist keine Toolbox-Fondsrendite-Datei.");
-  }
-  if (Number(payload.schema_version) !== FUND_RETURN_DATA_SCHEMA_VERSION) {
-    throw new Error(`Nicht unterstützte Datenversion: ${payload.schema_version ?? "unbekannt"}.`);
+
+  const isLegacy = payload.format === LEGACY_FUND_RETURN_DATA_FORMAT && Number(payload.schema_version) === 1;
+  const isCurrent = payload.format === FUND_RETURN_DATA_FORMAT && Number(payload.schema_version) === FUND_RETURN_DATA_SCHEMA_VERSION;
+  if (!isLegacy && !isCurrent) {
+    throw new Error("Die Datei ist keine unterstützte Toolbox-Depotrendite-Datei.");
   }
 
   const inputs = payload.inputs;
@@ -70,18 +91,20 @@ export function normalizeFundReturnData(payload) {
   const purchaseFee = requireFiniteNumber(inputs.purchaseFeePercent, "Kaufspesen", { min: 0, max: 100 });
   const endValue = requireFiniteNumber(inputs.endValue, "End-/Verkaufswert", { min: 0 });
   const initialAmountMode = String(inputs.initialAmountMode ?? "");
-  const historicalCompare = String(inputs.historicalCompare ?? "");
   const kestExemption = String(inputs.kestExemption ?? "");
+  const benchmarkKinds = normalizeBenchmarkKinds(inputs);
+  const designation = String(inputs.designation ?? "").trim();
 
   if (!FUND_AMOUNT_MODES.has(initialAmountMode)) throw new Error("Ungültige Angabe bei ‚Startbetrag ist‘.");
-  if (!FUND_BENCHMARK_MODES.has(historicalCompare)) throw new Error("Ungültige Benchmark-Auswahl.");
   if (!FUND_KEST_MODES.has(kestExemption)) throw new Error("Ungültige Angabe zur KESt-Befreiung.");
+  if (designation.length > 100) throw new Error("Die Bezeichnung ist zu lang.");
 
   const rawCashflows = payload.cashflows ?? [];
   if (!Array.isArray(rawCashflows)) throw new Error("Die Zahlungsströme sind ungültig.");
   if (rawCashflows.length > 5000) throw new Error("Die Importdatei enthält zu viele Zahlungsströme.");
 
-  const cashflows = rawCashflows.map((flow, index) => {
+  const cashflows = [];
+  rawCashflows.forEach((flow, index) => {
     if (!flow || typeof flow !== "object" || Array.isArray(flow)) {
       throw new Error(`Zahlungsstrom ${index + 1} ist ungültig.`);
     }
@@ -89,21 +112,24 @@ export function normalizeFundReturnData(payload) {
     const type = String(flow.type ?? "");
     if (!FUND_CASHFLOW_TYPES.has(type)) throw new Error(`Zahlungsstrom ${index + 1} hat eine unbekannte Art.`);
     const amount = requireFiniteNumber(flow.amount, `Betrag in Zahlungsstrom ${index + 1}`);
-    if (amount === 0) throw new Error(`Betrag in Zahlungsstrom ${index + 1} darf nicht 0 sein.`);
+    if (amount === 0) return;
+    const title = String(flow.title ?? "").trim();
     const note = String(flow.note ?? "").trim();
-    if (note.length > 80) throw new Error(`Notiz in Zahlungsstrom ${index + 1} ist zu lang.`);
-    return { date: String(flow.date), type, amount, note };
+    if (title.length > 120) throw new Error(`Titel in Zahlungsstrom ${index + 1} ist zu lang.`);
+    if (note.length > 120) throw new Error(`Notiz in Zahlungsstrom ${index + 1} ist zu lang.`);
+    cashflows.push({ date: String(flow.date), type, amount, title, note });
   });
 
   return {
     inputs: {
+      designation,
       purchaseDate: String(inputs.purchaseDate),
       initialAmount,
       initialAmountMode,
       purchaseFeePercent: purchaseFee,
       endDate: String(inputs.endDate),
       endValue,
-      historicalCompare,
+      benchmarkKinds,
       kestExemption
     },
     cashflows
@@ -212,12 +238,14 @@ export function parseBankTransactionsCsv(text) {
   const indexes = Object.fromEntries(
     Object.entries(required).map(([key, label]) => [key, header.indexOf(label)])
   );
+  const titleIndex = header.indexOf("titel");
   const missing = Object.entries(indexes).filter(([, index]) => index < 0).map(([key]) => required[key]);
   if (missing.length) throw new Error(`CSV-Spalte(n) fehlen: ${missing.join(", ")}.`);
 
   const cashflows = [];
   let unknownBusinessTypes = 0;
   let normalizedOutflowSigns = 0;
+  let skippedZeroAmounts = 0;
 
   for (let index = 1; index < nonEmptyRows.length; index += 1) {
     const row = nonEmptyRows[index];
@@ -225,11 +253,17 @@ export function parseBankTransactionsCsv(text) {
     const rawAmount = String(row[indexes.amount] ?? "").trim();
     const businessType = String(row[indexes.type] ?? "").trim();
     const rawDate = String(row[indexes.date] ?? "").trim();
-    if (!rawAmount && !businessType && !rawDate) continue;
+    const title = titleIndex >= 0 ? String(row[titleIndex] ?? "").trim() : "";
+    if (!rawAmount && !businessType && !rawDate && !title) continue;
     if (!rawAmount || !rawDate) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag oder Abrechnungsdatum fehlt.`);
 
     let amount = parseGermanNumber(rawAmount);
-    if (!Number.isFinite(amount) || amount === 0) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag ist ungültig.`);
+    if (!Number.isFinite(amount)) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag ist ungültig.`);
+    if (amount === 0) {
+      skippedZeroAmounts += 1;
+      continue;
+    }
+
     const type = mapCsvBusinessType(businessType);
     if (type === "other") unknownBusinessTypes += 1;
     if (["contribution", "tax", "fee"].includes(type) && amount > 0) {
@@ -241,14 +275,74 @@ export function parseBankTransactionsCsv(text) {
       date: germanDateToIso(rawDate, lineNumber),
       type,
       amount,
-      note: businessType.slice(0, 80)
+      title: title.slice(0, 120),
+      note: businessType.slice(0, 120)
     });
   }
 
-  if (!cashflows.length) throw new Error("Die CSV-Datei enthält keine importierbaren Buchungen.");
+  if (!cashflows.length && skippedZeroAmounts === 0) throw new Error("Die CSV-Datei enthält keine importierbaren Buchungen.");
   if (cashflows.length > 5000) throw new Error("Die CSV-Datei enthält zu viele Buchungen.");
-  return { cashflows, unknownBusinessTypes, normalizedOutflowSigns };
+  return { cashflows, unknownBusinessTypes, normalizedOutflowSigns, skippedZeroAmounts, hasTitleColumn: titleIndex >= 0 };
 }
+
+function monthSerial(isoDate) {
+  const date = parseIsoDate(isoDate);
+  return date.getUTCFullYear() * 12 + date.getUTCMonth();
+}
+
+function median(values) {
+  const ordered = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(ordered.length / 2);
+  return ordered.length % 2 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2;
+}
+
+export function detectRecurringSavingsPlans(cashflows, tolerancePercent = 1.1) {
+  const groups = new Map();
+  for (const flow of cashflows ?? []) {
+    if (flow?.type !== "contribution") continue;
+    const title = String(flow?.title ?? "").trim();
+    const amount = Math.abs(Number(flow?.amount));
+    if (!title || !Number.isFinite(amount) || amount <= 0) continue;
+    try { parseIsoDate(flow.date); } catch { continue; }
+    const key = title.toLocaleLowerCase("de-AT");
+    if (!groups.has(key)) groups.set(key, { title, flows: [] });
+    groups.get(key).flows.push({ date: String(flow.date), amount });
+  }
+
+  const plans = [];
+  for (const group of groups.values()) {
+    const flows = group.flows.sort((a, b) => a.date.localeCompare(b.date));
+    if (flows.length < 3) continue;
+
+    const consecutiveGaps = [];
+    for (let i = 1; i < flows.length; i += 1) {
+      consecutiveGaps.push(monthSerial(flows[i].date) - monthSerial(flows[i - 1].date));
+    }
+    const monthlyShare = consecutiveGaps.filter((gap) => gap === 1).length / Math.max(consecutiveGaps.length, 1);
+    if (monthlyShare < 0.75) continue;
+
+    const amounts = flows.map((flow) => flow.amount);
+    const center = median(amounts);
+    const nominal = center >= 20 ? Math.round(center) : Math.round(center * 10) / 10;
+    if (nominal <= 0) continue;
+    const deviations = amounts.map((amount) => Math.abs(amount - nominal) / nominal * 100);
+    const withinTolerance = deviations.filter((value) => value <= tolerancePercent).length / deviations.length;
+    if (withinTolerance < 0.8) continue;
+
+    plans.push({
+      title: group.title,
+      nominalAmount: nominal,
+      firstDate: flows[0].date,
+      lastDate: flows[flows.length - 1].date,
+      count: flows.length,
+      maxDeviationPercent: Math.max(...deviations),
+      cadence: "monthly"
+    });
+  }
+
+  return plans.sort((a, b) => a.title.localeCompare(b.title, "de-AT"));
+}
+
 
 export function parseIsoDate(iso) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? ""));

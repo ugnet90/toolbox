@@ -3,6 +3,7 @@ import {
   applyKestExemption,
   calculateXirr,
   createFundReturnData,
+  detectRecurringSavingsPlans,
   formatGermanNumber,
   generateRecurringDates,
   initialInvestment,
@@ -18,9 +19,7 @@ const BENCHMARKS = {
   overnight: {
     endpoint: "/savings-rates",
     label: "Historische Spareinlage",
-    differenceLabel: "Fonds vs. Spareinlage",
-    interestLabel: "Spareinlagen-Bruttozinsen",
-    taxLabel: "KESt Spareinlage",
+    shortLabel: "Spareinlage",
     taxPercent: 25,
     seriesLabel: "historische Spareinlagen-Zinsen",
     methodText: "Der historische Sparvergleich verwendet die monatliche ECB-MIR-Serie für täglich fällige österreichische Haushaltseinlagen. Der jeweilige Jahreszinssatz wird taggenau (act/365) auf das alternative Sparguthaben angewendet."
@@ -28,12 +27,26 @@ const BENCHMARKS = {
   euribor3m: {
     endpoint: "/euribor-3m",
     label: "3-Monats-Euribor",
-    differenceLabel: "Fonds vs. 3M-Euribor",
-    interestLabel: "Euribor-Bruttozinsen",
-    taxLabel: "KESt Euribor-Vergleich",
+    shortLabel: "3M-Euribor",
     taxPercent: 25,
     seriesLabel: "3-Monats-Euribor-Daten",
-    methodText: "Der 3-Monats-Euribor-Vergleich verwendet den monatlichen Durchschnitt der offiziellen ECB-Serie FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA. Der jeweilige Jahreszinssatz wird taggenau (act/365) auf ein fiktives Sparguthaben angewendet. Euribor dient dabei nur als Referenzzinssatz; für den Vergleich wird er wie ein Sparprodukt behandelt."
+    methodText: "Der 3-Monats-Euribor-Vergleich verwendet den monatlichen Durchschnitt der offiziellen ECB-Serie FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA. Der Jahreszinssatz wird taggenau (act/365) auf ein fiktives Sparguthaben angewendet."
+  },
+  euribor6m: {
+    endpoint: "/euribor-6m",
+    label: "6-Monats-Euribor",
+    shortLabel: "6M-Euribor",
+    taxPercent: 25,
+    seriesLabel: "6-Monats-Euribor-Daten",
+    methodText: "Der 6-Monats-Euribor-Vergleich verwendet den monatlichen Durchschnitt der offiziellen ECB-Serie FM.M.U2.EUR.RT.MM.EURIBOR6MD_.HSTA und behandelt ihn als fiktives Sparprodukt."
+  },
+  euribor12m: {
+    endpoint: "/euribor-12m",
+    label: "12-Monats-Euribor",
+    shortLabel: "12M-Euribor",
+    taxPercent: 25,
+    seriesLabel: "12-Monats-Euribor-Daten",
+    methodText: "Der 12-Monats-Euribor-Vergleich verwendet den monatlichen Durchschnitt der offiziellen ECB-Serie FM.M.U2.EUR.RT.MM.EURIBOR1YD_.HSTA und behandelt ihn als fiktives Sparprodukt."
   }
 };
 
@@ -44,6 +57,8 @@ const resultsNode = document.querySelector("[data-fund-results]");
 const detailsNode = document.querySelector("[data-fund-details]");
 const cashflowBody = document.querySelector("[data-cashflow-body]");
 const cashflowTableWrap = document.querySelector("[data-cashflow-table-wrap]");
+const cashflowList = document.querySelector("[data-cashflow-list]");
+const cashflowSummary = document.querySelector("[data-cashflow-summary]");
 const ignoredKestDetail = document.querySelector("[data-ignored-kest-detail]");
 const comparisonChart = document.querySelector("[data-comparison-chart]");
 const valueChart = document.querySelector("[data-value-chart]");
@@ -57,6 +72,9 @@ const importFileInput = document.querySelector("[data-import-fund-file]");
 const csvImportButton = document.querySelector("[data-import-bank-csv]");
 const csvImportFileInput = document.querySelector("[data-import-bank-csv-file]");
 const dataStatusNode = document.querySelector("[data-fund-data-status]");
+const savingsPlanSummary = document.querySelector("[data-savings-plan-summary]");
+const savingsPlanList = document.querySelector("[data-savings-plan-list]");
+const benchmarkCheckboxes = [...document.querySelectorAll("[data-benchmark-checkbox]")];
 
 const benchmarkCards = Object.fromEntries(
   Object.keys(BENCHMARKS).map((kind) => [kind, document.querySelector(`[data-benchmark-card="${kind}"]`)])
@@ -76,18 +94,19 @@ const benchmarkNodes = Object.fromEntries(
   }])
 );
 
+const designation = document.querySelector("#designation");
 const purchaseDate = document.querySelector("#purchaseDate");
 const initialAmount = document.querySelector("#initialAmount");
 const initialAmountMode = document.querySelector("#initialAmountMode");
 const purchaseFee = document.querySelector("#purchaseFee");
 const endDate = document.querySelector("#endDate");
 const endValue = document.querySelector("#endValue");
-const historicalCompare = document.querySelector("#historicalCompare");
 const kestExemption = document.querySelector("#kestExemption");
 
 const cashflowDate = document.querySelector("#cashflowDate");
 const cashflowType = document.querySelector("#cashflowType");
 const cashflowAmount = document.querySelector("#cashflowAmount");
+const cashflowTitle = document.querySelector("#cashflowTitle");
 const cashflowNote = document.querySelector("#cashflowNote");
 
 const recurringType = document.querySelector("#recurringType");
@@ -95,6 +114,7 @@ const recurringAmount = document.querySelector("#recurringAmount");
 const recurringInterval = document.querySelector("#recurringInterval");
 const recurringFirst = document.querySelector("#recurringFirst");
 const recurringLast = document.querySelector("#recurringLast");
+const recurringTitle = document.querySelector("#recurringTitle");
 const recurringNote = document.querySelector("#recurringNote");
 
 const nodes = {
@@ -141,6 +161,7 @@ const defaultNegativeTypes = new Set(["contribution", "tax", "fee"]);
 let cashflows = [];
 let nextCashflowId = 1;
 let calculationRevision = 0;
+let lastCoreCalculation = null;
 
 function normalizeSignedAmount(rawValue, type) {
   const amount = parseGermanNumber(rawValue);
@@ -180,6 +201,9 @@ function clearCalculation() {
   });
   if (ignoredKestDetail) ignoredKestDetail.hidden = true;
   if (comparisonChart) comparisonChart.hidden = true;
+  if (savingsPlanSummary) savingsPlanSummary.hidden = true;
+  if (savingsPlanList) savingsPlanList.innerHTML = "";
+  lastCoreCalculation = null;
   if (valueChart) valueChart.innerHTML = "";
   if (returnChart) returnChart.innerHTML = "";
   if (printButton) printButton.hidden = true;
@@ -211,6 +235,10 @@ function showDataStatus(message) {
   dataStatusNode.hidden = false;
 }
 
+function selectedBenchmarkKinds() {
+  return benchmarkCheckboxes.filter((box) => box.checked).map((box) => box.value).filter((key) => BENCHMARKS[key]);
+}
+
 function currentFundData() {
   const initial = parseGermanNumber(initialAmount?.value);
   const terminal = parseGermanNumber(endValue?.value);
@@ -220,22 +248,33 @@ function currentFundData() {
     toolboxVersion: SITE_VERSION,
     exportedAt: new Date().toISOString(),
     inputs: {
+      designation: designation?.value?.trim() || "",
       purchaseDate: purchaseDate?.value,
       initialAmount: initial,
       initialAmountMode: initialAmountMode?.value,
       purchaseFeePercent: fee,
       endDate: endDate?.value,
       endValue: terminal,
-      historicalCompare: historicalCompare?.value,
+      benchmarkKinds: selectedBenchmarkKinds(),
       kestExemption: kestExemption?.value
     },
-    cashflows: cashflows.map(({ date, type, amount, note }) => ({ date, type, amount, note }))
+    cashflows: cashflows.map(({ date, type, amount, title, note }) => ({ date, type, amount, title: title || "", note: note || "" }))
   });
+}
+
+function safeFilenamePart(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "_")
+    .replace(/[^0-9A-Za-zÄÖÜäöüß_-]/g, "")
+    .slice(0, 70);
 }
 
 function exportFilename() {
   const suffix = endDate?.value || new Date().toISOString().slice(0, 10);
-  return `toolbox_fondsrendite_${suffix}.json`;
+  const name = safeFilenamePart(designation?.value);
+  return `toolbox_depotrendite${name ? `_${name}` : ""}_${suffix}.json`;
 }
 
 function downloadJsonFallback(text, filename) {
@@ -257,10 +296,10 @@ async function saveJsonFile(data) {
   if (window.isSecureContext && typeof window.showSaveFilePicker === "function") {
     try {
       const handle = await window.showSaveFilePicker({
-        id: "toolbox-fund-return-export",
+        id: "toolbox-depot-return-export",
         suggestedName: filename,
         types: [{
-          description: "Toolbox Fondsrendite (JSON)",
+          description: "Toolbox Depotrendite (JSON)",
           accept: { "application/json": [".json"] }
         }]
       });
@@ -282,21 +321,23 @@ function applyImportedFundData(data) {
   const normalized = normalizeFundReturnData(data);
   form?.reset();
 
+  designation.value = normalized.inputs.designation || "";
   purchaseDate.value = normalized.inputs.purchaseDate;
   initialAmount.value = formatGermanNumber(normalized.inputs.initialAmount);
   initialAmountMode.value = normalized.inputs.initialAmountMode;
   purchaseFee.value = String(normalized.inputs.purchaseFeePercent);
   endDate.value = normalized.inputs.endDate;
   endValue.value = formatGermanNumber(normalized.inputs.endValue);
-  historicalCompare.value = normalized.inputs.historicalCompare;
   kestExemption.value = normalized.inputs.kestExemption;
+  const wanted = new Set(normalized.inputs.benchmarkKinds || []);
+  benchmarkCheckboxes.forEach((box) => { box.checked = wanted.has(box.value); });
 
   nextCashflowId = 1;
   cashflows = normalized.cashflows.map((flow) => ({ ...flow, id: nextCashflowId++ }));
   renderCashflows();
   clearCalculation();
   const flowLabel = cashflows.length === 1 ? "1 zusätzlicher Zahlungsstrom" : `${cashflows.length} zusätzliche Zahlungsströme`;
-  showDataStatus(`Daten importiert: ${flowLabel}. Bitte Fondsrendite neu berechnen.`);
+  showDataStatus(`Daten importiert: ${flowLabel}. Bitte Depotrendite neu berechnen.`);
 }
 
 
@@ -321,12 +362,16 @@ async function importBankTransactionsCsv(file) {
 
   const count = parsed.cashflows.length;
   const label = count === 1 ? "1 Buchung" : `${count} Buchungen`;
-  showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}. Bitte Fondsrendite neu berechnen.`);
+  const skipped = parsed.skippedZeroAmounts > 0 ? ` ${parsed.skippedZeroAmounts} Nullbuchung(en) wurden übersprungen.` : "";
+  showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped} Bitte Depotrendite neu berechnen.`);
   if (parsed.unknownBusinessTypes > 0) {
     appendWarning(`${parsed.unknownBusinessTypes} unbekannte Geschäftsart(en) wurden als „Sonstiger Cashflow“ übernommen; Originaltext steht in der Notiz.`);
   }
   if (parsed.normalizedOutflowSigns > 0) {
     appendWarning(`${parsed.normalizedOutflowSigns} als Belastung erkannte positive Buchungsbeträge wurden automatisch mit negativem Vorzeichen übernommen.`);
+  }
+  if (!parsed.hasTitleColumn) {
+    appendWarning("Die CSV-Datei enthält keine Spalte „Titel“. Eine fondsbezogene Sparplan-Erkennung ist daher für diese Buchungen nicht möglich.");
   }
 }
 
@@ -348,13 +393,17 @@ function renderCashflows() {
       <td><input class="table-input table-input--date" type="date" value="${flow.date}" data-flow-field="date" aria-label="Datum"></td>
       <td><select class="table-input" data-flow-field="type" aria-label="Art">${typeOptions(flow.type)}</select></td>
       <td><input class="table-input table-input--amount" type="text" inputmode="decimal" value="${formatGermanNumber(flow.amount)}" data-flow-field="amount" aria-label="Betrag"></td>
-      <td><input class="table-input" type="text" maxlength="80" value="${escapeHtml(flow.note || "")}" data-flow-field="note" aria-label="Notiz"></td>
+      <td><input class="table-input" type="text" maxlength="120" value="${escapeHtml(flow.title || "")}" data-flow-field="title" aria-label="Titel"></td>
+      <td><input class="table-input" type="text" maxlength="120" value="${escapeHtml(flow.note || "")}" data-flow-field="note" aria-label="Notiz"></td>
       <td><button class="icon-button" type="button" data-delete-cashflow="${flow.id}" aria-label="Zahlung löschen">×</button></td>
     `;
     cashflowBody.append(row);
   }
 
-  cashflowTableWrap.hidden = cashflows.length === 0;
+  if (cashflowList) {
+    cashflowList.hidden = cashflows.length === 0;
+    if (cashflowSummary) cashflowSummary.textContent = cashflows.length === 1 ? "1 Zahlungsstrom anzeigen" : `${cashflows.length} Zahlungsströme anzeigen`;
+  }
 }
 
 function escapeHtml(value) {
@@ -366,10 +415,10 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function addCashflow({ date, type, amount, note = "" }) {
+function addCashflow({ date, type, amount, title = "", note = "" }) {
   if (!date) throw new Error("Bitte ein Datum für den Zahlungsstrom eingeben.");
   const signedAmount = normalizeSignedAmount(amount, type);
-  cashflows.push({ id: nextCashflowId++, date, type, amount: signedAmount, note: note.trim() });
+  cashflows.push({ id: nextCashflowId++, date, type, amount: signedAmount, title: title.trim(), note: note.trim() });
   renderCashflows();
   clearCalculation();
 }
@@ -467,9 +516,9 @@ function renderCoreResults(calc, xirrResult) {
     : "";
 
   const kestMethodText = calc.isKestExempt
-    ? " Eine wirksame KESt-Befreiungserklärung wurde angesetzt; als KESt/Steuer auf agE kategorisierte Cashflows werden in der Fondsrendite nicht berücksichtigt. Dies bildet nur den KESt-Abzug ab, nicht Körperschaftsteuer oder andere Steuern."
-    : " Eine KESt-Befreiungserklärung wurde nicht angesetzt; erfasste Steuer-Cashflows wirken daher wie eingegeben auf die Fondsrendite.";
-  setText(nodes.method, `Die Rendite wird als datumsgenaue XIRR aus allen berücksichtigten Anleger-Cashflows berechnet. Der Start-Cashflow entspricht dem tatsächlichen Kundenaufwand; Kaufspesen beeinflussen daher die Rendite, ohne dass eine vollständige Fondsbesteuerung modelliert wird.${kestMethodText}${multipleRootText}`);
+    ? " Eine wirksame KESt-Befreiungserklärung wurde angesetzt; als KESt/Steuer auf agE kategorisierte Cashflows werden in der Depotrendite nicht berücksichtigt. Dies bildet nur den KESt-Abzug ab, nicht Körperschaftsteuer oder andere Steuern."
+    : " Eine KESt-Befreiungserklärung wurde nicht angesetzt; erfasste Steuer-Cashflows wirken daher wie eingegeben auf die Depotrendite.";
+  setText(nodes.method, `Die Depotrendite wird als datumsgenaue XIRR aus allen berücksichtigten Anleger-Cashflows berechnet. Der Start-Cashflow entspricht dem tatsächlichen Kundenaufwand; Kaufspesen beeinflussen daher die Rendite, ohne dass eine vollständige Fondsbesteuerung modelliert wird.${kestMethodText}${multipleRootText}`);
   if (calc.isKestExempt && calc.ignoredKestCashflows.length > 0) {
     appendWarning(`Hinweis: ${calc.ignoredKestCashflows.length} als KESt/Steuer auf agE erfasste Cashflow(s) werden wegen der aktivierten KESt-Befreiung nicht berücksichtigt.`);
   }
@@ -479,13 +528,23 @@ function renderCoreResults(calc, xirrResult) {
 
   if (resultsNode) resultsNode.hidden = false;
   if (detailsNode) detailsNode.hidden = false;
+  calc.baseMethodText = nodes.method?.textContent || "";
 }
 
-function selectedBenchmarkKinds() {
-  const selection = historicalCompare?.value || "both";
-  if (selection === "both") return ["overnight", "euribor3m"];
-  if (BENCHMARKS[selection]) return [selection];
-  return [];
+function renderSavingsPlanSummary(sourceCashflows) {
+  if (!savingsPlanSummary || !savingsPlanList) return;
+  const plans = detectRecurringSavingsPlans(sourceCashflows);
+  savingsPlanList.innerHTML = "";
+  if (!plans.length) {
+    savingsPlanSummary.hidden = true;
+    return;
+  }
+  for (const plan of plans) {
+    const item = document.createElement("li");
+    item.textContent = `Fondssparvertrag ${plan.title}: monatlich ca. ${currency.format(plan.nominalAmount)} (${formatReportDate(plan.firstDate)} – ${formatReportDate(plan.lastDate)}), ${plan.count} Buchungen.`;
+    savingsPlanList.append(item);
+  }
+  savingsPlanSummary.hidden = false;
 }
 
 function benchmarkXirr(calc, benchmark) {
@@ -534,7 +593,7 @@ function renderBenchmark(calc, kind, config, apiData, benchmark, effectiveTaxPer
 function appendSimpleBar(container, label, value, maxValue, category) {
   if (!container) return;
   const row = document.createElement("div");
-  row.className = `comparison-bar-row comparison-bar-row--${category === "fund" ? "fund" : "benchmark"}`;
+  row.className = `comparison-bar-row comparison-bar-row--${category}${category === "fund" ? "" : " comparison-bar-row--benchmark"}`;
   const safeMax = Math.max(maxValue, 0.000001);
   const width = Math.max(0, Math.min(100, (Math.max(value, 0) / safeMax) * 100));
   row.innerHTML = `
@@ -551,7 +610,7 @@ function appendSimpleBar(container, label, value, maxValue, category) {
 function appendReturnBar(container, label, rate, minRate, maxRate, category) {
   if (!container) return;
   const row = document.createElement("div");
-  row.className = `comparison-bar-row comparison-bar-row--return comparison-bar-row--${category === "fund" ? "fund" : "benchmark"}`;
+  row.className = `comparison-bar-row comparison-bar-row--return comparison-bar-row--${category}${category === "fund" ? "" : " comparison-bar-row--benchmark"}`;
   const low = Math.min(minRate, 0);
   const high = Math.max(maxRate, 0);
   const range = Math.max(high - low, 0.000001);
@@ -584,21 +643,70 @@ function renderComparisonCharts(calc, fundXirrResult, benchmarkResults) {
   returnChart.innerHTML = "";
 
   const valueItems = [
-    { label: "Fonds", value: calc.terminalValue, category: "fund" },
-    ...benchmarkResults.map((item) => ({ label: item.config.label, value: item.benchmark.balance, category: "benchmark" }))
+    { label: "Depot", value: calc.terminalValue, category: "fund" },
+    ...benchmarkResults.map((item) => ({ label: item.config.shortLabel || item.config.label, value: item.benchmark.balance, category: item.kind }))
   ];
   const maxValue = Math.max(...valueItems.map((item) => item.value), 0);
   valueItems.forEach((item) => appendSimpleBar(valueChart, item.label, item.value, maxValue, item.category));
 
   const returnItems = [
-    { label: "Fonds", rate: fundXirrResult.rate, category: "fund" },
-    ...benchmarkResults.map((item) => ({ label: item.config.label, rate: item.xirrResult.rate, category: "benchmark" }))
+    { label: "Depot", rate: fundXirrResult.rate, category: "fund" },
+    ...benchmarkResults.map((item) => ({ label: item.config.shortLabel || item.config.label, rate: item.xirrResult.rate, category: item.kind }))
   ];
   const minRate = Math.min(...returnItems.map((item) => item.rate), 0);
   const maxRate = Math.max(...returnItems.map((item) => item.rate), 0);
   returnItems.forEach((item) => appendReturnBar(returnChart, item.label, item.rate, minRate, maxRate, item.category));
 
   comparisonChart.hidden = false;
+}
+
+function resetBenchmarkPresentation(calc) {
+  Object.values(benchmarkCards).forEach((card) => { if (card) card.hidden = true; });
+  Object.values(benchmarkNodes).forEach((group) => group.details.forEach((node) => { node.hidden = true; }));
+  if (comparisonChart) comparisonChart.hidden = true;
+  if (valueChart) valueChart.innerHTML = "";
+  if (returnChart) returnChart.innerHTML = "";
+  if (nodes.method && calc?.baseMethodText) nodes.method.textContent = calc.baseMethodText;
+}
+
+async function refreshBenchmarks(calc, xirrResult, runRevision) {
+  resetBenchmarkPresentation(calc);
+  const kinds = selectedBenchmarkKinds();
+  if (!kinds.length) return [];
+
+  const settled = await Promise.allSettled(kinds.map(async (kind) => {
+    const { config, apiData } = await fetchBenchmarkRates(kind, calc.startDate, calc.finishDate);
+    const expectedStartMonth = monthFromDate(calc.startDate);
+    if (apiData.first_period > expectedStartMonth) {
+      throw new Error(`ECB-Daten beginnen erst mit ${apiData.first_period}; benötigt wird ${expectedStartMonth}.`);
+    }
+    const effectiveTaxPercent = calc.isKestExempt ? 0 : config.taxPercent;
+    const benchmark = simulateHistoricalRateBenchmark({
+      cashflows: calc.benchmarkFlows,
+      endDate: calc.finishDate,
+      observations: apiData.observations,
+      taxPercent: effectiveTaxPercent,
+      seriesLabel: config.seriesLabel
+    });
+    return { kind, config, apiData, benchmark, effectiveTaxPercent };
+  }));
+
+  if (runRevision !== calculationRevision) return [];
+  const rendered = [];
+  settled.forEach((result, index) => {
+    const kind = kinds[index];
+    if (result.status === "fulfilled") {
+      try {
+        rendered.push(renderBenchmark(calc, kind, result.value.config, result.value.apiData, result.value.benchmark, result.value.effectiveTaxPercent));
+      } catch (error) {
+        appendWarning(`Depotrendite wurde berechnet. Effektivrendite für „${BENCHMARKS[kind]?.label || kind}“ nicht möglich: ${error.message || error}`);
+      }
+    } else {
+      appendWarning(`Depotrendite wurde berechnet. Vergleich „${BENCHMARKS[kind]?.label || kind}“ nicht möglich: ${result.reason?.message || result.reason}`);
+    }
+  });
+  if (rendered.length) renderComparisonCharts(calc, xirrResult, rendered);
+  return rendered;
 }
 
 function formatReportDate(iso) {
@@ -620,25 +728,25 @@ function printItem(label, value) {
   `;
 }
 
-function buildPrintReport() {
+function buildPrintReport({ includeCashflows = true } = {}) {
   if (!printReport || !resultsNode || resultsNode.hidden) return false;
 
   const startAmountValue = parseGermanNumber(initialAmount?.value);
   const endAmountValue = parseGermanNumber(endValue?.value);
   const feeValue = Number(purchaseFee?.value || 0);
-  const createdAt = new Intl.DateTimeFormat("de-AT", {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date());
+  const createdAt = new Intl.DateTimeFormat("de-AT", { dateStyle: "medium", timeStyle: "short" }).format(new Date());
+  const selectedBenchmarks = selectedBenchmarkKinds().map((kind) => BENCHMARKS[kind]?.shortLabel || kind).join(", ") || "Keine";
+  const label = designation?.value?.trim() || "";
 
   const inputItems = [
+    ["Bezeichnung", label || "–"],
     ["Kauf-/Startdatum", formatReportDate(purchaseDate?.value)],
     ["Startbetrag", Number.isFinite(startAmountValue) ? currency.format(startAmountValue) : "–"],
     ["Startbetrag ist", selectedOptionText(initialAmountMode)],
     ["Kaufspesen / Ausgabeaufschlag", `${percent.format(Number.isFinite(feeValue) ? feeValue : 0)} %`],
     ["End-/Bewertungsdatum", formatReportDate(endDate?.value)],
     ["End-/Verkaufswert", Number.isFinite(endAmountValue) ? currency.format(endAmountValue) : "–"],
-    ["Historischer Vergleich", selectedOptionText(historicalCompare)],
+    ["Benchmarks", selectedBenchmarks],
     ["KESt-Befreiungserklärung", selectedOptionText(kestExemption)]
   ];
 
@@ -649,6 +757,7 @@ function buildPrintReport() {
         <td>${escapeHtml(formatReportDate(flow.date))}</td>
         <td>${escapeHtml(typeLabels[flow.type] || flow.type)}</td>
         <td>${escapeHtml(currency.format(flow.amount))}</td>
+        <td>${escapeHtml(flow.title || "")}</td>
         <td>${escapeHtml(flow.note || "")}</td>
       </tr>
     `).join("");
@@ -658,8 +767,8 @@ function buildPrintReport() {
       <div class="print-report__brand">
         <img src="assets/logo/toolbox-dashboard-logo.png" alt="Toolbox">
         <div class="print-report__title">
-          <h1>Fondsrendite &amp; Vergleich</h1>
-          <p>Berechnungsbericht</p>
+          <h1>Depotrendite &amp; Vergleich</h1>
+          <p>${escapeHtml(label || "Berechnungsbericht")}</p>
         </div>
       </div>
       <div class="print-report__meta">
@@ -670,21 +779,29 @@ function buildPrintReport() {
 
     <section class="print-report__section">
       <h2>Eingaben</h2>
-      <div class="print-report__input-grid">
-        ${inputItems.map(([label, value]) => printItem(label, value)).join("")}
-      </div>
+      <div class="print-report__input-grid">${inputItems.map(([itemLabel, value]) => printItem(itemLabel, value)).join("")}</div>
     </section>
 
     <section class="print-report__section">
       <h2>Weitere Zahlungsströme</h2>
-      ${flowRows ? `
+      ${includeCashflows ? (flowRows ? `
         <table class="print-report__cashflows">
-          <thead><tr><th>Datum</th><th>Art</th><th>Betrag</th><th>Notiz</th></tr></thead>
+          <thead><tr><th>Datum</th><th>Art</th><th>Betrag</th><th>Titel</th><th>Notiz</th></tr></thead>
           <tbody>${flowRows}</tbody>
         </table>
-      ` : '<p class="print-report__small">Keine weiteren Zahlungsströme erfasst.</p>'}
+      ` : '<p class="print-report__small">Keine weiteren Zahlungsströme erfasst.</p>') : `<p class="print-report__small">${cashflows.length} Zahlungsstrom/-ströme auf Wunsch im PDF ausgeblendet.</p>`}
     </section>
   `;
+
+  if (savingsPlanSummary && !savingsPlanSummary.hidden) {
+    const planSection = document.createElement("section");
+    planSection.className = "print-report__section";
+    planSection.innerHTML = "<h2>Erkannte Sparpläne</h2>";
+    const clone = savingsPlanSummary.cloneNode(true);
+    clone.removeAttribute("hidden");
+    planSection.append(clone);
+    printReport.append(planSection);
+  }
 
   const resultSection = document.createElement("section");
   resultSection.className = "print-report__section";
@@ -720,15 +837,11 @@ function buildPrintReport() {
   if (warningNode && !warningNode.hidden && warningNode.textContent.trim()) {
     const warningClone = warningNode.cloneNode(true);
     warningClone.removeAttribute("hidden");
-    warningClone.removeAttribute("aria-live");
     printReport.append(warningClone);
   }
 
   const generalNote = document.querySelector(".fund-general-note");
-  if (generalNote) {
-    printReport.append(generalNote.cloneNode(true));
-  }
-
+  if (generalNote) printReport.append(generalNote.cloneNode(true));
   return true;
 }
 
@@ -736,8 +849,12 @@ function buildPrintReport() {
   input?.addEventListener("blur", () => formatAmountInput(input));
 });
 
-form?.addEventListener("input", clearCalculation);
-form?.addEventListener("change", clearCalculation);
+function handleFormMutation(event) {
+  if (event.target?.matches?.("[data-benchmark-checkbox]")) return;
+  clearCalculation();
+}
+form?.addEventListener("input", handleFormMutation);
+form?.addEventListener("change", handleFormMutation);
 
 cashflowBody?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-delete-cashflow]");
@@ -767,6 +884,8 @@ cashflowBody?.addEventListener("change", (event) => {
       if (!Number.isFinite(value) || value === 0) throw new Error("Betrag muss ungleich 0 sein.");
       flow.amount = value;
       input.value = formatGermanNumber(value);
+    } else if (field === "title") {
+      flow.title = input.value.trim();
     } else if (field === "note") {
       flow.note = input.value.trim();
     }
@@ -783,9 +902,11 @@ document.querySelector("[data-add-cashflow]")?.addEventListener("click", () => {
       date: cashflowDate.value,
       type: cashflowType.value,
       amount: cashflowAmount.value,
+      title: cashflowTitle.value,
       note: cashflowNote.value
     });
     cashflowAmount.value = "";
+    cashflowTitle.value = "";
     cashflowNote.value = "";
   } catch (error) {
     showError(error.message || "Zahlungsstrom konnte nicht hinzugefügt werden.");
@@ -806,6 +927,7 @@ document.querySelector("[data-add-recurring]")?.addEventListener("click", () => 
         date,
         type: recurringType.value,
         amount: signedAmount,
+        title: recurringTitle.value.trim(),
         note: recurringNote.value.trim()
       });
     }
@@ -867,14 +989,14 @@ importFileInput?.addEventListener("change", async () => {
 });
 
 printButton?.addEventListener("click", () => {
-  if (!buildPrintReport()) return;
+  const includeCashflows = cashflows.length ? window.confirm("Sollen die einzelnen Zahlungsströme im PDF / Ausdruck angezeigt werden?\n\nOK = anzeigen · Abbrechen = ausblenden") : true;
+  if (!buildPrintReport({ includeCashflows })) return;
   const previousTitle = document.title;
   const suffix = endDate?.value ? `_${endDate.value}` : "";
-  document.title = `Toolbox_Fondsrendite${suffix}`;
+  const name = safeFilenamePart(designation?.value);
+  document.title = `Toolbox_Depotrendite${name ? `_${name}` : ""}${suffix}`;
   window.print();
-  window.setTimeout(() => {
-    document.title = previousTitle;
-  }, 500);
+  window.setTimeout(() => { document.title = previousTitle; }, 500);
 });
 
 resetButton?.addEventListener("click", () => {
@@ -884,6 +1006,20 @@ resetButton?.addEventListener("click", () => {
   renderCashflows();
   clearCalculation();
   purchaseDate?.focus();
+});
+
+benchmarkCheckboxes.forEach((box) => {
+  box.addEventListener("change", async () => {
+    if (!lastCoreCalculation) return;
+    calculationRevision += 1;
+    const runRevision = calculationRevision;
+    if (warningNode) { warningNode.hidden = true; warningNode.textContent = ""; }
+    const { calc, xirrResult } = lastCoreCalculation;
+    renderCoreResults(calc, xirrResult);
+    renderSavingsPlanSummary(calc.enteredIntermediate);
+    await refreshBenchmarks(calc, xirrResult, runRevision);
+    if (runRevision === calculationRevision && printButton) printButton.hidden = false;
+  });
 });
 
 form?.addEventListener("submit", async (event) => {
@@ -897,6 +1033,9 @@ form?.addEventListener("submit", async (event) => {
     const calc = buildCalculation();
     const xirrResult = calculateXirr(calc.investorFlows);
     renderCoreResults(calc, xirrResult);
+    renderSavingsPlanSummary(calc.enteredIntermediate);
+    lastCoreCalculation = { calc, xirrResult };
+
     window.requestAnimationFrame(() => {
       resultsNode?.scrollIntoView({
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
@@ -904,42 +1043,7 @@ form?.addEventListener("submit", async (event) => {
       });
     });
 
-    const kinds = selectedBenchmarkKinds();
-    if (kinds.length) {
-      const settled = await Promise.allSettled(kinds.map(async (kind) => {
-        const { config, apiData } = await fetchBenchmarkRates(kind, calc.startDate, calc.finishDate);
-        const expectedStartMonth = monthFromDate(calc.startDate);
-        if (apiData.first_period > expectedStartMonth) {
-          throw new Error(`ECB-Daten beginnen erst mit ${apiData.first_period}; benötigt wird ${expectedStartMonth}.`);
-        }
-        const effectiveTaxPercent = calc.isKestExempt ? 0 : config.taxPercent;
-        const benchmark = simulateHistoricalRateBenchmark({
-          cashflows: calc.benchmarkFlows,
-          endDate: calc.finishDate,
-          observations: apiData.observations,
-          taxPercent: effectiveTaxPercent,
-          seriesLabel: config.seriesLabel
-        });
-        return { kind, config, apiData, benchmark, effectiveTaxPercent };
-      }));
-
-      if (runRevision !== calculationRevision) return;
-
-      const rendered = [];
-      settled.forEach((result, index) => {
-        const kind = kinds[index];
-        if (result.status === "fulfilled") {
-          try {
-            rendered.push(renderBenchmark(calc, kind, result.value.config, result.value.apiData, result.value.benchmark, result.value.effectiveTaxPercent));
-          } catch (error) {
-            appendWarning(`Fondsrendite wurde berechnet. Effektivrendite für „${BENCHMARKS[kind]?.label || kind}“ nicht möglich: ${error.message || error}`);
-          }
-        } else {
-          appendWarning(`Fondsrendite wurde berechnet. Vergleich „${BENCHMARKS[kind]?.label || kind}“ nicht möglich: ${result.reason?.message || result.reason}`);
-        }
-      });
-      renderComparisonCharts(calc, xirrResult, rendered);
-    }
+    await refreshBenchmarks(calc, xirrResult, runRevision);
     if (runRevision !== calculationRevision) return;
     if (printButton) printButton.hidden = false;
   } catch (error) {

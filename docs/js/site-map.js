@@ -1,4 +1,4 @@
-export const SITE_VERSION = "0.4.9";
+export const SITE_VERSION = "0.5.0";
 
 export const SITE_MAP = {
   dashboard: {
@@ -27,7 +27,7 @@ export const SITE_MAP = {
     parent: "dashboard"
   },
   fundReturn: {
-    label: "Fondsrendite & Vergleich",
+    label: "Depotrendite & Vergleich",
     href: "fund_return.html",
     parent: "dashboard"
   }
