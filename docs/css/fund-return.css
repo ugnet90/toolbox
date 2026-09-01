@@ -929,3 +929,211 @@
     background: #fff8df;
   }
 }
+
+/* v0.5.0 – Depot, Benchmarkauswahl, Sparplan-Erkennung */
+.fund-panel {
+  --benchmark-overnight: #d8ad57;
+  --benchmark-overnight-soft: #fff7e6;
+  --benchmark-euribor3m: #c88a32;
+  --benchmark-euribor3m-soft: #fff1da;
+  --benchmark-euribor6m: #b56b28;
+  --benchmark-euribor6m-soft: #fce8d6;
+  --benchmark-euribor12m: #914c22;
+  --benchmark-euribor12m-soft: #f8dfd0;
+}
+
+.fund-form__meta-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 520px);
+}
+
+.label-optional {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.benchmark-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface-soft);
+}
+
+.benchmark-picker legend {
+  padding: 0 5px;
+  font-weight: 800;
+}
+
+.benchmark-picker__hint {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.benchmark-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.benchmark-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left-width: 5px;
+  border-radius: 9px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.benchmark-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.benchmark-check--overnight { border-left-color: var(--benchmark-overnight); }
+.benchmark-check--euribor3m { border-left-color: var(--benchmark-euribor3m); }
+.benchmark-check--euribor6m { border-left-color: var(--benchmark-euribor6m); }
+.benchmark-check--euribor12m { border-left-color: var(--benchmark-euribor12m); }
+
+.cashflow-entry {
+  grid-template-columns: 145px minmax(185px, 1fr) 160px minmax(160px, 1fr) minmax(150px, 0.9fr) auto;
+}
+
+.cashflow-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface-soft);
+}
+
+.cashflow-list > summary {
+  padding: 11px 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cashflow-list[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.cashflow-list .cashflow-table-wrap {
+  border: 0;
+  border-radius: 0 0 var(--radius-small) var(--radius-small);
+}
+
+.cashflow-table {
+  min-width: 930px;
+}
+
+.savings-plan-summary {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--fund-border);
+  border-left: 5px solid var(--fund-color);
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--fund-soft) 72%, var(--surface));
+}
+
+.savings-plan-summary h3,
+.savings-plan-summary p {
+  margin: 0;
+}
+
+.savings-plan-summary p {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.savings-plan-summary ul {
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+
+/* Benchmarks: gemeinsame warme Farbfamilie, Depot bleibt Petrol/Blau. */
+.benchmark-tone--overnight {
+  --this-benchmark: var(--benchmark-overnight);
+  --this-benchmark-soft: var(--benchmark-overnight-soft);
+}
+.benchmark-tone--euribor3m {
+  --this-benchmark: var(--benchmark-euribor3m);
+  --this-benchmark-soft: var(--benchmark-euribor3m-soft);
+}
+.benchmark-tone--euribor6m {
+  --this-benchmark: var(--benchmark-euribor6m);
+  --this-benchmark-soft: var(--benchmark-euribor6m-soft);
+}
+.benchmark-tone--euribor12m {
+  --this-benchmark: var(--benchmark-euribor12m);
+  --this-benchmark-soft: var(--benchmark-euribor12m-soft);
+}
+
+.fund-result-card--benchmark[class*="benchmark-tone--"] {
+  border-color: color-mix(in srgb, var(--this-benchmark) 58%, var(--border));
+  background: var(--this-benchmark-soft);
+  box-shadow: inset 4px 0 0 var(--this-benchmark);
+}
+
+.fund-result-card--benchmark[class*="benchmark-tone--"] .fund-result-card__label,
+.fund-result-card--benchmark[class*="benchmark-tone--"] .fund-result-card__value {
+  color: color-mix(in srgb, var(--this-benchmark) 72%, #4b2a12);
+}
+
+.detail-item--benchmark[class*="benchmark-tone--"] {
+  background: color-mix(in srgb, var(--this-benchmark-soft) 78%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--this-benchmark);
+}
+
+.comparison-chart__legend-item--overnight::before { background: var(--benchmark-overnight); }
+.comparison-chart__legend-item--euribor3m::before { background: var(--benchmark-euribor3m); }
+.comparison-chart__legend-item--euribor6m::before { background: var(--benchmark-euribor6m); }
+.comparison-chart__legend-item--euribor12m::before { background: var(--benchmark-euribor12m); }
+
+.comparison-bar-row--overnight .comparison-bar-row__bar { background: var(--benchmark-overnight); }
+.comparison-bar-row--euribor3m .comparison-bar-row__bar { background: var(--benchmark-euribor3m); }
+.comparison-bar-row--euribor6m .comparison-bar-row__bar { background: var(--benchmark-euribor6m); }
+.comparison-bar-row--euribor12m .comparison-bar-row__bar { background: var(--benchmark-euribor12m); }
+
+@media (max-width: 1100px) {
+  .benchmark-picker__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cashflow-entry { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .benchmark-picker__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cashflow-entry { grid-template-columns: 1fr; }
+  .fund-form__meta-grid { grid-template-columns: 1fr; }
+}
+
+@media print {
+  .fund-print-report .benchmark-tone--overnight { --this-benchmark: #d8ad57; --this-benchmark-soft: #fff7e6; }
+  .fund-print-report .benchmark-tone--euribor3m { --this-benchmark: #c88a32; --this-benchmark-soft: #fff1da; }
+  .fund-print-report .benchmark-tone--euribor6m { --this-benchmark: #b56b28; --this-benchmark-soft: #fce8d6; }
+  .fund-print-report .benchmark-tone--euribor12m { --this-benchmark: #914c22; --this-benchmark-soft: #f8dfd0; }
+
+  .fund-print-report .fund-result-card--benchmark[class*="benchmark-tone--"] {
+    border-color: var(--this-benchmark);
+    background: var(--this-benchmark-soft);
+    box-shadow: inset 3px 0 0 var(--this-benchmark);
+  }
+
+  .fund-print-report .comparison-bar-row--overnight .comparison-bar-row__bar { border-top-color: #d8ad57; }
+  .fund-print-report .comparison-bar-row--euribor3m .comparison-bar-row__bar { border-top-color: #c88a32; }
+  .fund-print-report .comparison-bar-row--euribor6m .comparison-bar-row__bar { border-top-color: #b56b28; }
+  .fund-print-report .comparison-bar-row--euribor12m .comparison-bar-row__bar { border-top-color: #914c22; }
+
+  .fund-print-report .savings-plan-summary {
+    margin-top: 0;
+    padding: 7px 9px;
+    border-left: 3px solid #1f7894;
+    font-size: 8.5pt;
+    break-inside: avoid;
+  }
+}
