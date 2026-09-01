@@ -372,6 +372,16 @@
   align-items: center;
 }
 
+.fund-data-status {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+  border-radius: var(--radius-small);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
 .comparison-chart {
   margin-top: 18px;
   padding: 16px;
