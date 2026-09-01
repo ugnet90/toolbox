@@ -190,9 +190,11 @@
           <p class="form-message fund-warning" data-fund-warning hidden></p>
           <p class="fund-data-status" data-fund-data-status hidden aria-live="polite"></p>
           <input type="file" accept="application/json,.json" data-import-fund-file hidden>
+          <input type="file" accept=".csv,text/csv" data-import-bank-csv-file hidden>
           <div class="fund-form__actions" role="group" aria-label="Fondsrechner Aktionen">
             <button class="primary-button" type="submit">Fondsrendite berechnen</button>
             <button class="secondary-button" type="button" data-import-fund>Daten importieren</button>
+            <button class="secondary-button" type="button" data-import-bank-csv>CSV importieren</button>
             <button class="secondary-button" type="button" data-export-fund>Daten exportieren</button>
             <button class="secondary-button" type="button" data-reset-fund>Zurücksetzen</button>
           </div>
