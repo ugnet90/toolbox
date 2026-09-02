@@ -66,6 +66,10 @@ const returnChart = document.querySelector("[data-return-chart]");
 const resetButton = document.querySelector("[data-reset-fund]");
 const printButton = document.querySelector("[data-print-fund]");
 const printReport = document.querySelector("[data-print-report]");
+const printOptions = document.querySelector("[data-print-options]");
+const printCashflows = document.querySelector("[data-print-cashflows]");
+const printConfirmButton = document.querySelector("[data-print-confirm]");
+const printCancelButton = document.querySelector("[data-print-cancel]");
 const importButton = document.querySelector("[data-import-fund]");
 const exportButton = document.querySelector("[data-export-fund]");
 const importFileInput = document.querySelector("[data-import-fund-file]");
@@ -162,6 +166,141 @@ let cashflows = [];
 let nextCashflowId = 1;
 let calculationRevision = 0;
 let lastCoreCalculation = null;
+
+function isTouchDateEnvironment() {
+  return navigator.maxTouchPoints > 0 && window.matchMedia?.("(pointer: coarse)")?.matches;
+}
+
+function isoToGermanDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}.${match[2]}.${match[1]}` : "";
+}
+
+function germanDateToIso(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  let day;
+  let month;
+  let year;
+  const compact = raw.replace(/\D/g, "");
+  if (compact.length === 8) {
+    day = Number(compact.slice(0, 2));
+    month = Number(compact.slice(2, 4));
+    year = Number(compact.slice(4, 8));
+  } else {
+    const match = raw.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
+    if (!match) return null;
+    day = Number(match[1]);
+    month = Number(match[2]);
+    year = Number(match[3]);
+  }
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return null;
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+const enhancedDateInputs = new Map();
+
+function enhanceDateInput(nativeInput) {
+  if (!nativeInput || enhancedDateInputs.has(nativeInput) || !isTouchDateEnvironment()) return;
+  const wrapper = document.createElement("div");
+  wrapper.className = "manual-date-control";
+
+  const textInput = document.createElement("input");
+  textInput.type = "text";
+  textInput.inputMode = "numeric";
+  textInput.autocomplete = "off";
+  textInput.placeholder = "TT.MM.JJJJ";
+  textInput.className = nativeInput.classList.contains("table-input") ? "table-input manual-date-control__text" : "manual-date-control__text";
+  textInput.value = isoToGermanDate(nativeInput.value);
+  textInput.id = nativeInput.id ? `${nativeInput.id}Text` : "";
+  textInput.setAttribute("aria-label", nativeInput.getAttribute("aria-label") || "Datum");
+
+  const pickerButton = document.createElement("button");
+  pickerButton.type = "button";
+  pickerButton.className = "manual-date-control__picker";
+  pickerButton.tabIndex = -1;
+  pickerButton.setAttribute("aria-label", "Kalender öffnen");
+  pickerButton.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 2v3M17 2v3M3.5 9h17M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 19 20.5H5A1.5 1.5 0 0 1 3.5 19V6A1.5 1.5 0 0 1 5 4.5Z"/></svg>';
+
+  nativeInput.parentNode.insertBefore(wrapper, nativeInput);
+  wrapper.append(textInput, pickerButton, nativeInput);
+  nativeInput.classList.add("manual-date-control__native");
+  nativeInput.tabIndex = -1;
+
+  if (nativeInput.id) {
+    document.querySelectorAll(`label[for="${CSS.escape(nativeInput.id)}"]`).forEach((label) => {
+      label.htmlFor = textInput.id;
+    });
+  }
+
+  function commitTextValue() {
+    const iso = germanDateToIso(textInput.value);
+    if (iso === null) {
+      textInput.setCustomValidity("Bitte Datum im Format TT.MM.JJJJ eingeben.");
+      return false;
+    }
+    textInput.setCustomValidity("");
+    nativeInput.value = iso;
+    textInput.value = isoToGermanDate(iso);
+    nativeInput.dispatchEvent(new Event("input", { bubbles: true }));
+    nativeInput.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  }
+
+  textInput.addEventListener("input", () => {
+    textInput.setCustomValidity("");
+    const digits = textInput.value.replace(/\D/g, "").slice(0, 8);
+    if (/^\d{3,8}$/.test(digits)) {
+      let formatted = digits.slice(0, 2);
+      if (digits.length > 2) formatted += `.${digits.slice(2, 4)}`;
+      if (digits.length > 4) formatted += `.${digits.slice(4, 8)}`;
+      textInput.value = formatted;
+    }
+  });
+  textInput.addEventListener("blur", () => {
+    if (!textInput.value.trim()) {
+      nativeInput.value = "";
+      nativeInput.dispatchEvent(new Event("change", { bubbles: true }));
+      return;
+    }
+    commitTextValue();
+  });
+  textInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") commitTextValue();
+  });
+
+  nativeInput.addEventListener("change", () => {
+    textInput.value = isoToGermanDate(nativeInput.value);
+    textInput.setCustomValidity("");
+  });
+
+  pickerButton.addEventListener("click", () => {
+    try {
+      if (typeof nativeInput.showPicker === "function") nativeInput.showPicker();
+      else {
+        nativeInput.focus({ preventScroll: true });
+        nativeInput.click();
+      }
+    } catch {
+      nativeInput.click();
+    }
+  });
+
+  enhancedDateInputs.set(nativeInput, textInput);
+}
+
+function enhanceDateInputs(root = document) {
+  if (!isTouchDateEnvironment()) return;
+  root.querySelectorAll('input[type="date"]').forEach(enhanceDateInput);
+}
+
+function syncEnhancedDateInputs() {
+  enhancedDateInputs.forEach((textInput, nativeInput) => {
+    textInput.value = isoToGermanDate(nativeInput.value);
+    textInput.setCustomValidity("");
+  });
+}
 
 function normalizeSignedAmount(rawValue, type) {
   const amount = parseGermanNumber(rawValue);
@@ -335,6 +474,7 @@ function applyImportedFundData(data) {
   nextCashflowId = 1;
   cashflows = normalized.cashflows.map((flow) => ({ ...flow, id: nextCashflowId++ }));
   renderCashflows();
+  syncEnhancedDateInputs();
   clearCalculation();
   const flowLabel = cashflows.length === 1 ? "1 zusätzlicher Zahlungsstrom" : `${cashflows.length} zusätzliche Zahlungsströme`;
   showDataStatus(`Daten importiert: ${flowLabel}. Bitte Depotrendite neu berechnen.`);
@@ -404,6 +544,7 @@ function renderCashflows() {
     cashflowList.hidden = cashflows.length === 0;
     if (cashflowSummary) cashflowSummary.textContent = cashflows.length === 1 ? "1 Zahlungsstrom anzeigen" : `${cashflows.length} Zahlungsströme anzeigen`;
   }
+  enhanceDateInputs(cashflowBody);
 }
 
 function escapeHtml(value) {
@@ -988,15 +1129,38 @@ importFileInput?.addEventListener("change", async () => {
   }
 });
 
+function closePrintOptions() {
+  if (printOptions) printOptions.hidden = true;
+}
+
 printButton?.addEventListener("click", () => {
-  const includeCashflows = cashflows.length ? window.confirm("Sollen die einzelnen Zahlungsströme im PDF / Ausdruck angezeigt werden?\n\nOK = anzeigen · Abbrechen = ausblenden") : true;
+  if (!printOptions) return;
+  if (printCashflows) {
+    printCashflows.checked = false;
+    printCashflows.disabled = cashflows.length === 0;
+  }
+  printOptions.hidden = false;
+  printConfirmButton?.focus();
+});
+
+printCancelButton?.addEventListener("click", closePrintOptions);
+printOptions?.addEventListener("click", (event) => {
+  if (event.target === printOptions) closePrintOptions();
+});
+
+printConfirmButton?.addEventListener("click", () => {
+  const includeCashflows = cashflows.length ? Boolean(printCashflows?.checked) : true;
   if (!buildPrintReport({ includeCashflows })) return;
   const previousTitle = document.title;
   const suffix = endDate?.value ? `_${endDate.value}` : "";
   const name = safeFilenamePart(designation?.value);
   document.title = `Toolbox_Depotrendite${name ? `_${name}` : ""}${suffix}`;
+  closePrintOptions();
+
+  const restoreTitle = () => { document.title = previousTitle; };
+  window.addEventListener("afterprint", restoreTitle, { once: true });
   window.print();
-  window.setTimeout(() => { document.title = previousTitle; }, 500);
+  window.setTimeout(restoreTitle, 1500);
 });
 
 resetButton?.addEventListener("click", () => {
@@ -1004,8 +1168,11 @@ resetButton?.addEventListener("click", () => {
   cashflows = [];
   nextCashflowId = 1;
   renderCashflows();
+  syncEnhancedDateInputs();
+  closePrintOptions();
   clearCalculation();
-  purchaseDate?.focus();
+  const purchaseText = enhancedDateInputs.get(purchaseDate);
+  (purchaseText || purchaseDate)?.focus();
 });
 
 benchmarkCheckboxes.forEach((box) => {
@@ -1051,4 +1218,9 @@ form?.addEventListener("submit", async (event) => {
   }
 });
 
+enhanceDateInputs(document);
 renderCashflows();
+
+form?.addEventListener("reset", () => {
+  window.setTimeout(syncEnhancedDateInputs, 0);
+});
