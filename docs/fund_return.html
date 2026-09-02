@@ -257,6 +257,17 @@
 </div>
 </section>
 </main>
+<div class="print-options-overlay" data-print-options hidden>
+<div aria-labelledby="print-options-title" aria-modal="true" class="print-options-dialog" role="dialog">
+<h2 id="print-options-title">PDF / Drucken</h2>
+<p>Lege fest, ob die einzelnen Zahlungsströme im Bericht enthalten sein sollen. Danach öffnet der Druckdialog erst durch deinen direkten Klick auf „Jetzt drucken / PDF“.</p>
+<label class="print-options-check"><input data-print-cashflows type="checkbox"/> <span>Einzelne Zahlungsströme im Bericht anzeigen</span></label>
+<div class="print-options-actions">
+<button class="primary-button" data-print-confirm type="button">Jetzt drucken / PDF</button>
+<button class="secondary-button" data-print-cancel type="button">Abbrechen</button>
+</div>
+</div>
+</div>
 <section aria-hidden="true" class="fund-print-report" data-print-report=""></section>
 <footer class="site-footer">Toolbox</footer>
 <script src="js/navigation.js" type="module"></script>
