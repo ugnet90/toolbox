@@ -1262,3 +1262,36 @@
     display: none !important;
   }
 }
+
+/* v0.5.3: robust PDF options on iOS */
+.print-options-cashflows {
+  margin: 1rem 0 1.25rem;
+}
+
+.print-options-cashflows select {
+  width: 100%;
+  min-height: 2.85rem;
+  font-size: 1rem;
+}
+
+.print-options-status {
+  margin: .85rem 0 0;
+  padding: .7rem .8rem;
+  border: 1px solid #d7dee5;
+  border-radius: .65rem;
+  background: #f7fafb;
+  color: #334a5a;
+  font-size: .92rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+  .print-options-dialog {
+    width: min(34rem, calc(100% - .25rem));
+    padding: 1rem;
+  }
+
+  .print-options-cashflows select {
+    font-size: 16px;
+  }
+}
