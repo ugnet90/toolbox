@@ -24,6 +24,18 @@ const net = initialInvestment({ amount: 1000, amountMode: "net", purchaseFeePerc
 assert.ok(Math.abs(net.customerOutflow - 1040) < 1e-9);
 assert.ok(Math.abs(net.netInvested - 1000) < 1e-9);
 
+const zeroStart = initialInvestment({ amount: 0, amountMode: "gross", purchaseFeePercent: 4 });
+assert.equal(zeroStart.customerOutflow, 0);
+assert.equal(zeroStart.netInvested, 0);
+assert.equal(zeroStart.feeAmount, 0);
+
+const zeroStartXirr = calculateXirr([
+  { date: "2020-01-01", amount: 0 },
+  { date: "2020-02-01", amount: -100 },
+  { date: "2021-02-01", amount: 110 }
+]);
+assert.ok(Number.isFinite(zeroStartXirr.rate));
+
 assert.deepEqual(
   generateRecurringDates({ firstDate: "2024-01-31", lastDate: "2024-04-30", intervalMonths: 1 }),
   ["2024-01-31", "2024-02-29", "2024-03-31", "2024-04-30"]
@@ -204,6 +216,7 @@ const bankCsv = [
 const importedBankCsv = parseBankTransactionsCsv(bankCsv);
 assert.equal(importedBankCsv.cashflows.length, 1);
 assert.equal(importedBankCsv.skippedZeroAmounts, 1);
+assert.equal(importedBankCsv.suggestedZeroStartDate, null);
 assert.deepEqual(importedBankCsv.cashflows[0], {
   date: "2026-08-17",
   type: "contribution",
@@ -219,6 +232,17 @@ assert.equal(importedBankCsv.hasIsinColumn, true);
 assert.equal(importedBankCsv.hasQuantityColumn, true);
 assert.equal(importedBankCsv.unknownBusinessTypes, 0);
 assert.equal(importedBankCsv.hasTitleColumn, true);
+
+
+const zeroStandingOrderStartCsv = [
+  "ISIN;Titel;Menge;Einheit;Abrechnungsbetrag;Geschäftsart;Abrechnungsdatum",
+  "DE0008491051;UNIGLOBAL ANTEILSSCH.KL.;0;Stk;0,00;Kauf aus Dauerauftrag;05.03.2020",
+  "DE0008491051;UNIGLOBAL ANTEILSSCH.KL.;0,2;Stk;-100,00;Kauf aus Dauerauftrag;05.04.2020"
+].join("\n");
+const importedZeroStandingOrderStart = parseBankTransactionsCsv(zeroStandingOrderStartCsv);
+assert.equal(importedZeroStandingOrderStart.skippedZeroAmounts, 1);
+assert.equal(importedZeroStandingOrderStart.suggestedZeroStartDate, "2020-03-05");
+assert.equal(importedZeroStandingOrderStart.cashflows.length, 1);
 
 const unknownCsv = [
   "Abrechnungsbetrag;Geschäftsart;Abrechnungsdatum",
