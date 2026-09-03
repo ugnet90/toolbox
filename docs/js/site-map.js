@@ -1,4 +1,4 @@
-export const SITE_VERSION = "0.5.7";
+export const SITE_VERSION = "0.5.8";
 
 export const SITE_MAP = {
   dashboard: {

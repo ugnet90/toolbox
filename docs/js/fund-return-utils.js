@@ -702,10 +702,20 @@ export function buildDepotHistory({ cashflows, pricesByIsin, endDate, maxPoints 
     return flow.date <= endDate && Number.isFinite(flow.amount);
   }).sort((a, b) => a.date.localeCompare(b.date));
 
+  const economicFlows = (overallFlows.length ? overallFlows : allCashflows)
+    .filter((flow) => flow.type !== "terminal")
+    .sort((a, b) => a.date.localeCompare(b.date));
   const fundFlowsByIsin = Object.fromEntries(isins.map((isin) => [isin, allCashflows.filter((flow) => flow.isin === isin && flow.amount !== 0)]));
   let depotGuess = 0.05;
   const fundGuesses = Object.fromEntries(isins.map((isin) => [isin, 0.05]));
+  let economicFlowIndex = 0;
+  let cumulativeInvestorCashflow = 0;
   const points = sampled.map((point) => {
+    while (economicFlowIndex < economicFlows.length && economicFlows[economicFlowIndex].date <= point.date) {
+      cumulativeInvestorCashflow += economicFlows[economicFlowIndex].amount;
+      economicFlowIndex += 1;
+    }
+    const profit = point.depotValue + cumulativeInvestorCashflow;
     const fundReturns = {};
     for (const isin of isins) {
       const rate = historicalXirrFast(fundFlowsByIsin[isin], point.date, Number(point.fundValues?.[isin] || 0), fundGuesses[isin]);
@@ -714,7 +724,7 @@ export function buildDepotHistory({ cashflows, pricesByIsin, endDate, maxPoints 
     }
     const depotReturn = historicalXirrFast(overallFlows.length ? overallFlows : allCashflows, point.date, point.depotValue, depotGuess);
     if (Number.isFinite(depotReturn)) depotGuess = depotReturn;
-    return { ...point, depotReturn, fundReturns };
+    return { ...point, profit, depotReturn, fundReturns };
   });
 
   const lastFull = fullPoints[fullPoints.length - 1];
@@ -727,6 +737,7 @@ export function buildDepotHistory({ cashflows, pricesByIsin, endDate, maxPoints 
     holdings: holdingsSummary,
     lastValue: lastFull.depotValue,
     lastNetInvested: lastFull.netInvested,
+    lastProfit: points.at(-1)?.profit ?? null,
     points,
     fullPointCount: fullPoints.length,
     benchmarkSeries: {}

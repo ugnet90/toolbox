@@ -827,6 +827,7 @@ function svgText(value) {
 const HISTORY_COLORS = {
   depotValue: "#316880",
   netInvested: "#a67523",
+  profit: "#5f7d4f",
   depotReturn: "#1c728f",
   overnight: "#d8ad57",
   euribor3m: "#c88a32",
@@ -861,6 +862,13 @@ function historySeriesDefinitions(history) {
       color: HISTORY_COLORS.netInvested,
       defaultSelected: true,
       points: (history.points || []).map((point) => ({ date: point.date, value: point.netInvested }))
+    },
+    {
+      key: "value:profit",
+      label: "Gewinn / Verlust",
+      color: HISTORY_COLORS.profit,
+      defaultSelected: true,
+      points: (history.points || []).map((point) => ({ date: point.date, value: point.profit }))
     }
   ];
 
@@ -1063,6 +1071,48 @@ function renderDepotHistory(history) {
   setText(depotHistoryFunds, `${history.isins.length} Fonds / ${history.holdings.length} aktuelle Position(en)`);
   renderHistorySeriesPicker(history);
   renderDepotHistoryCharts(history);
+}
+
+function buildHistoryContext() {
+  const finishDate = endDate?.value;
+  if (!finishDate) throw new Error("Bitte End-/Bewertungsdatum eingeben.");
+
+  const securityFlows = securityFlowsForHistory();
+  if (!securityFlows.length) {
+    throw new Error("Für die Depotwertermittlung werden Kauf-/Verkaufsbuchungen mit ISIN und Menge benötigt.");
+  }
+  const earliestSecurityDate = securityFlows.map((flow) => flow.date).sort()[0];
+  const startDate = purchaseDate?.value || earliestSecurityDate;
+  if (finishDate < earliestSecurityDate) {
+    throw new Error("Das End-/Bewertungsdatum liegt vor der ersten Wertpapierbewegung.");
+  }
+
+  const enteredIntermediate = [...cashflows].sort((a, b) => a.date.localeCompare(b.date));
+  if (startDate && enteredIntermediate.some((flow) => flow.date < startDate || flow.date > finishDate)) {
+    throw new Error("Alle Zahlungsströme müssen zwischen Start- und Enddatum liegen.");
+  }
+
+  let startOutflow = 0;
+  const initialText = initialAmount?.value?.trim() || "";
+  if (initialText) {
+    const amount = parseGermanNumber(initialText);
+    if (!Number.isFinite(amount) || amount < 0) throw new Error("Der Startbetrag muss mindestens 0 sein.");
+    if (!purchaseDate?.value && amount !== 0) {
+      throw new Error("Bitte für einen Startbetrag ungleich 0 auch das Kauf-/Startdatum eingeben.");
+    }
+    startOutflow = initialInvestment({
+      amount,
+      amountMode: initialAmountMode?.value || "gross",
+      purchaseFeePercent: Number(purchaseFee?.value || 0)
+    }).customerOutflow;
+  }
+
+  const isKestExempt = kestExemption?.value === "yes";
+  const intermediate = applyKestExemption(enteredIntermediate, isKestExempt).cashflows;
+  const benchmarkFlows = [];
+  if (startDate) benchmarkFlows.push({ date: startDate, amount: -startOutflow, type: "start", note: "Startinvestition" });
+  benchmarkFlows.push(...intermediate.map((flow) => ({ ...flow })));
+  return { finishDate, benchmarkFlows };
 }
 
 async function refreshDepotHistory(calc) {
@@ -2291,12 +2341,21 @@ printConfirmButton?.addEventListener("click", () => {
 });
 
 
-useHistoryEndValueButton?.addEventListener("click", () => {
-  if (!lastDepotHistory || !endValue) return;
-  const historyValue = lastDepotHistory.lastValue;
-  endValue.value = formatGermanNumber(historyValue);
+useHistoryEndValueButton?.addEventListener("click", async () => {
+  if (!endValue) return;
+  const button = useHistoryEndValueButton;
+  button.disabled = true;
   clearCalculation();
-  showDataStatus(`Berechneten Depotwert ${currency.format(historyValue)} als End-/Verkaufswert übernommen. Bitte Depotrendite neu berechnen.`);
+  try {
+    const history = await refreshDepotHistory(buildHistoryContext());
+    if (!history) throw new Error("Historischer Depotwert konnte nicht ermittelt werden.");
+    endValue.value = formatGermanNumber(history.lastValue);
+    showDataStatus(`Depotwert ${currency.format(history.lastValue)} zum ${formatReportDate(history.endDate)} aus historischen Rücknahmepreisen übernommen. Die Depotrendite kann jetzt berechnet werden.`);
+  } catch (error) {
+    showError(error.message || "Historischer Depotwert konnte nicht ermittelt werden.");
+  } finally {
+    button.disabled = false;
+  }
 });
 
 resetButton?.addEventListener("click", () => {
@@ -2368,9 +2427,26 @@ form?.addEventListener("submit", async (event) => {
   }
 });
 
+function todayIsoLocal() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function ensureDefaultEndDate() {
+  if (endDate && !endDate.value) endDate.value = todayIsoLocal();
+}
+
+ensureDefaultEndDate();
 enhanceDateInputs(document);
+syncEnhancedDateInputs();
 renderCashflows();
 
 form?.addEventListener("reset", () => {
-  window.setTimeout(syncEnhancedDateInputs, 0);
+  window.setTimeout(() => {
+    ensureDefaultEndDate();
+    syncEnhancedDateInputs();
+  }, 0);
 });
