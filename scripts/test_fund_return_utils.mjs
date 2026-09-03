@@ -6,6 +6,9 @@ import {
   detectRecurringSavingsPlans,
   generateRecurringDates,
   initialInvestment,
+  mergeDateRanges,
+  missingDateRanges,
+  buildDepotHistory,
   normalizeFundReturnData,
   parseBankTransactionsCsv,
   simulateHistoricalRateBenchmark,
@@ -153,12 +156,12 @@ const exportedData = createFundReturnData({
     kestExemption: "no"
   },
   cashflows: [
-    { date: "2021-01-15", type: "distribution", amount: 250, title: "Fonds XY", note: "Ausschüttung" },
-    { date: "2022-02-01", type: "fee", amount: -20, title: "", note: "Depotgebühr" }
+    { date: "2021-01-15", type: "distribution", amount: 250, title: "Fonds XY", note: "Ausschüttung", isin: "", quantity: null, unit: "" },
+    { date: "2022-02-01", type: "fee", amount: -20, title: "", note: "Depotgebühr", isin: "", quantity: null, unit: "" }
   ]
 });
 assert.equal(exportedData.format, "toolbox-depot-return");
-assert.equal(exportedData.schema_version, 2);
+assert.equal(exportedData.schema_version, 3);
 assert.equal(exportedData.inputs.designation, "Depot Test");
 assert.deepEqual(exportedData.inputs.benchmarkKinds, ["overnight", "euribor3m", "euribor6m"]);
 assert.equal(exportedData.cashflows[0].title, "Fonds XY");
@@ -206,8 +209,14 @@ assert.deepEqual(importedBankCsv.cashflows[0], {
   type: "contribution",
   amount: -249.65,
   title: "UNIGLOBAL ANTEILSSCH.KL.",
-  note: "Kauf aus Dauerauftrag"
+  note: "Kauf aus Dauerauftrag",
+  isin: "DE0008491051",
+  quantity: 0.467,
+  unit: "Stk"
 });
+assert.deepEqual(importedBankCsv.securityIsins, ["DE0008491051"]);
+assert.equal(importedBankCsv.hasIsinColumn, true);
+assert.equal(importedBankCsv.hasQuantityColumn, true);
 assert.equal(importedBankCsv.unknownBusinessTypes, 0);
 assert.equal(importedBankCsv.hasTitleColumn, true);
 
@@ -232,5 +241,46 @@ assert.equal(plans[0].title, "Fonds XY");
 assert.equal(plans[0].nominalAmount, 100);
 assert.equal(plans[0].firstDate, "2025-01-12");
 assert.equal(plans[0].lastDate, "2025-04-11");
+
+
+assert.deepEqual(mergeDateRanges([
+  { start: "2026-01-01", end: "2026-01-10" },
+  { start: "2026-01-11", end: "2026-01-20" },
+  { start: "2026-03-01", end: "2026-03-05" }
+]), [
+  { start: "2026-01-01", end: "2026-01-20" },
+  { start: "2026-03-01", end: "2026-03-05" }
+]);
+assert.deepEqual(missingDateRanges("2026-01-01", "2026-01-31", [
+  { start: "2026-01-05", end: "2026-01-20" }
+]), [
+  { start: "2026-01-01", end: "2026-01-04" },
+  { start: "2026-01-21", end: "2026-01-31" }
+]);
+
+const depotHistory = buildDepotHistory({
+  cashflows: [
+    { date: "2026-01-02", type: "contribution", amount: -1000, isin: "DE0008491051", quantity: 10 },
+    { date: "2026-02-02", type: "contribution", amount: -520, isin: "DE0008491051", quantity: 5 },
+    { date: "2026-03-02", type: "withdrawal", amount: 630, isin: "DE0008491051", quantity: -5 }
+  ],
+  pricesByIsin: {
+    DE0008491051: {
+      currency: "EUR",
+      observations: [
+        { date: "2026-01-01", redemption_price: 100 },
+        { date: "2026-01-02", redemption_price: 101 },
+        { date: "2026-02-02", redemption_price: 103 },
+        { date: "2026-03-02", redemption_price: 120 },
+        { date: "2026-03-31", redemption_price: 125 }
+      ]
+    }
+  },
+  endDate: "2026-03-31"
+});
+assert.equal(depotHistory.holdings[0].quantity, 10);
+assert.equal(depotHistory.lastValue, 1250);
+assert.equal(depotHistory.lastNetInvested, 890);
+assert.equal(depotHistory.endDate, "2026-03-31");
 
 console.log("OK: fund return utils");
