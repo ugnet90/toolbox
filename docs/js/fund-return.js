@@ -1354,7 +1354,7 @@ function renderBenchmark(calc, kind, config, apiData, benchmark, effectiveTaxPer
     nodes.method.textContent += ` Nach dem letzten verfügbaren ECB-Monat ${coverage.lastOfficialPeriod} wird dessen Zinssatz unverändert bis zum Vergleichsende fortgeschrieben.`;
   }
 
-  return { kind, config, benchmark, xirrResult, effectiveTaxPercent };
+  return { kind, config, apiData, benchmark, xirrResult, effectiveTaxPercent };
 }
 
 function appendSimpleBar(container, label, value, maxValue, category) {
