@@ -521,16 +521,28 @@ async function importBankTransactionsCsv(file) {
   const text = decodeCsvBuffer(await file.arrayBuffer());
   const parsed = parseBankTransactionsCsv(text);
   const hadExisting = cashflows.length > 0;
+  const hasExplicitStart = Boolean(purchaseDate?.value || String(initialAmount?.value || "").trim());
+  const applyZeroStart = !hadExisting && !hasExplicitStart && Boolean(parsed.suggestedZeroStartDate);
   for (const flow of parsed.cashflows) {
     cashflows.push({ ...flow, id: nextCashflowId++ });
   }
   renderCashflows();
+  if (applyZeroStart) {
+    purchaseDate.value = parsed.suggestedZeroStartDate;
+    initialAmount.value = formatGermanNumber(0);
+    initialAmountMode.value = "gross";
+    purchaseFee.value = "0";
+    syncEnhancedDateInputs();
+  }
   clearCalculation();
 
   const count = parsed.cashflows.length;
   const label = count === 1 ? "1 Buchung" : `${count} Buchungen`;
   const skipped = parsed.skippedZeroAmounts > 0 ? ` ${parsed.skippedZeroAmounts} Nullbuchung(en) wurden übersprungen.` : "";
-  showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped} Bitte Depotrendite neu berechnen.`);
+  const zeroStart = applyZeroStart
+    ? ` Die erste Nullbuchung aus Dauerauftrag wurde als Depotstart ${formatReportDate(parsed.suggestedZeroStartDate)} mit Startwert ${currency.format(0)} verwendet.`
+    : "";
+  showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped}${zeroStart} Bitte Depotrendite neu berechnen.`);
   if (parsed.unknownBusinessTypes > 0) {
     appendWarning(`${parsed.unknownBusinessTypes} unbekannte Geschäftsart(en) wurden als „Sonstiger Cashflow“ übernommen; Originaltext steht in der Notiz.`);
   }
@@ -543,7 +555,7 @@ async function importBankTransactionsCsv(file) {
   if (!parsed.hasIsinColumn || !parsed.hasQuantityColumn) {
     appendWarning("Für die historische Depotwert-Grafik werden zusätzlich die CSV-Spalten „ISIN“ und „Menge“ benötigt.");
   } else if (parsed.securityIsins.length) {
-    showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped} ${parsed.securityIsins.length} Wertpapier-ISIN(s) mit Stückbewegungen erkannt. Bitte Depotrendite neu berechnen.`);
+    showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped}${zeroStart} ${parsed.securityIsins.length} Wertpapier-ISIN(s) mit Stückbewegungen erkannt. Bitte Depotrendite neu berechnen.`);
   }
   if (parsed.normalizedQuantitySigns > 0) {
     appendWarning(`${parsed.normalizedQuantitySigns} Mengenangabe(n) wurden für Kauf/Verkauf auf das passende Vorzeichen normalisiert.`);
@@ -767,7 +779,7 @@ function renderDepotHistory(history) {
   if (!depotHistory) return;
   depotHistory.hidden = false;
   if (depotHistoryStatus) depotHistoryStatus.hidden = true;
-  setText(depotHistoryPeriod, `${formatDate(history.startDate)} – ${formatDate(history.endDate)}`);
+  setText(depotHistoryPeriod, `${formatReportDate(history.startDate)} – ${formatReportDate(history.endDate)}`);
   setText(depotHistoryValue, currency.format(history.lastValue));
   setText(depotHistoryInvested, currency.format(history.lastNetInvested));
   setText(depotHistoryFunds, `${history.isins.length} Fonds / ${history.holdings.length} aktuelle Position(en)`);

@@ -259,6 +259,8 @@ export function parseBankTransactionsCsv(text) {
   let normalizedOutflowSigns = 0;
   let normalizedQuantitySigns = 0;
   let skippedZeroAmounts = 0;
+  let earliestTransactionDate = null;
+  const zeroStandingOrderDates = [];
   const securityIsins = new Set();
 
   for (let index = 1; index < nonEmptyRows.length; index += 1) {
@@ -275,14 +277,21 @@ export function parseBankTransactionsCsv(text) {
     if (!rawAmount || !rawDate) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag oder Abrechnungsdatum fehlt.`);
     if (isin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) throw new Error(`CSV-Zeile ${lineNumber}: ISIN ist ungültig.`);
 
+    const isoDate = germanDateToIso(rawDate, lineNumber);
+    const type = mapCsvBusinessType(businessType);
+    if (!earliestTransactionDate || isoDate < earliestTransactionDate) earliestTransactionDate = isoDate;
+
     let amount = parseGermanNumber(rawAmount);
     if (!Number.isFinite(amount)) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag ist ungültig.`);
     if (amount === 0) {
       skippedZeroAmounts += 1;
+      const normalizedBusinessType = businessType.toLocaleLowerCase("de-AT");
+      if (type === "contribution" && normalizedBusinessType.includes("dauerauftrag")) {
+        zeroStandingOrderDates.push(isoDate);
+      }
       continue;
     }
 
-    const type = mapCsvBusinessType(businessType);
     if (type === "other") unknownBusinessTypes += 1;
     if (["contribution", "tax", "fee"].includes(type) && amount > 0) {
       amount = -amount;
@@ -305,7 +314,7 @@ export function parseBankTransactionsCsv(text) {
     if (isin && quantity !== null && ["contribution", "withdrawal"].includes(type)) securityIsins.add(isin);
 
     cashflows.push({
-      date: germanDateToIso(rawDate, lineNumber),
+      date: isoDate,
       type,
       amount,
       title: title.slice(0, 120),
@@ -318,12 +327,16 @@ export function parseBankTransactionsCsv(text) {
 
   if (!cashflows.length && skippedZeroAmounts === 0) throw new Error("Die CSV-Datei enthält keine importierbaren Buchungen.");
   if (cashflows.length > 5000) throw new Error("Die CSV-Datei enthält zu viele Buchungen.");
+  const suggestedZeroStartDate = zeroStandingOrderDates.includes(earliestTransactionDate)
+    ? earliestTransactionDate
+    : null;
   return {
     cashflows,
     unknownBusinessTypes,
     normalizedOutflowSigns,
     normalizedQuantitySigns,
     skippedZeroAmounts,
+    suggestedZeroStartDate,
     hasTitleColumn: titleIndex >= 0,
     hasIsinColumn: isinIndex >= 0,
     hasQuantityColumn: quantityIndex >= 0,
@@ -610,8 +623,8 @@ export function buildDepotHistory({ cashflows, pricesByIsin, endDate, maxPoints 
 export function initialInvestment({ amount, amountMode = "gross", purchaseFeePercent = 0 }) {
   const inputAmount = Number(amount);
   const feeRate = Number(purchaseFeePercent) / 100;
-  if (!Number.isFinite(inputAmount) || inputAmount <= 0) {
-    throw new Error("Der Startbetrag muss größer als 0 sein.");
+  if (!Number.isFinite(inputAmount) || inputAmount < 0) {
+    throw new Error("Der Startbetrag muss mindestens 0 sein.");
   }
   if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate > 1) {
     throw new Error("Ungültige Kaufspesen.");
