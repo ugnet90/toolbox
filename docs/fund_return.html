@@ -66,7 +66,8 @@
 <div class="field">
 <label for="endValue">End-/Verkaufswert</label>
 <input autocomplete="off" id="endValue" inputmode="decimal" name="endValue" placeholder="z. B. 72.500,00" required="" type="text"/>
-<span class="field__hint">Bei Verkauf möglichst den tatsächlich verbleibenden Nettoerlös verwenden.</span>
+<button class="secondary-button fund-history-end-button" data-use-history-end-value type="button">Depotwert aus historischen Kursen ermitteln</button>
+<span class="field__hint">Bei Verkauf möglichst den tatsächlich verbleibenden Nettoerlös verwenden. Bei importierten Kauf-/Verkaufsbuchungen mit ISIN und Menge kann der Depotwert bereits vor der Renditeberechnung aus den historischen Rücknahmepreisen ermittelt und hier eingesetzt werden.</span>
 </div>
 
 <div class="field">
@@ -234,7 +235,7 @@
 </div>
 <fieldset class="depot-history__series-picker">
 <legend>Diagrammlinien auswählen</legend>
-<p class="field__hint">Depotwert und Nettoinvestitionen verwenden die Euro-Skala. Renditen werden als datumsgenaue XIRR p.a. seit Beginn dargestellt. Einzelne Fondsrenditen berücksichtigen Cashflows, die einer ISIN zugeordnet sind. Oben ausgewählte und erfolgreich geladene Benchmarks erscheinen hier zusätzlich als Wert- und Renditelinien.</p>
+<p class="field__hint">Depotwert, kumulierte Nettoinvestitionen sowie Gewinn/Verlust verwenden die Euro-Skala. Gewinn/Verlust entspricht dem jeweils bewerteten Depotwert zuzüglich aller bis dahin angefallenen Anleger-Cashflows. Renditen werden zusätzlich als datumsgenaue XIRR p.a. seit Beginn dargestellt. Einzelne Fondsrenditen berücksichtigen Cashflows, die einer ISIN zugeordnet sind. Oben ausgewählte und erfolgreich geladene Benchmarks erscheinen hier zusätzlich als Wert- und Renditelinien.</p>
 <div class="depot-history__series-grid" data-history-series-picker></div>
 </fieldset>
 <div class="depot-history__chart-block" data-history-value-block>
@@ -246,8 +247,6 @@
 <div class="depot-history__chart" data-depot-return-chart></div>
 <p class="field__hint">Die historische Depotrendite ist die geldgewichtete, datumsgenaue XIRR p.a. zum jeweiligen Bewertungstag. Bei sehr kurzen Zeiträumen unter 30 Tagen wird keine Rendite dargestellt.</p>
 </div>
-<div class="depot-history__actions"><button class="secondary-button" data-use-history-end-value type="button">Berechneten Depotwert als Endwert verwenden</button></div>
-<p class="field__hint"><strong>Was macht der Button?</strong> Er überträgt den aus Mengen und historischen Rücknahmepreisen berechneten Depotwert am Bewertungsdatum in das Feld „End-/Verkaufswert“. Danach kann die Depotrendite mit diesem Wert neu berechnet werden.</p>
 <p class="field__hint">Kursdaten werden lokal im Browser (IndexedDB) zwischengespeichert. Beim Worker werden nur ISIN und benötigter Zeitraum abgefragt; Beträge, Mengen, Titel und Depotbezeichnung werden nicht übertragen.</p>
 </section><section aria-labelledby="comparison-chart-heading" class="comparison-chart" data-comparison-chart="" hidden="">
 <div class="comparison-chart__header">
