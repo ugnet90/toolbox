@@ -1342,11 +1342,19 @@
 .depot-history__svg { display: block; width: 100%; min-width: 650px; height: auto; }
 .depot-history__grid { stroke: #e6ecee; stroke-width: 1; }
 .depot-history__axis { stroke: #9caaaf; stroke-width: 1.2; }
-.depot-history__axis-label { fill: #63737a; font-size: 12px; font-family: system-ui, sans-serif; }
+.depot-history__axis-label { fill: #63737a; font-size: 9px; font-family: system-ui, sans-serif; }
 .depot-history__line { fill: none; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
 .depot-history__line--value { stroke: #316880; }
 .depot-history__line--invested { stroke: #a67523; stroke-width: 2.4; }
 .depot-history__actions { margin-top: .75rem; }
+
+
+.fund-history-end-button {
+  align-self: flex-start;
+  margin-top: .45rem;
+  padding: .45rem .65rem;
+  font-size: .82rem;
+}
 
 .depot-history__series-picker {
   margin: .85rem 0 1rem;
@@ -1385,8 +1393,15 @@
   font-size: .82rem;
   cursor: pointer;
 }
-.depot-history__series-check input {
+.depot-history__series-check input[type="checkbox"] {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
   margin: 0;
+  padding: 0;
+  flex: 0 0 16px;
+  accent-color: var(--accent);
 }
 .depot-history__series-swatch {
   width: 1.2rem;
