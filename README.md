@@ -4,7 +4,7 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.5.10
+- **Toolbox:** 0.5.11
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
@@ -226,6 +226,12 @@ Für die Toolbox gilt:
 5. Der Änderungsverlauf steht ausschließlich im folgenden Changelog.
 
 ## Changelog
+
+### 0.5.11
+
+- PDF-Berechnungsdetails für Depots mit 0-Euro-Start logisch neu gegliedert.
+- Statt ausschließlich startbezogener Nullwerte zeigt der Bericht nun Depotstart, Zuzahlungen/Käufe gesamt, erkannte Daueraufträge/Sparraten, übrige bzw. Einmalkäufe, Ausschüttungen/Entnahmen, Gebühren/Steuern, Netto-Anlegeraufwand vor Endwert und End-/Verkaufswert.
+- Startbezogene Nettoanlage und Kaufspesen werden nur noch ausgewiesen, wenn tatsächlich eine Start-/Einmalanlage über das Startfeld vorhanden ist.
 
 ### 0.5.10
 
