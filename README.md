@@ -4,7 +4,7 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.5.9
+- **Toolbox:** 0.5.10
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
@@ -226,6 +226,11 @@ Für die Toolbox gilt:
 5. Der Änderungsverlauf steht ausschließlich im folgenden Changelog.
 
 ## Changelog
+
+### 0.5.10
+
+- Hotfix für historische Benchmark-Diagramme: die bereits geladenen Benchmark-API-Daten werden im gerenderten Benchmark-Ergebnis weitergereicht, sodass `observations` für die historische Wert- und Renditelinie verfügbar bleiben.
+- Fehler `Cannot read properties of undefined (reading 'observations')` behoben.
 
 ### 0.5.9
 
