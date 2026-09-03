@@ -260,12 +260,21 @@
 <div class="print-options-overlay" data-print-options hidden>
 <div aria-labelledby="print-options-title" aria-modal="true" class="print-options-dialog" role="dialog">
 <h2 id="print-options-title">PDF / Drucken</h2>
-<p>Lege fest, ob die einzelnen Zahlungsströme im Bericht enthalten sein sollen. Danach öffnet der Druckdialog erst durch deinen direkten Klick auf „Jetzt drucken / PDF“.</p>
-<label class="print-options-check"><input data-print-cashflows type="checkbox"/> <span>Einzelne Zahlungsströme im Bericht anzeigen</span></label>
+<p>Die Toolbox kann eine echte PDF-Datei direkt im Browser erzeugen. Am iPhone wird sie anschließend geöffnet und kann über „Teilen“ gespeichert oder gedruckt werden.</p>
+<div class="field print-options-cashflows">
+<label for="printCashflowsMode">Zahlungsströme im PDF</label>
+<select data-print-cashflows-mode id="printCashflowsMode">
+<option selected value="summary">Nur Zusammenfassung</option>
+<option value="details">Einzelne Zahlungsströme anzeigen</option>
+</select>
+<span class="field__hint" data-print-cashflows-hint></span>
+</div>
 <div class="print-options-actions">
-<button class="primary-button" data-print-confirm type="button">Jetzt drucken / PDF</button>
+<button class="primary-button" data-pdf-confirm type="button">PDF erstellen</button>
+<button class="secondary-button" data-print-confirm type="button">Drucken</button>
 <button class="secondary-button" data-print-cancel type="button">Abbrechen</button>
 </div>
+<p class="print-options-status" data-print-status aria-live="polite" hidden></p>
 </div>
 </div>
 <section aria-hidden="true" class="fund-print-report" data-print-report=""></section>
