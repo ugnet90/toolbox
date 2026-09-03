@@ -336,6 +336,7 @@ export function parseBankTransactionsCsv(text) {
     normalizedOutflowSigns,
     normalizedQuantitySigns,
     skippedZeroAmounts,
+    earliestTransactionDate,
     suggestedZeroStartDate,
     hasTitleColumn: titleIndex >= 0,
     hasIsinColumn: isinIndex >= 0,

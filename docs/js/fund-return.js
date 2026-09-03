@@ -81,6 +81,11 @@ const exportButton = document.querySelector("[data-export-fund]");
 const importFileInput = document.querySelector("[data-import-fund-file]");
 const csvImportButton = document.querySelector("[data-import-bank-csv]");
 const csvImportFileInput = document.querySelector("[data-import-bank-csv-file]");
+const csvImportDialog = document.querySelector("[data-csv-import-dialog]");
+const csvImportDialogTitle = document.querySelector("[data-csv-import-dialog-title]");
+const csvImportDialogQuestion = document.querySelector("[data-csv-import-dialog-question]");
+const csvImportDialogYes = document.querySelector("[data-csv-import-dialog-yes]");
+const csvImportDialogNo = document.querySelector("[data-csv-import-dialog-no]");
 const dataStatusNode = document.querySelector("[data-fund-data-status]");
 const savingsPlanSummary = document.querySelector("[data-savings-plan-summary]");
 const savingsPlanList = document.querySelector("[data-savings-plan-list]");
@@ -184,6 +189,10 @@ let calculationRevision = 0;
 let lastCoreCalculation = null;
 let lastBenchmarkResults = [];
 let lastDepotHistory = null;
+let csvImportSessionActive = false;
+let csvImportSessionEarliestDate = null;
+let csvImportAwaitingAdditionalFile = false;
+let csvImportDialogStep = null;
 const memoryPriceCache = new Map();
 
 function isTouchDateEnvironment() {
@@ -521,28 +530,17 @@ async function importBankTransactionsCsv(file) {
   const text = decodeCsvBuffer(await file.arrayBuffer());
   const parsed = parseBankTransactionsCsv(text);
   const hadExisting = cashflows.length > 0;
-  const hasExplicitStart = Boolean(purchaseDate?.value || String(initialAmount?.value || "").trim());
-  const applyZeroStart = !hadExisting && !hasExplicitStart && Boolean(parsed.suggestedZeroStartDate);
+
   for (const flow of parsed.cashflows) {
     cashflows.push({ ...flow, id: nextCashflowId++ });
   }
   renderCashflows();
-  if (applyZeroStart) {
-    purchaseDate.value = parsed.suggestedZeroStartDate;
-    initialAmount.value = formatGermanNumber(0);
-    initialAmountMode.value = "gross";
-    purchaseFee.value = "0";
-    syncEnhancedDateInputs();
-  }
   clearCalculation();
 
   const count = parsed.cashflows.length;
   const label = count === 1 ? "1 Buchung" : `${count} Buchungen`;
   const skipped = parsed.skippedZeroAmounts > 0 ? ` ${parsed.skippedZeroAmounts} Nullbuchung(en) wurden übersprungen.` : "";
-  const zeroStart = applyZeroStart
-    ? ` Die erste Nullbuchung aus Dauerauftrag wurde als Depotstart ${formatReportDate(parsed.suggestedZeroStartDate)} mit Startwert ${currency.format(0)} verwendet.`
-    : "";
-  showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped}${zeroStart} Bitte Depotrendite neu berechnen.`);
+  showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped}`);
   if (parsed.unknownBusinessTypes > 0) {
     appendWarning(`${parsed.unknownBusinessTypes} unbekannte Geschäftsart(en) wurden als „Sonstiger Cashflow“ übernommen; Originaltext steht in der Notiz.`);
   }
@@ -555,11 +553,74 @@ async function importBankTransactionsCsv(file) {
   if (!parsed.hasIsinColumn || !parsed.hasQuantityColumn) {
     appendWarning("Für die historische Depotwert-Grafik werden zusätzlich die CSV-Spalten „ISIN“ und „Menge“ benötigt.");
   } else if (parsed.securityIsins.length) {
-    showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped}${zeroStart} ${parsed.securityIsins.length} Wertpapier-ISIN(s) mit Stückbewegungen erkannt. Bitte Depotrendite neu berechnen.`);
+    showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped} ${parsed.securityIsins.length} Wertpapier-ISIN(s) mit Stückbewegungen erkannt.`);
   }
   if (parsed.normalizedQuantitySigns > 0) {
     appendWarning(`${parsed.normalizedQuantitySigns} Mengenangabe(n) wurden für Kauf/Verkauf auf das passende Vorzeichen normalisiert.`);
   }
+  return parsed;
+}
+
+function beginCsvImportSession() {
+  if (!csvImportSessionActive) {
+    csvImportSessionActive = true;
+    csvImportSessionEarliestDate = null;
+  }
+}
+
+function rememberCsvImportDate(date) {
+  if (!date) return;
+  if (!csvImportSessionEarliestDate || date < csvImportSessionEarliestDate) {
+    csvImportSessionEarliestDate = date;
+  }
+}
+
+function applyCsvZeroStart() {
+  if (!csvImportSessionEarliestDate) {
+    appendWarning("Aus den importierten CSV-Dateien konnte kein Startdatum ermittelt werden. Bitte Startdatum und Startwert manuell eingeben.");
+    const purchaseText = enhancedDateInputs.get(purchaseDate);
+    (purchaseText || purchaseDate)?.focus();
+    return false;
+  }
+
+  purchaseDate.value = csvImportSessionEarliestDate;
+  initialAmount.value = formatGermanNumber(0);
+  initialAmountMode.value = "gross";
+  purchaseFee.value = "0";
+  syncEnhancedDateInputs();
+  clearCalculation();
+  showDataStatus(`CSV-Import abgeschlossen. Depotstart automatisch auf ${formatReportDate(csvImportSessionEarliestDate)} mit Startwert ${currency.format(0)} gesetzt.`);
+  return true;
+}
+
+function closeCsvImportDialog() {
+  if (csvImportDialog) csvImportDialog.hidden = true;
+  csvImportDialogStep = null;
+}
+
+function endCsvImportSession() {
+  closeCsvImportDialog();
+  csvImportSessionActive = false;
+  csvImportSessionEarliestDate = null;
+  csvImportAwaitingAdditionalFile = false;
+}
+
+function openCsvImportQuestion(step) {
+  csvImportDialogStep = step;
+  if (csvImportDialogTitle) {
+    csvImportDialogTitle.textContent = step === "more" ? "CSV-Import" : "Depotstart";
+  }
+  if (csvImportDialogQuestion) {
+    csvImportDialogQuestion.textContent = step === "more"
+      ? "Möchten Sie eine weitere CSV-Datei importieren?"
+      : "Möchten Sie Startdatum und -wert eingeben?";
+  }
+  if (csvImportDialog) csvImportDialog.hidden = false;
+  csvImportDialogYes?.focus();
+}
+
+function finishCsvImportSession() {
+  openCsvImportQuestion("more");
 }
 
 function typeOptions(selected) {
@@ -1339,18 +1400,58 @@ document.querySelector("[data-add-recurring]")?.addEventListener("click", () => 
 
 
 
+csvImportDialogYes?.addEventListener("click", () => {
+  if (csvImportDialogStep === "more") {
+    closeCsvImportDialog();
+    csvImportAwaitingAdditionalFile = true;
+    csvImportFileInput?.click();
+    return;
+  }
+  if (csvImportDialogStep === "start") {
+    showDataStatus("CSV-Import abgeschlossen. Bitte Startdatum und Startwert eingeben.");
+    endCsvImportSession();
+    const purchaseText = enhancedDateInputs.get(purchaseDate);
+    (purchaseText || purchaseDate)?.focus();
+  }
+});
+
+csvImportDialogNo?.addEventListener("click", () => {
+  if (csvImportDialogStep === "more") {
+    openCsvImportQuestion("start");
+    return;
+  }
+  if (csvImportDialogStep === "start") {
+    applyCsvZeroStart();
+    endCsvImportSession();
+  }
+});
+
 csvImportButton?.addEventListener("click", () => {
+  beginCsvImportSession();
+  csvImportAwaitingAdditionalFile = false;
   csvImportFileInput?.click();
+});
+
+csvImportFileInput?.addEventListener("cancel", () => {
+  if (csvImportSessionActive && csvImportAwaitingAdditionalFile) {
+    csvImportAwaitingAdditionalFile = false;
+    openCsvImportQuestion("start");
+  }
 });
 
 csvImportFileInput?.addEventListener("change", async () => {
   const file = csvImportFileInput.files?.[0];
   csvImportFileInput.value = "";
   if (!file) return;
+  beginCsvImportSession();
+  csvImportAwaitingAdditionalFile = false;
   clearCalculation();
   try {
-    await importBankTransactionsCsv(file);
+    const parsed = await importBankTransactionsCsv(file);
+    rememberCsvImportDate(parsed.earliestTransactionDate);
+    finishCsvImportSession();
   } catch (error) {
+    endCsvImportSession();
     showError(error.message || "CSV-Daten konnten nicht importiert werden.");
   }
 });
@@ -1785,6 +1886,10 @@ resetButton?.addEventListener("click", () => {
   form?.reset();
   cashflows = [];
   nextCashflowId = 1;
+  csvImportSessionActive = false;
+  csvImportSessionEarliestDate = null;
+  csvImportAwaitingAdditionalFile = false;
+  closeCsvImportDialog();
   renderCashflows();
   syncEnhancedDateInputs();
   closePrintOptions();
