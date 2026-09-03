@@ -321,6 +321,8 @@ const depotHistory = buildDepotHistory({
 assert.equal(depotHistory.holdings[0].quantity, 10);
 assert.equal(depotHistory.lastValue, 1250);
 assert.equal(depotHistory.lastNetInvested, 890);
+assert.equal(depotHistory.lastProfit, 360);
+assert.equal(depotHistory.points.at(-1).profit, 360);
 assert.equal(depotHistory.endDate, "2026-03-31");
 assert.equal(depotHistory.funds[0].title, "UniGlobal");
 assert.ok(depotHistory.points.some((point) => Number.isFinite(point.depotReturn)));
