@@ -68,6 +68,17 @@ Eine optionale lokale **Bezeichnung** kann für Depot, Exportdatei und PDF-Beric
 Beim PDF-/Druckbericht wird vorher gefragt, ob die einzelnen Zahlungsströme mit ausgegeben werden sollen.
 
 
+## Änderungen in Version 0.5.4
+
+- CSV-Import übernimmt zusätzlich die optionalen Spalten `ISIN`, `Menge` und `Einheit`; Kaufmengen werden positiv, Verkaufsmengen negativ als Stückbewegung normalisiert.
+- JSON-Datenformat auf Schema v3 erweitert; bestehende v1-/v2-Exporte bleiben importierbar.
+- historische Depotwertentwicklung aus Stückbewegungen und offiziellen Union-Investment-Rücknahmepreisen ergänzt.
+- Grafik zeigt Depotwert und kumulierte Nettoinvestitionen; für Bewertungstage ohne eigenen Kurs wird der letzte verfügbare Rücknahmepreis verwendet.
+- historische Kursdaten werden lokal in IndexedDB je ISIN gespeichert; beim nächsten Laden werden nur noch nicht lokal abgedeckte Zeiträume beim Worker angefordert.
+- der aktuelle Kursrand wird höchstens einmal etwa alle 20 Stunden erneut abgefragt, damit nachgelieferte Tagespreise ergänzt werden können.
+- Button zum Übernehmen des historisch berechneten Depotwerts in das Feld `End-/Verkaufswert` ergänzt.
+- Cloudflare-Worker v0.5.6 unterstützt optional eine persistente KV-Zwischenspeicherung je ISIN, sodass Union selbst nicht bei jedem Browserabruf erneut angefragt werden muss.
+
 ## Änderungen in Version 0.5.3
 
 - iOS-PDF-Erstellung neu aufgebaut: echte PDF-Datei statt automatischem Browserdruck; die PDF-Erzeugung erfolgt clientseitig mit `pdf-lib` (jsDelivr).
@@ -272,7 +283,7 @@ Die Tool-Karten werden aus `data/tools.json` erzeugt. `docs/data/tools.json` ist
 
 ## Datenschutz und externe Daten
 
-Rechner-Eingaben werden lokal im Browser verarbeitet und nicht gespeichert. Exportierte Depotrendite-JSON-Dateien werden ausschließlich lokal erzeugt bzw. lokal eingelesen und nicht hochgeladen. Der Bundesschatz-Vergleich ruft öffentliche Konditionsdaten über den Cloudflare-Worker ab. Der Depotrendite-Rechner lädt ausschließlich die benötigten Monatsbereiche der ausgewählten öffentlichen ECB-Zinsserien; eingegebene Depot-Cashflows, Titel und Bezeichnungen werden nicht an den Worker übertragen.
+Rechner-Eingaben werden lokal im Browser verarbeitet und nicht gespeichert. Exportierte Depotrendite-JSON-Dateien werden ausschließlich lokal erzeugt bzw. lokal eingelesen und nicht hochgeladen. Der Bundesschatz-Vergleich ruft öffentliche Konditionsdaten über den Cloudflare-Worker ab. Der Depotrendite-Rechner lädt ausschließlich die benötigten Monatsbereiche der ausgewählten öffentlichen ECB-Zinsserien. Für die historische Depotwertentwicklung werden bei Wertpapierbuchungen nur ISIN und benötigter Zeitraum an den Cloudflare-Worker übertragen; Beträge, Mengen, Titel und Depotbezeichnungen bleiben lokal. Historische Union-Investment-Rücknahmepreise werden im Browser in IndexedDB zwischengespeichert; der Worker kann sie zusätzlich je ISIN in Cloudflare KV cachen.
 
 ## GitHub Pages
 
@@ -292,6 +303,6 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 Die Projektversion steht in `VERSION`. Für die sichtbaren Seiten-Footer wird sie zentral als `SITE_VERSION` in `docs/js/site-map.js` gesetzt und von `docs/js/navigation.js` ausgegeben.
 
-Aktuelle Version: **0.5.3**
+Aktuelle Version: **0.5.4**
 
 - Depotrendite-Ergebnisse können über **PDF / Drucken** als A4-Bericht mit Eingaben, optionalen Cashflow-Details, Sparplan-Hinweisen, Benchmarks, Vergleichsgrafiken und Berechnungsdetails ausgegeben werden.
