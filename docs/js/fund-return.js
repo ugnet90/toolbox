@@ -67,9 +67,12 @@ const resetButton = document.querySelector("[data-reset-fund]");
 const printButton = document.querySelector("[data-print-fund]");
 const printReport = document.querySelector("[data-print-report]");
 const printOptions = document.querySelector("[data-print-options]");
-const printCashflows = document.querySelector("[data-print-cashflows]");
+const printCashflowsMode = document.querySelector("[data-print-cashflows-mode]");
+const printCashflowsHint = document.querySelector("[data-print-cashflows-hint]");
+const pdfConfirmButton = document.querySelector("[data-pdf-confirm]");
 const printConfirmButton = document.querySelector("[data-print-confirm]");
 const printCancelButton = document.querySelector("[data-print-cancel]");
+const printStatus = document.querySelector("[data-print-status]");
 const importButton = document.querySelector("[data-import-fund]");
 const exportButton = document.querySelector("[data-export-fund]");
 const importFileInput = document.querySelector("[data-import-fund-file]");
@@ -166,6 +169,7 @@ let cashflows = [];
 let nextCashflowId = 1;
 let calculationRevision = 0;
 let lastCoreCalculation = null;
+let lastBenchmarkResults = [];
 
 function isTouchDateEnvironment() {
   return navigator.maxTouchPoints > 0 && window.matchMedia?.("(pointer: coarse)")?.matches;
@@ -343,6 +347,7 @@ function clearCalculation() {
   if (savingsPlanSummary) savingsPlanSummary.hidden = true;
   if (savingsPlanList) savingsPlanList.innerHTML = "";
   lastCoreCalculation = null;
+  lastBenchmarkResults = [];
   if (valueChart) valueChart.innerHTML = "";
   if (returnChart) returnChart.innerHTML = "";
   if (printButton) printButton.hidden = true;
@@ -1131,16 +1136,38 @@ importFileInput?.addEventListener("change", async () => {
 
 function closePrintOptions() {
   if (printOptions) printOptions.hidden = true;
+  if (printStatus) {
+    printStatus.hidden = true;
+    printStatus.textContent = "";
+  }
+}
+
+function selectedPrintCashflowMode() {
+  return printCashflowsMode?.value === "details" && cashflows.length > 0;
+}
+
+function updatePrintOptionsState() {
+  if (!printCashflowsMode) return;
+  const detailsOption = printCashflowsMode.querySelector('option[value="details"]');
+  if (detailsOption) detailsOption.disabled = cashflows.length === 0;
+  if (cashflows.length === 0 && printCashflowsMode.value === "details") {
+    printCashflowsMode.value = "summary";
+  }
+  if (printCashflowsHint) {
+    printCashflowsHint.textContent = cashflows.length
+      ? `${cashflows.length} zusätzliche Zahlungsströme vorhanden.`
+      : "Keine zusätzlichen Zahlungsströme vorhanden.";
+  }
 }
 
 printButton?.addEventListener("click", () => {
   if (!printOptions) return;
-  if (printCashflows) {
-    printCashflows.checked = false;
-    printCashflows.disabled = cashflows.length === 0;
-  }
+  updatePrintOptionsState();
+  if (printCashflowsMode) printCashflowsMode.value = "summary";
+  if (printConfirmButton) printConfirmButton.hidden = isIosDevice();
+  if (printStatus) { printStatus.hidden = true; printStatus.textContent = ""; }
   printOptions.hidden = false;
-  printConfirmButton?.focus();
+  pdfConfirmButton?.focus();
 });
 
 printCancelButton?.addEventListener("click", closePrintOptions);
@@ -1148,15 +1175,346 @@ printOptions?.addEventListener("click", (event) => {
   if (event.target === printOptions) closePrintOptions();
 });
 
+const PDF_BENCHMARK_COLORS = {
+  overnight: [0.847, 0.678, 0.341],
+  euribor3m: [0.784, 0.541, 0.196],
+  euribor6m: [0.710, 0.420, 0.157],
+  euribor12m: [0.569, 0.298, 0.133]
+};
+const PDF_FUND_COLOR = [0.110, 0.455, 0.573];
+
+function safePdfText(value) {
+  return String(value ?? "")
+    .replace(/[–—]/g, "-")
+    .replace(/[“”„]/g, '"')
+    .replace(/[’‘]/g, "'")
+    .replace(/×/g, "x")
+    .replace(/…/g, "...")
+    .replace(/\u00a0/g, " ");
+}
+
+function sanitizePdfFilename(value) {
+  const base = safeFilenamePart(value) || "Depotrendite";
+  return `${base}.pdf`;
+}
+
+async function createPdfBytes({ includeCashflows = false } = {}) {
+  if (!lastCoreCalculation || resultsNode?.hidden) throw new Error("Bitte zuerst eine Depotrendite berechnen.");
+
+  const { PDFDocument, StandardFonts, rgb } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.setTitle(`Toolbox – Depotrendite${designation?.value?.trim() ? ` – ${designation.value.trim()}` : ""}`);
+  pdfDoc.setAuthor("Toolbox");
+  pdfDoc.setCreator(`Toolbox v${SITE_VERSION}`);
+
+  const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const PAGE_W = 595.28;
+  const PAGE_H = 841.89;
+  const MARGIN = 42;
+  const CONTENT_W = PAGE_W - 2 * MARGIN;
+  const LINE = 14;
+  let page;
+  let y;
+
+  function addPage() {
+    page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    y = PAGE_H - MARGIN;
+    return page;
+  }
+
+  function ensureSpace(height) {
+    if (!page || y - height < MARGIN) addPage();
+  }
+
+  function textWidth(text, font, size) {
+    return font.widthOfTextAtSize(safePdfText(text), size);
+  }
+
+  function wrapText(text, font, size, maxWidth) {
+    const raw = safePdfText(text);
+    const paragraphs = raw.split(/\n/);
+    const lines = [];
+    for (const paragraph of paragraphs) {
+      if (!paragraph) { lines.push(""); continue; }
+      const words = paragraph.split(/\s+/);
+      let current = "";
+      for (const word of words) {
+        const candidate = current ? `${current} ${word}` : word;
+        if (!current || textWidth(candidate, font, size) <= maxWidth) {
+          current = candidate;
+        } else {
+          lines.push(current);
+          current = word;
+        }
+      }
+      if (current) lines.push(current);
+    }
+    return lines;
+  }
+
+  function drawTextLine(text, x, yy, { font = regular, size = 9.5, color = rgb(0.09, 0.13, 0.18) } = {}) {
+    page.drawText(safePdfText(text), { x, y: yy, size, font, color });
+  }
+
+  function drawWrapped(text, { x = MARGIN, width = CONTENT_W, font = regular, size = 9.5, color = rgb(0.20, 0.28, 0.34), lineHeight = 13 } = {}) {
+    const lines = wrapText(text, font, size, width);
+    ensureSpace(lines.length * lineHeight + 2);
+    for (const line of lines) {
+      drawTextLine(line, x, y, { font, size, color });
+      y -= lineHeight;
+    }
+    return lines.length;
+  }
+
+  function sectionTitle(title) {
+    ensureSpace(28);
+    y -= 4;
+    drawTextLine(title, MARGIN, y, { font: bold, size: 13, color: rgb(0.04, 0.16, 0.25) });
+    y -= 8;
+    page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 0.8, color: rgb(0.82, 0.86, 0.89) });
+    y -= 16;
+  }
+
+  function keyValue(label, value, column = 0) {
+    const colW = (CONTENT_W - 14) / 2;
+    const x = MARGIN + column * (colW + 14);
+    drawTextLine(label, x, y, { font: regular, size: 8, color: rgb(0.35, 0.43, 0.49) });
+    drawTextLine(value, x, y - 13, { font: bold, size: 10, color: rgb(0.06, 0.12, 0.18) });
+  }
+
+  function colorFor(kind) {
+    const values = kind === "fund" ? PDF_FUND_COLOR : (PDF_BENCHMARK_COLORS[kind] || [0.65, 0.45, 0.20]);
+    return rgb(...values);
+  }
+
+  function drawBarRows(items, valueKey, formatter, title) {
+    ensureSpace(42 + items.length * 28);
+    drawTextLine(title, MARGIN, y, { font: bold, size: 10.5 });
+    y -= 18;
+    const values = items.map((item) => Number(item[valueKey]) || 0);
+    const max = Math.max(...values.map((v) => Math.max(v, 0)), 0.000001);
+    const labelW = 92;
+    const valueW = 86;
+    const trackX = MARGIN + labelW;
+    const trackW = CONTENT_W - labelW - valueW - 8;
+    for (const item of items) {
+      ensureSpace(28);
+      drawTextLine(item.label, MARGIN, y + 2, { size: 8.8 });
+      page.drawRectangle({ x: trackX, y: y - 1, width: trackW, height: 8, color: rgb(0.91, 0.93, 0.94) });
+      const raw = Number(item[valueKey]) || 0;
+      const width = raw > 0 ? Math.max(1.5, trackW * raw / max) : 0;
+      if (width > 0) page.drawRectangle({ x: trackX, y: y - 1, width, height: 8, color: colorFor(item.kind) });
+      const valueText = formatter(raw);
+      drawTextLine(valueText, PAGE_W - MARGIN - Math.min(valueW, textWidth(valueText, bold, 8.8)), y + 2, { font: bold, size: 8.8 });
+      y -= 24;
+    }
+    y -= 4;
+  }
+
+  addPage();
+  drawTextLine("TOOLBOX", MARGIN, y, { font: bold, size: 10, color: rgb(...PDF_FUND_COLOR) });
+  y -= 24;
+  drawTextLine("Depotrendite & Vergleich", MARGIN, y, { font: bold, size: 22, color: rgb(0.03, 0.15, 0.25) });
+  y -= 22;
+  if (designation?.value?.trim()) {
+    drawWrapped(designation.value.trim(), { font: bold, size: 11, color: rgb(0.23, 0.31, 0.37), lineHeight: 14 });
+  }
+  drawTextLine(`Erstellt: ${new Intl.DateTimeFormat("de-AT", { dateStyle: "medium", timeStyle: "short" }).format(new Date())}  ·  Toolbox v${SITE_VERSION}`, MARGIN, y, { size: 8, color: rgb(0.40, 0.46, 0.51) });
+  y -= 24;
+
+  const calc = lastCoreCalculation.calc;
+  const fundXirr = lastCoreCalculation.xirrResult;
+  sectionTitle("Eingaben");
+  const startAmountValue = parseGermanNumber(initialAmount?.value);
+  const endAmountValue = parseGermanNumber(endValue?.value);
+  const inputPairs = [
+    ["Kauf-/Startdatum", formatReportDate(purchaseDate?.value)],
+    ["Startbetrag", Number.isFinite(startAmountValue) ? currency.format(startAmountValue) : "-"],
+    ["Startbetrag ist", selectedOptionText(initialAmountMode)],
+    ["Kaufspesen / Ausgabeaufschlag", `${percent.format(Number(purchaseFee?.value || 0))} %`],
+    ["End-/Bewertungsdatum", formatReportDate(endDate?.value)],
+    ["End-/Verkaufswert", Number.isFinite(endAmountValue) ? currency.format(endAmountValue) : "-"],
+    ["KESt-Befreiung", selectedOptionText(kestExemption)],
+    ["Zusätzliche Zahlungsströme", String(cashflows.length)]
+  ];
+  for (let i = 0; i < inputPairs.length; i += 2) {
+    ensureSpace(40);
+    keyValue(inputPairs[i][0], inputPairs[i][1], 0);
+    if (inputPairs[i + 1]) keyValue(inputPairs[i + 1][0], inputPairs[i + 1][1], 1);
+    y -= 38;
+  }
+
+  sectionTitle("Ergebnisse");
+  const summary = summarizeCashflows(calc.investorFlows);
+  const benchmarkItems = lastBenchmarkResults.map((item) => ({
+    label: item.config.shortLabel || item.config.label,
+    kind: item.kind,
+    endValue: item.benchmark.balance,
+    rate: item.xirrResult.rate
+  }));
+  const resultItems = [
+    { label: "Depot", kind: "fund", endValue: calc.terminalValue, rate: fundXirr.rate },
+    ...benchmarkItems
+  ];
+  drawTextLine(`Depotrendite: ${percent.format(fundXirr.rate * 100)} % p.a.`, MARGIN, y, { font: bold, size: 14, color: colorFor("fund") });
+  y -= 19;
+  drawTextLine(`Wirtschaftlicher Überschuss: ${currency.format(summary.net)}`, MARGIN, y, { font: bold, size: 11 });
+  y -= 23;
+  for (const item of benchmarkItems) {
+    ensureSpace(22);
+    drawTextLine(`${item.label}: ${percent.format(item.rate * 100)} % p.a. · Endwert ${currency.format(item.endValue)}`, MARGIN, y, { font: bold, size: 9.5, color: colorFor(item.kind) });
+    y -= 17;
+  }
+  y -= 6;
+  if (benchmarkItems.length) {
+    drawBarRows(resultItems, "endValue", (v) => currency.format(v), "Endwert am Bewertungsdatum");
+    const rateItems = resultItems.map((item) => ({ ...item, ratePct: Math.max(item.rate * 100, 0) }));
+    drawBarRows(rateItems, "ratePct", (v) => `${percent.format(v)} %`, "Effektivrendite p.a.");
+  }
+
+  const planTexts = savingsPlanList ? [...savingsPlanList.querySelectorAll("li")].map((li) => li.textContent.trim()).filter(Boolean) : [];
+  if (planTexts.length) {
+    sectionTitle("Erkannte Sparpläne");
+    for (const line of planTexts) {
+      drawWrapped(`• ${line}`, { size: 9.2, lineHeight: 13 });
+      y -= 2;
+    }
+  }
+
+  sectionTitle("Berechnungsdetails");
+  const details = [
+    ["Kundenaufwand Start", currency.format(calc.start.customerOutflow)],
+    ["Netto investiert", currency.format(calc.start.netInvested)],
+    ["Kaufspesen", currency.format(calc.start.feeAmount)],
+    ["End-/Verkaufswert", currency.format(calc.terminalValue)],
+    ["KESt-Befreiung", calc.isKestExempt ? "Ja" : "Nein"]
+  ];
+  for (const [labelText, valueText] of details) {
+    ensureSpace(18);
+    drawTextLine(labelText, MARGIN, y, { size: 8.5, color: rgb(0.35, 0.43, 0.49) });
+    drawTextLine(valueText, MARGIN + 180, y, { font: bold, size: 9 });
+    y -= 16;
+  }
+  y -= 6;
+  drawWrapped(nodes.method?.textContent || "", { size: 8.2, lineHeight: 11.5 });
+
+  if (includeCashflows && cashflows.length) {
+    sectionTitle(`Einzelne Zahlungsströme (${cashflows.length})`);
+    const ordered = [...cashflows].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
+    const cols = [MARGIN, MARGIN + 70, MARGIN + 205, MARGIN + 285, MARGIN + 390];
+    const headers = ["Datum", "Art", "Betrag", "Titel", "Notiz"];
+    ensureSpace(24);
+    headers.forEach((header, i) => drawTextLine(header, cols[i], y, { font: bold, size: 7.4 }));
+    y -= 13;
+    page.drawLine({ start: { x: MARGIN, y: y + 4 }, end: { x: PAGE_W - MARGIN, y: y + 4 }, thickness: 0.6, color: rgb(0.75, 0.79, 0.82) });
+    for (const flow of ordered) {
+      if (y < MARGIN + 35) {
+        addPage();
+        headers.forEach((header, i) => drawTextLine(header, cols[i], y, { font: bold, size: 7.4 }));
+        y -= 13;
+      }
+      const values = [
+        formatReportDate(flow.date),
+        typeLabels[flow.type] || flow.type,
+        currency.format(flow.amount),
+        flow.title || "",
+        flow.note || ""
+      ];
+      values.forEach((value, i) => {
+        const max = i === 1 ? 20 : i === 3 ? 18 : i === 4 ? 16 : 14;
+        let text = safePdfText(value);
+        if (text.length > max) text = `${text.slice(0, Math.max(1, max - 1))}…`;
+        drawTextLine(text, cols[i], y, { size: 6.9 });
+      });
+      y -= 11.5;
+    }
+  } else if (cashflows.length) {
+    sectionTitle("Zahlungsströme");
+    drawWrapped(`${cashflows.length} Einzelbuchungen wurden auf Wunsch nicht im PDF ausgegeben.`, { size: 9 });
+  }
+
+  sectionTitle("Hinweis");
+  drawWrapped("Die Berechnung ist eine mathematische Vergleichsrechnung. Steuerliche, rechtliche, produktbezogene oder abrechnungstechnische Besonderheiten können abweichen. Historische Benchmarks sind Referenzrechnungen und keine konkreten Anlageangebote.", { size: 8.2, lineHeight: 11.5 });
+
+  return pdfDoc.save();
+}
+
+function isIosDevice() {
+  return /iP(ad|hone|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+async function openGeneratedPdf(bytes, previewWindow = null) {
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const filename = sanitizePdfFilename(designation?.value?.trim() ? `Toolbox_Depotrendite_${designation.value.trim()}` : "Toolbox_Depotrendite");
+
+  // Auf iOS wird das Vorschaufenster bereits im direkten Tap geöffnet; sonst kann Safari den späteren Popup blockieren.
+  if (isIosDevice()) {
+    if (previewWindow && !previewWindow.closed) {
+      previewWindow.location.replace(url);
+    } else {
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      document.body.append(link);
+      link.click();
+      link.remove();
+    }
+  } else {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+pdfConfirmButton?.addEventListener("click", async () => {
+  const includeCashflows = selectedPrintCashflowMode();
+  let previewWindow = null;
+  if (isIosDevice()) {
+    previewWindow = window.open("", "_blank");
+    if (previewWindow) {
+      previewWindow.document.write('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>PDF wird erstellt</title></head><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:2rem"><p>PDF wird erstellt …</p></body></html>');
+      previewWindow.document.close();
+    }
+  }
+  if (printStatus) {
+    printStatus.textContent = "PDF wird erstellt …";
+    printStatus.hidden = false;
+  }
+  if (pdfConfirmButton) pdfConfirmButton.disabled = true;
+  try {
+    const bytes = await createPdfBytes({ includeCashflows });
+    await openGeneratedPdf(bytes, previewWindow);
+    if (printStatus) printStatus.textContent = "PDF wurde erstellt. Am iPhone öffnet es sich in einem neuen Tab; dort kannst du es über Teilen speichern oder drucken.";
+  } catch (error) {
+    if (previewWindow && !previewWindow.closed) {
+      previewWindow.document.body.textContent = `PDF konnte nicht erstellt werden: ${error.message || error}`;
+      previewWindow.document.body.style.fontFamily = "-apple-system,BlinkMacSystemFont,sans-serif";
+      previewWindow.document.body.style.padding = "2rem";
+    }
+    if (printStatus) {
+      printStatus.textContent = `PDF konnte nicht erstellt werden: ${error.message || error}`;
+      printStatus.hidden = false;
+    }
+  } finally {
+    if (pdfConfirmButton) pdfConfirmButton.disabled = false;
+  }
+});
+
 printConfirmButton?.addEventListener("click", () => {
-  const includeCashflows = cashflows.length ? Boolean(printCashflows?.checked) : true;
+  const includeCashflows = selectedPrintCashflowMode();
   if (!buildPrintReport({ includeCashflows })) return;
   const previousTitle = document.title;
   const suffix = endDate?.value ? `_${endDate.value}` : "";
   const name = safeFilenamePart(designation?.value);
   document.title = `Toolbox_Depotrendite${name ? `_${name}` : ""}${suffix}`;
   closePrintOptions();
-
   const restoreTitle = () => { document.title = previousTitle; };
   window.addEventListener("afterprint", restoreTitle, { once: true });
   window.print();
@@ -1184,7 +1542,7 @@ benchmarkCheckboxes.forEach((box) => {
     const { calc, xirrResult } = lastCoreCalculation;
     renderCoreResults(calc, xirrResult);
     renderSavingsPlanSummary(calc.enteredIntermediate);
-    await refreshBenchmarks(calc, xirrResult, runRevision);
+    lastBenchmarkResults = await refreshBenchmarks(calc, xirrResult, runRevision);
     if (runRevision === calculationRevision && printButton) printButton.hidden = false;
   });
 });
@@ -1210,7 +1568,7 @@ form?.addEventListener("submit", async (event) => {
       });
     });
 
-    await refreshBenchmarks(calc, xirrResult, runRevision);
+    lastBenchmarkResults = await refreshBenchmarks(calc, xirrResult, runRevision);
     if (runRevision !== calculationRevision) return;
     if (printButton) printButton.hidden = false;
   } catch (error) {
