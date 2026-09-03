@@ -303,7 +303,7 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 Die Projektversion steht in `VERSION`. Für die sichtbaren Seiten-Footer wird sie zentral als `SITE_VERSION` in `docs/js/site-map.js` gesetzt und von `docs/js/navigation.js` ausgegeben.
 
-Aktuelle Version: **0.5.7**
+Aktuelle Version: **0.5.8**
 
 - Depotrendite-Ergebnisse können über **PDF / Drucken** als A4-Bericht mit Eingaben, optionalen Cashflow-Details, Sparplan-Hinweisen, Benchmarks, Vergleichsgrafiken und Berechnungsdetails ausgegeben werden.
 
@@ -333,3 +333,13 @@ Aktuelle Version: **0.5.7**
 - Der Button unter der Depotentwicklung heißt nun „Berechneten Depotwert als Endwert verwenden“ und wird direkt erklärt. Er übernimmt den aus Mengen und historischen Rücknahmepreisen berechneten Depotwert in das Feld End-/Verkaufswert.
 - Kaufspesen sind für Start-/Einmalanlage und manuell erzeugte Sparraten/Daueraufträge getrennt. Für Sparraten kann zwischen Brutto-Kundenaufwand und Nettoanlagebetrag gewählt werden. CSV-Abrechnungsbeträge bleiben unverändert, da sie bereits die tatsächlichen Anleger-Cashflows darstellen.
 - Depotrendite-JSON-Format auf Schema v4 erweitert; ältere v1/v2/v3-Dateien bleiben importierbar. Ein Startwert von 0,00 Euro ist auch beim JSON-Import zulässig.
+
+
+### 0.5.8
+
+- Checkboxen in der historischen Diagrammauswahl werden unabhängig von globalen Eingabefeld-Styles einheitlich mit 16 × 16 px dargestellt.
+- Die Euro-Wertentwicklung kann zusätzlich „Gewinn / Verlust“ anzeigen. Berechnet wird der jeweilige Depotwert zuzüglich aller bis zum Bewertungszeitpunkt angefallenen Anleger-Cashflows; Ausschüttungen, Entnahmen, Gebühren und Steuern wirken damit entsprechend ihrer erfassten Cashflows auf die Gewinnlinie.
+- Das End-/Bewertungsdatum wird beim erstmaligen Öffnen und nach einem Reset standardmäßig mit dem heutigen lokalen Datum vorbelegt. Importierte gespeicherte Enddaten bleiben davon unberührt.
+- „Depotwert aus historischen Kursen ermitteln“ steht direkt beim Feld End-/Verkaufswert zur Verfügung und kann vor der eigentlichen Renditeberechnung verwendet werden. Der Button lädt die benötigten historischen Rücknahmepreise, zeigt die historische Depotentwicklung und setzt den ermittelten Depotwert als Endwert ein.
+- Historische Renditelinien bleiben erhalten; die neue Gewinn-/Verlustlinie ist wie alle anderen verfügbaren historischen Linien per Checkbox ein-/ausblendbar und wird bei aktivierter PDF-Option ebenfalls berücksichtigt.
+- Achsenbeschriftungen der historischen SVG-Diagramme wurden nochmals verkleinert.
