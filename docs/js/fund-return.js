@@ -2249,13 +2249,54 @@ async function createPdfBytes({ includeCashflows = false, includeHistoryCharts =
   }
 
   sectionTitle("Berechnungsdetails");
-  const details = [
-    ["Kundenaufwand Start", currency.format(calc.start.customerOutflow)],
-    ["Netto investiert", currency.format(calc.start.netInvested)],
-    ["Kaufspesen", currency.format(calc.start.feeAmount)],
-    ["End-/Verkaufswert", currency.format(calc.terminalValue)],
-    ["KESt-Befreiung", calc.isKestExempt ? "Ja" : "Nein"]
-  ];
+  const relevantFlows = calc.intermediate || [];
+  const contributionFlows = relevantFlows.filter((flow) => flow.type === "contribution" && Number(flow.amount) < 0);
+  const recurringContributionFlows = contributionFlows.filter((flow) => String(flow.note || "").toLocaleLowerCase("de-AT").includes("dauerauftrag"));
+  const otherContributionFlows = contributionFlows.filter((flow) => !recurringContributionFlows.includes(flow));
+  const sumAbs = (flows) => flows.reduce((sum, flow) => sum + Math.abs(Number(flow.amount) || 0), 0);
+  const sumPositive = (flows) => flows.reduce((sum, flow) => sum + Math.max(Number(flow.amount) || 0, 0), 0);
+  const recurringPurchases = sumAbs(recurringContributionFlows);
+  const otherPurchases = sumAbs(otherContributionFlows);
+  const allPurchases = recurringPurchases + otherPurchases;
+  const distributionsAndWithdrawals = sumPositive(relevantFlows.filter((flow) => ["distribution", "withdrawal"].includes(flow.type)));
+  const feesAndTaxes = sumAbs(relevantFlows.filter((flow) => ["fee", "tax"].includes(flow.type) && Number(flow.amount) < 0));
+  const otherNet = relevantFlows.filter((flow) => flow.type === "other").reduce((sum, flow) => sum + (Number(flow.amount) || 0), 0);
+  const preTerminalNetOutflow = -(
+    -Number(calc.start.customerOutflow || 0)
+    + relevantFlows.reduce((sum, flow) => sum + (Number(flow.amount) || 0), 0)
+  );
+
+  const details = [];
+  if (Number(calc.start.customerOutflow || 0) > 0) {
+    details.push(["Start-/Einmalanlage – Kundenaufwand", currency.format(calc.start.customerOutflow)]);
+    details.push(["Start-/Einmalanlage – netto investiert", currency.format(calc.start.netInvested)]);
+    if (Math.abs(Number(calc.start.feeAmount || 0)) > 0.000001) {
+      details.push(["Start-/Einmalanlage – Kaufspesen", currency.format(calc.start.feeAmount)]);
+    }
+  } else {
+    details.push(["Depotstartwert", currency.format(0)]);
+  }
+  if (allPurchases > 0) {
+    details.push([`Zuzahlungen/Käufe gesamt (${contributionFlows.length})`, currency.format(allPurchases)]);
+  }
+  if (recurringPurchases > 0) {
+    details.push([`davon Dauerauftrag/Sparrate (${recurringContributionFlows.length})`, currency.format(recurringPurchases)]);
+  }
+  if (otherPurchases > 0) {
+    details.push([`davon Einmal-/übrige Käufe (${otherContributionFlows.length})`, currency.format(otherPurchases)]);
+  }
+  if (distributionsAndWithdrawals > 0) {
+    details.push(["Ausschüttungen/Entnahmen", currency.format(distributionsAndWithdrawals)]);
+  }
+  if (feesAndTaxes > 0) {
+    details.push(["Gebühren/Steuern", currency.format(feesAndTaxes)]);
+  }
+  if (Math.abs(otherNet) > 0.005) {
+    details.push(["Sonstige Cashflows netto", currency.format(otherNet)]);
+  }
+  details.push(["Netto-Anlegeraufwand vor Endwert", currency.format(preTerminalNetOutflow)]);
+  details.push(["End-/Verkaufswert", currency.format(calc.terminalValue)]);
+  details.push(["KESt-Befreiung", calc.isKestExempt ? "Ja" : "Nein"]);
   for (const [labelText, valueText] of details) {
     ensureSpace(18);
     drawTextLine(labelText, MARGIN, y, { size: 8.5, color: rgb(0.35, 0.43, 0.49) });
