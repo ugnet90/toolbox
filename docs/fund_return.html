@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<meta content="Depotrendite mit datierten Zahlungsströmen berechnen und mit historischen Zinsbenchmarks vergleichen." name="description"/>
+<meta content="Depotrendite mit datierten Zahlungsströmen berechnen sowie Depotwert, historische Renditen und Zinsbenchmarks vergleichen." name="description"/>
 <link href="assets/favicon/favicon.ico" rel="icon" sizes="any"/>
 <link href="assets/favicon/favicon-48x48.png" rel="icon" sizes="48x48" type="image/png"/>
 <link href="assets/favicon/favicon-32x32.png" rel="icon" sizes="32x32" type="image/png"/>
@@ -24,7 +24,7 @@
 <header class="page-heading page-heading--compact-mobile">
 <p class="page-heading__eyebrow">Finanzen</p>
 <h1>Depotrendite &amp; Vergleich</h1>
-<p>Datumsgenaue Nettorendite eines Depots berechnen, mit historischen Zinsbenchmarks vergleichen und bei importierten Wertpapierbuchungen die Depotwertentwicklung aus historischen Rücknahmepreisen darstellen.</p>
+<p>Datumsgenaue Nettorendite eines Depots berechnen, mit historischen Zinsbenchmarks vergleichen und bei importierten Wertpapierbuchungen Depotwert- und Renditeentwicklung aus historischen Rücknahmepreisen darstellen.</p>
 </header>
 <section class="panel fund-panel">
 <div class="panel__header">
@@ -50,12 +50,12 @@
 </select>
 </div>
 <div class="field">
-<label for="purchaseFee">Kaufspesen / Ausgabeaufschlag</label>
+<label for="purchaseFee">Kaufspesen Start-/Einmalanlage</label>
 <div class="input-suffix">
 <input id="purchaseFee" inputmode="decimal" max="100" min="0" name="purchaseFee" step="0.01" type="number" value="0"/>
 <span>%</span>
 </div>
-<span class="field__hint">Spesensatz auf den Nettoanlagebetrag; Brutto = Netto × (1 + Spesensatz).</span>
+<span class="field__hint">Spesensatz nur für den Start-/Einmalbetrag. Sparraten können unten einen eigenen Spesensatz verwenden.</span>
 </div>
 </div>
 <div class="fund-form__end-grid">
@@ -145,6 +145,21 @@
 <input autocomplete="off" id="recurringAmount" inputmode="decimal" placeholder="z. B. 200,00" type="text"/>
 </div>
 <div class="field">
+<label for="recurringAmountMode">Sparrate ist</label>
+<select id="recurringAmountMode">
+<option selected value="gross">Brutto – tatsächlicher Kundenaufwand</option>
+<option value="net">Netto – tatsächlich investiert</option>
+</select>
+</div>
+<div class="field">
+<label for="recurringPurchaseFee">Kaufspesen Sparrate / Dauerauftrag</label>
+<div class="input-suffix">
+<input id="recurringPurchaseFee" inputmode="decimal" max="100" min="0" step="0.01" type="number" value="0"/>
+<span>%</span>
+</div>
+<span class="field__hint">Nur bei Zuzahlung/Sparrate und Netto-Betrag wirksam. CSV-Abrechnungsbeträge werden unverändert übernommen.</span>
+</div>
+<div class="field">
 <label for="recurringInterval">Intervall</label>
 <select id="recurringInterval">
 <option selected="" value="1">monatlich</option>
@@ -208,7 +223,7 @@
 <button class="secondary-button" data-print-fund="" hidden="" type="button">PDF / Drucken</button>
 </div>
 <section class="savings-plan-summary" data-savings-plan-summary="" hidden=""><h3>Erkannte Sparpläne</h3><p>Aus regelmäßigen Kaufbuchungen mit gleichem Titel erkannte Vermögensaufbau-Raten (Betragstoleranz etwa ±1 %).</p><ul data-savings-plan-list=""></ul></section><section aria-labelledby="depot-history-heading" class="depot-history" data-depot-history hidden>
-<h3 id="depot-history-heading">Historische Depotwertentwicklung</h3>
+<h3 id="depot-history-heading">Historische Depotentwicklung</h3>
 <p>Aus importierten bzw. erfassten Kauf-/Verkaufsbuchungen mit <strong>ISIN und Menge</strong>. Für jeden Bewertungstag wird der letzte verfügbare offizielle Rücknahmepreis vor bzw. am Datum verwendet.</p>
 <p class="depot-history__status" data-depot-history-status aria-live="polite" hidden></p>
 <div class="depot-history__stats">
@@ -217,9 +232,22 @@
 <div><span>Kumulierte Nettoinvestitionen</span><strong data-depot-history-invested></strong></div>
 <div><span>Wertpapiere</span><strong data-depot-history-funds></strong></div>
 </div>
-<div class="depot-history__legend" aria-hidden="true"><span><i class="depot-history__key depot-history__key--value"></i>Depotwert</span><span><i class="depot-history__key depot-history__key--invested"></i>Kumulierte Nettoinvestitionen</span></div>
+<fieldset class="depot-history__series-picker">
+<legend>Diagrammlinien auswählen</legend>
+<p class="field__hint">Depotwert und Nettoinvestitionen verwenden die Euro-Skala. Renditen werden als datumsgenaue XIRR p.a. seit Beginn dargestellt. Einzelne Fondsrenditen berücksichtigen Cashflows, die einer ISIN zugeordnet sind. Oben ausgewählte und erfolgreich geladene Benchmarks erscheinen hier zusätzlich als Wert- und Renditelinien.</p>
+<div class="depot-history__series-grid" data-history-series-picker></div>
+</fieldset>
+<div class="depot-history__chart-block" data-history-value-block>
+<div class="depot-history__chart-heading"><h4>Wertentwicklung</h4><div class="depot-history__legend" data-history-value-legend></div></div>
 <div class="depot-history__chart" data-depot-history-chart></div>
-<div class="depot-history__actions"><button class="secondary-button" data-use-history-end-value type="button">Historischen Depotwert als Endwert übernehmen</button></div>
+</div>
+<div class="depot-history__chart-block" data-history-return-block>
+<div class="depot-history__chart-heading"><h4>Historische Renditen</h4><div class="depot-history__legend" data-history-return-legend></div></div>
+<div class="depot-history__chart" data-depot-return-chart></div>
+<p class="field__hint">Die historische Depotrendite ist die geldgewichtete, datumsgenaue XIRR p.a. zum jeweiligen Bewertungstag. Bei sehr kurzen Zeiträumen unter 30 Tagen wird keine Rendite dargestellt.</p>
+</div>
+<div class="depot-history__actions"><button class="secondary-button" data-use-history-end-value type="button">Berechneten Depotwert als Endwert verwenden</button></div>
+<p class="field__hint"><strong>Was macht der Button?</strong> Er überträgt den aus Mengen und historischen Rücknahmepreisen berechneten Depotwert am Bewertungsdatum in das Feld „End-/Verkaufswert“. Danach kann die Depotrendite mit diesem Wert neu berechnet werden.</p>
 <p class="field__hint">Kursdaten werden lokal im Browser (IndexedDB) zwischengespeichert. Beim Worker werden nur ISIN und benötigter Zeitraum abgefragt; Beträge, Mengen, Titel und Depotbezeichnung werden nicht übertragen.</p>
 </section><section aria-labelledby="comparison-chart-heading" class="comparison-chart" data-comparison-chart="" hidden="">
 <div class="comparison-chart__header">
@@ -270,7 +298,7 @@
 <a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR6MD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 6-Monats-Euribor, Monatsdurchschnitt</a><a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR1YD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 12-Monats-Euribor, Monatsdurchschnitt</a><a href="https://data.ecb.europa.eu/help/api/data" rel="noopener noreferrer" target="_blank">ECB Data Portal API</a>
 </div>
 </details>
-<aside class="fund-general-note"><strong>Hinweis:</strong> Die historische Depotwert-Grafik ist eine Bewertungsdarstellung aus Stückbewegungen und Rücknahmepreisen und keine steuerliche Performanceberechnung. Der Depotrendite-Rechner bildet keine österreichische Fondsbesteuerung vollständig nach. Ausschüttungen, Steuern, Gebühren und sonstige Belastungen werden grundsätzlich über die tatsächlich angefallenen Cashflows erfasst. Liegt eine wirksame KESt-Befreiungserklärung vor, werden nur als „KESt / Steuer auf ausschüttungsgleichen Ertrag“ erfasste Cashflows aus der Depotrendite entfernt; bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Befreiung vom KESt-Abzug bedeutet außerdem nicht automatisch Steuerfreiheit auf Körperschaftsebene. Historische Zinsbenchmarks werden als fiktive Sparprodukte behandelt und unterliegen ohne Befreiungserklärung 25 % KESt auf positive Zinsen.</aside>
+<aside class="fund-general-note"><strong>Hinweis:</strong> Die historische Depotwert-Grafik ist eine Bewertungsdarstellung aus Stückbewegungen und Rücknahmepreisen. Die zusätzlich dargestellten historischen Renditen sind geldgewichtete XIRR-Rechnungen auf Basis der erfassten Anleger-Cashflows und der jeweils berechneten Depot-/Fonds-Werte; sie bilden keine österreichische Fondsbesteuerung vollständig nach. Ausschüttungen, Steuern, Gebühren und sonstige Belastungen werden grundsätzlich über die tatsächlich angefallenen Cashflows erfasst. Liegt eine wirksame KESt-Befreiungserklärung vor, werden nur als „KESt / Steuer auf ausschüttungsgleichen Ertrag“ erfasste Cashflows aus der Depotrendite entfernt; bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Befreiung vom KESt-Abzug bedeutet außerdem nicht automatisch Steuerfreiheit auf Körperschaftsebene. Historische Zinsbenchmarks werden als fiktive Sparprodukte behandelt und unterliegen ohne Befreiungserklärung 25 % KESt auf positive Zinsen.</aside>
 </div>
 </section>
 </main>
@@ -296,6 +324,10 @@
 </select>
 <span class="field__hint" data-print-cashflows-hint></span>
 </div>
+<label class="print-options-check">
+<input data-print-history-charts type="checkbox" checked/>
+<span><strong>Historische Diagramme im PDF</strong><br/><small data-print-history-charts-hint>Verwendet die aktuell ausgewählten Diagrammlinien.</small></span>
+</label>
 <div class="print-options-actions">
 <button class="primary-button" data-pdf-confirm type="button">PDF erstellen</button>
 <button class="secondary-button" data-print-confirm type="button">Drucken</button>
