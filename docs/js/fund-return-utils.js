@@ -33,7 +33,7 @@ export function formatGermanNumber(value, decimals = 2) {
 }
 
 export const FUND_RETURN_DATA_FORMAT = "toolbox-depot-return";
-export const FUND_RETURN_DATA_SCHEMA_VERSION = 3;
+export const FUND_RETURN_DATA_SCHEMA_VERSION = 4;
 
 const LEGACY_FUND_RETURN_DATA_FORMAT = "toolbox-fund-return";
 const FUND_AMOUNT_MODES = new Set(["gross", "net"]);
@@ -76,7 +76,7 @@ export function normalizeFundReturnData(payload) {
 
   const schemaVersion = Number(payload.schema_version);
   const isLegacy = payload.format === LEGACY_FUND_RETURN_DATA_FORMAT && schemaVersion === 1;
-  const isCurrent = payload.format === FUND_RETURN_DATA_FORMAT && [2, FUND_RETURN_DATA_SCHEMA_VERSION].includes(schemaVersion);
+  const isCurrent = payload.format === FUND_RETURN_DATA_FORMAT && [2, 3, FUND_RETURN_DATA_SCHEMA_VERSION].includes(schemaVersion);
   if (!isLegacy && !isCurrent) {
     throw new Error("Die Datei ist keine unterstützte Toolbox-Depotrendite-Datei.");
   }
@@ -88,8 +88,10 @@ export function normalizeFundReturnData(payload) {
 
   parseIsoDate(inputs.purchaseDate);
   parseIsoDate(inputs.endDate);
-  const initialAmount = requireFiniteNumber(inputs.initialAmount, "Startbetrag", { greaterThan: 0 });
-  const purchaseFee = requireFiniteNumber(inputs.purchaseFeePercent, "Kaufspesen", { min: 0, max: 100 });
+  const initialAmount = requireFiniteNumber(inputs.initialAmount, "Startbetrag", { min: 0 });
+  const purchaseFee = requireFiniteNumber(inputs.purchaseFeePercent, "Kaufspesen Start-/Einmalanlage", { min: 0, max: 100 });
+  const recurringPurchaseFee = requireFiniteNumber(inputs.recurringPurchaseFeePercent ?? 0, "Kaufspesen Sparrate/Dauerauftrag", { min: 0, max: 100 });
+  const recurringAmountMode = String(inputs.recurringAmountMode ?? "gross");
   const endValue = requireFiniteNumber(inputs.endValue, "End-/Verkaufswert", { min: 0 });
   const initialAmountMode = String(inputs.initialAmountMode ?? "");
   const kestExemption = String(inputs.kestExemption ?? "");
@@ -97,6 +99,7 @@ export function normalizeFundReturnData(payload) {
   const designation = String(inputs.designation ?? "").trim();
 
   if (!FUND_AMOUNT_MODES.has(initialAmountMode)) throw new Error("Ungültige Angabe bei ‚Startbetrag ist‘.");
+  if (!FUND_AMOUNT_MODES.has(recurringAmountMode)) throw new Error("Ungültige Angabe bei ‚Sparrate ist‘.");
   if (!FUND_KEST_MODES.has(kestExemption)) throw new Error("Ungültige Angabe zur KESt-Befreiung.");
   if (designation.length > 100) throw new Error("Die Bezeichnung ist zu lang.");
 
@@ -136,6 +139,8 @@ export function normalizeFundReturnData(payload) {
       initialAmount,
       initialAmountMode,
       purchaseFeePercent: purchaseFee,
+      recurringPurchaseFeePercent: recurringPurchaseFee,
+      recurringAmountMode,
       endDate: String(inputs.endDate),
       endValue,
       benchmarkKinds,
@@ -545,25 +550,98 @@ function sampleHistoryPoints(points, maxPoints) {
   return [...keep].sort((a, b) => a - b).map((index) => points[index]);
 }
 
-export function buildDepotHistory({ cashflows, pricesByIsin, endDate, maxPoints = 800 }) {
+
+function fastXirrRate(cashflows, guessRate = 0.05) {
+  const flows = (cashflows ?? []).map((flow) => ({ date: String(flow?.date || ""), amount: Number(flow?.amount) }))
+    .filter((flow) => Number.isFinite(flow.amount))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (flows.length < 2 || !flows.some((flow) => flow.amount < 0) || !flows.some((flow) => flow.amount > 0)) return null;
+  const baseDate = flows[0].date;
+  const timed = flows.map((flow) => ({ amount: flow.amount, years: daysBetween(baseDate, flow.date) / 365 }));
+  const valueAt = (y) => timed.reduce((sum, flow) => sum + flow.amount * Math.exp(-y * flow.years), 0);
+  const derivativeAt = (y) => timed.reduce((sum, flow) => sum - flow.years * flow.amount * Math.exp(-y * flow.years), 0);
+
+  let y = Math.log1p(Math.max(-0.95, Number.isFinite(guessRate) ? guessRate : 0.05));
+  y = Math.max(-11.5, Math.min(11.5, y));
+  for (let i = 0; i < 35; i += 1) {
+    const f = valueAt(y);
+    if (!Number.isFinite(f)) break;
+    if (Math.abs(f) < 1e-7) {
+      const rate = Math.expm1(y);
+      return Number.isFinite(rate) && rate > -1 ? rate : null;
+    }
+    const d = derivativeAt(y);
+    if (!Number.isFinite(d) || Math.abs(d) < 1e-12) break;
+    const next = y - f / d;
+    if (!Number.isFinite(next) || next < -11.5 || next > 11.5) break;
+    if (Math.abs(next - y) < 1e-11) {
+      y = next;
+      const rate = Math.expm1(y);
+      return Number.isFinite(rate) && rate > -1 ? rate : null;
+    }
+    y = next;
+  }
+
+  const minY = -11.5;
+  const maxY = 11.5;
+  const steps = 120;
+  let previousY = minY;
+  let previousF = valueAt(previousY);
+  for (let i = 1; i <= steps; i += 1) {
+    const currentY = minY + (maxY - minY) * i / steps;
+    const currentF = valueAt(currentY);
+    if (Number.isFinite(previousF) && Number.isFinite(currentF) && Math.sign(previousF) !== Math.sign(currentF)) {
+      let low = previousY;
+      let high = currentY;
+      let fLow = previousF;
+      for (let j = 0; j < 60; j += 1) {
+        const mid = (low + high) / 2;
+        const fMid = valueAt(mid);
+        if (Math.abs(fMid) < 1e-8) { low = high = mid; break; }
+        if (Math.sign(fMid) === Math.sign(fLow)) { low = mid; fLow = fMid; } else { high = mid; }
+      }
+      const rate = Math.expm1((low + high) / 2);
+      return Number.isFinite(rate) && rate > -1 ? rate : null;
+    }
+    previousY = currentY;
+    previousF = currentF;
+  }
+  return null;
+}
+
+function historicalXirrFast(sourceFlows, date, terminalValue, guessRate = 0.05) {
+  const flows = sourceFlows.filter((flow) => flow.date <= date && Number.isFinite(flow.amount));
+  const firstNegative = flows.find((flow) => flow.amount < 0)?.date;
+  if (!firstNegative || daysBetween(firstNegative, date) < 30 || !Number.isFinite(terminalValue) || terminalValue < 0) return null;
+  return fastXirrRate([...flows, { date, amount: terminalValue, type: "terminal" }], guessRate);
+}
+
+export function buildDepotHistory({ cashflows, pricesByIsin, endDate, maxPoints = 800, returnCashflows = [] }) {
   parseIsoDate(endDate);
-  const securityFlows = (cashflows ?? []).map((flow) => ({
+  const allCashflows = (cashflows ?? []).map((flow) => ({
     ...flow,
     isin: String(flow?.isin || "").trim().toUpperCase(),
     quantity: flow?.quantity === null || flow?.quantity === undefined || flow?.quantity === "" ? null : Number(flow.quantity),
     amount: Number(flow?.amount),
     date: String(flow?.date || "")
   })).filter((flow) => {
-    if (!/^[A-Z]{2}[A-Z0-9]{10}$/.test(flow.isin) || !Number.isFinite(flow.quantity) || flow.quantity === 0) return false;
-    if (!["contribution", "withdrawal"].includes(flow.type)) return false;
     try { parseIsoDate(flow.date); } catch { return false; }
-    return flow.date <= endDate;
+    return flow.date <= endDate && Number.isFinite(flow.amount);
   }).sort((a, b) => a.date.localeCompare(b.date));
+
+  const securityFlows = allCashflows.filter((flow) => {
+    if (!/^[A-Z]{2}[A-Z0-9]{10}$/.test(flow.isin) || !Number.isFinite(flow.quantity) || flow.quantity === 0) return false;
+    return ["contribution", "withdrawal"].includes(flow.type);
+  });
 
   if (!securityFlows.length) throw new Error("Keine Kauf-/Verkaufsbuchungen mit ISIN und Menge vorhanden.");
   const isins = [...new Set(securityFlows.map((flow) => flow.isin))];
   const priceSeries = Object.fromEntries(isins.map((isin) => [isin, normalizedPriceSeries(pricesByIsin?.[isin], isin)]));
   const startDate = securityFlows[0].date;
+  const titleByIsin = Object.fromEntries(isins.map((isin) => {
+    const titles = allCashflows.filter((flow) => flow.isin === isin && String(flow.title || "").trim()).map((flow) => String(flow.title).trim());
+    return [isin, titles[0] || isin];
+  }));
 
   const valuationDates = new Set([startDate, endDate]);
   for (const flow of securityFlows) valuationDates.add(flow.date);
@@ -577,7 +655,7 @@ export function buildDepotHistory({ cashflows, pricesByIsin, endDate, maxPoints 
   const priceIndexes = Object.fromEntries(isins.map((isin) => [isin, -1]));
   let flowIndex = 0;
   let netInvested = 0;
-  const points = [];
+  const fullPoints = [];
 
   for (const date of dates) {
     while (flowIndex < securityFlows.length && securityFlows[flowIndex].date <= date) {
@@ -590,35 +668,157 @@ export function buildDepotHistory({ cashflows, pricesByIsin, endDate, maxPoints 
 
     let value = 0;
     let complete = true;
+    const fundValues = {};
     for (const isin of isins) {
       const series = priceSeries[isin];
       let idx = priceIndexes[isin];
       while (idx + 1 < series.length && series[idx + 1].date <= date) idx += 1;
       priceIndexes[isin] = idx;
       const quantity = holdings[isin];
-      if (Math.abs(quantity) < 1e-12) continue;
+      if (Math.abs(quantity) < 1e-12) {
+        fundValues[isin] = 0;
+        continue;
+      }
       if (idx < 0) {
         complete = false;
         break;
       }
-      value += quantity * series[idx].redemption_price;
+      const fundValue = quantity * series[idx].redemption_price;
+      fundValues[isin] = fundValue;
+      value += fundValue;
     }
-    if (complete) points.push({ date, depotValue: value, netInvested });
+    if (complete) fullPoints.push({ date, depotValue: value, netInvested, fundValues });
   }
 
-  if (!points.length) throw new Error("Fuer die importierten Stueckbewegungen konnte kein Depotwert berechnet werden.");
-  const last = points[points.length - 1];
-  const holdingsSummary = isins.map((isin) => ({ isin, quantity: holdings[isin] })).filter((item) => Math.abs(item.quantity) >= 1e-10);
+  if (!fullPoints.length) throw new Error("Fuer die importierten Stueckbewegungen konnte kein Depotwert berechnet werden.");
+  const sampled = sampleHistoryPoints(fullPoints, Math.max(50, Number(maxPoints) || 800));
+  const overallFlows = (returnCashflows ?? []).map((flow) => ({
+    date: String(flow?.date || ""),
+    amount: Number(flow?.amount),
+    type: flow?.type || "other",
+    isin: String(flow?.isin || "").trim().toUpperCase()
+  })).filter((flow) => {
+    try { parseIsoDate(flow.date); } catch { return false; }
+    return flow.date <= endDate && Number.isFinite(flow.amount);
+  }).sort((a, b) => a.date.localeCompare(b.date));
+
+  const fundFlowsByIsin = Object.fromEntries(isins.map((isin) => [isin, allCashflows.filter((flow) => flow.isin === isin && flow.amount !== 0)]));
+  let depotGuess = 0.05;
+  const fundGuesses = Object.fromEntries(isins.map((isin) => [isin, 0.05]));
+  const points = sampled.map((point) => {
+    const fundReturns = {};
+    for (const isin of isins) {
+      const rate = historicalXirrFast(fundFlowsByIsin[isin], point.date, Number(point.fundValues?.[isin] || 0), fundGuesses[isin]);
+      fundReturns[isin] = rate;
+      if (Number.isFinite(rate)) fundGuesses[isin] = rate;
+    }
+    const depotReturn = historicalXirrFast(overallFlows.length ? overallFlows : allCashflows, point.date, point.depotValue, depotGuess);
+    if (Number.isFinite(depotReturn)) depotGuess = depotReturn;
+    return { ...point, depotReturn, fundReturns };
+  });
+
+  const lastFull = fullPoints[fullPoints.length - 1];
+  const holdingsSummary = isins.map((isin) => ({ isin, title: titleByIsin[isin], quantity: holdings[isin] })).filter((item) => Math.abs(item.quantity) >= 1e-10);
   return {
-    startDate: points[0].date,
-    endDate: last.date,
+    startDate: fullPoints[0].date,
+    endDate: lastFull.date,
     isins,
+    funds: isins.map((isin) => ({ isin, title: titleByIsin[isin] })),
     holdings: holdingsSummary,
-    lastValue: last.depotValue,
-    lastNetInvested: last.netInvested,
-    points: sampleHistoryPoints(points, Math.max(50, Number(maxPoints) || 800)),
-    fullPointCount: points.length
+    lastValue: lastFull.depotValue,
+    lastNetInvested: lastFull.netInvested,
+    points,
+    fullPointCount: fullPoints.length,
+    benchmarkSeries: {}
   };
+}
+
+export function buildBenchmarkHistory({ historyPoints, cashflows, observations, taxPercent = 25, seriesLabel = "historische Benchmark" }) {
+  const targets = (Array.isArray(historyPoints) ? historyPoints : []).map((point) => String(point?.date || ""))
+    .filter((date) => { try { parseIsoDate(date); return true; } catch { return false; } })
+    .sort();
+  const sourceFlows = (cashflows ?? []).map((flow) => ({ ...flow, date: String(flow?.date || ""), amount: Number(flow?.amount) }))
+    .filter((flow) => {
+      try { parseIsoDate(flow.date); } catch { return false; }
+      return Number.isFinite(flow.amount);
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!targets.length || !sourceFlows.length) return [];
+
+  const taxRate = Number(taxPercent) / 100;
+  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate >= 1) throw new Error("Ungültiger KESt-Satz für den Vergleich.");
+  const rates = rateMapFromObservations(observations);
+  const ratePeriods = [...rates.keys()].sort();
+  if (!ratePeriods.length) throw new Error(`Keine ${seriesLabel} verfügbar.`);
+  const firstOfficialPeriod = ratePeriods[0];
+  const lastOfficialPeriod = ratePeriods[ratePeriods.length - 1];
+  const lastOfficialRate = rates.get(lastOfficialPeriod);
+  const startDate = sourceFlows[0].date;
+  if (firstOfficialPeriod > monthKey(startDate)) throw new Error(`ECB-Daten beginnen erst mit ${firstOfficialPeriod}; benötigt wird ${monthKey(startDate)}.`);
+
+  let cursor = parseIsoDate(startDate);
+  let balance = 0;
+  let accruedGrossInterest = 0;
+  let flowIndex = 0;
+
+  function creditInterest() {
+    if (Math.abs(accruedGrossInterest) < 1e-12) return;
+    const tax = Math.max(accruedGrossInterest, 0) * taxRate;
+    balance += accruedGrossInterest - tax;
+    accruedGrossInterest = 0;
+  }
+
+  function rateForPeriod(key) {
+    if (rates.has(key)) return rates.get(key);
+    if (key > lastOfficialPeriod) return lastOfficialRate;
+    throw new Error(`Für ${key} fehlen ${seriesLabel} innerhalb der ECB-Datenreihe.`);
+  }
+
+  function accrueUntil(targetIso) {
+    const target = parseIsoDate(targetIso);
+    while (cursor < target) {
+      const monthBoundary = nextMonthBoundary(cursor);
+      const yearBoundary = nextYearBoundary(cursor);
+      let stop = target;
+      if (monthBoundary < stop) stop = monthBoundary;
+      if (yearBoundary < stop) stop = yearBoundary;
+      const key = `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, "0")}`;
+      const annualRate = rateForPeriod(key) / 100;
+      const days = Math.round((stop - cursor) / MS_PER_DAY);
+      accruedGrossInterest += balance * annualRate * (days / 365);
+      cursor = stop;
+      if (cursor.getUTCMonth() === 0 && cursor.getUTCDate() === 1) creditInterest();
+    }
+  }
+
+  const values = [];
+  for (const date of targets) {
+    if (date < startDate) {
+      values.push({ date, value: null });
+      continue;
+    }
+    while (flowIndex < sourceFlows.length && sourceFlows[flowIndex].date <= date) {
+      const flow = sourceFlows[flowIndex];
+      accrueUntil(flow.date);
+      balance += -flow.amount;
+      if (balance < -0.005) throw new Error(`Der historische Vergleich würde am ${flow.date} ins Minus geraten.`);
+      if (Math.abs(balance) < 0.005) balance = 0;
+      flowIndex += 1;
+    }
+    accrueUntil(date);
+    const valuationTax = Math.max(accruedGrossInterest, 0) * taxRate;
+    values.push({ date, value: balance + accruedGrossInterest - valuationTax });
+  }
+
+  let guessRate = 0.02;
+  return values.map((point) => {
+    let rate = null;
+    if (Number.isFinite(point.value)) {
+      rate = historicalXirrFast(sourceFlows, point.date, point.value, guessRate);
+      if (Number.isFinite(rate)) guessRate = rate;
+    }
+    return { date: point.date, value: point.value, rate };
+  });
 }
 
 export function initialInvestment({ amount, amountMode = "gross", purchaseFeePercent = 0 }) {

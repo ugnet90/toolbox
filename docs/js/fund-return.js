@@ -10,6 +10,7 @@ import {
   mergeDateRanges,
   missingDateRanges,
   buildDepotHistory,
+  buildBenchmarkHistory,
   normalizeFundReturnData,
   parseBankTransactionsCsv,
   parseGermanNumber,
@@ -72,6 +73,8 @@ const printReport = document.querySelector("[data-print-report]");
 const printOptions = document.querySelector("[data-print-options]");
 const printCashflowsMode = document.querySelector("[data-print-cashflows-mode]");
 const printCashflowsHint = document.querySelector("[data-print-cashflows-hint]");
+const printHistoryCharts = document.querySelector("[data-print-history-charts]");
+const printHistoryChartsHint = document.querySelector("[data-print-history-charts-hint]");
 const pdfConfirmButton = document.querySelector("[data-pdf-confirm]");
 const printConfirmButton = document.querySelector("[data-print-confirm]");
 const printCancelButton = document.querySelector("[data-print-cancel]");
@@ -93,6 +96,12 @@ const benchmarkCheckboxes = [...document.querySelectorAll("[data-benchmark-check
 const depotHistory = document.querySelector("[data-depot-history]");
 const depotHistoryStatus = document.querySelector("[data-depot-history-status]");
 const depotHistoryChart = document.querySelector("[data-depot-history-chart]");
+const depotReturnChart = document.querySelector("[data-depot-return-chart]");
+const historySeriesPicker = document.querySelector("[data-history-series-picker]");
+const historyValueLegend = document.querySelector("[data-history-value-legend]");
+const historyReturnLegend = document.querySelector("[data-history-return-legend]");
+const historyValueBlock = document.querySelector("[data-history-value-block]");
+const historyReturnBlock = document.querySelector("[data-history-return-block]");
 const depotHistoryPeriod = document.querySelector("[data-depot-history-period]");
 const depotHistoryValue = document.querySelector("[data-depot-history-value]");
 const depotHistoryInvested = document.querySelector("[data-depot-history-invested]");
@@ -136,6 +145,8 @@ const cashflowNote = document.querySelector("#cashflowNote");
 
 const recurringType = document.querySelector("#recurringType");
 const recurringAmount = document.querySelector("#recurringAmount");
+const recurringAmountMode = document.querySelector("#recurringAmountMode");
+const recurringPurchaseFee = document.querySelector("#recurringPurchaseFee");
 const recurringInterval = document.querySelector("#recurringInterval");
 const recurringFirst = document.querySelector("#recurringFirst");
 const recurringLast = document.querySelector("#recurringLast");
@@ -189,6 +200,7 @@ let calculationRevision = 0;
 let lastCoreCalculation = null;
 let lastBenchmarkResults = [];
 let lastDepotHistory = null;
+const historySeriesSelection = new Map();
 let csvImportSessionActive = false;
 let csvImportSessionEarliestDate = null;
 let csvImportAwaitingAdditionalFile = false;
@@ -375,6 +387,10 @@ function clearCalculation() {
   lastDepotHistory = null;
   if (depotHistory) depotHistory.hidden = true;
   if (depotHistoryChart) depotHistoryChart.innerHTML = "";
+  if (depotReturnChart) depotReturnChart.innerHTML = "";
+  if (historySeriesPicker) historySeriesPicker.innerHTML = "";
+  if (historyValueLegend) historyValueLegend.innerHTML = "";
+  if (historyReturnLegend) historyReturnLegend.innerHTML = "";
   if (depotHistoryStatus) { depotHistoryStatus.hidden = true; depotHistoryStatus.textContent = ""; }
   if (valueChart) valueChart.innerHTML = "";
   if (returnChart) returnChart.innerHTML = "";
@@ -425,6 +441,8 @@ function currentFundData() {
       initialAmount: initial,
       initialAmountMode: initialAmountMode?.value,
       purchaseFeePercent: fee,
+      recurringPurchaseFeePercent: Number(recurringPurchaseFee?.value || 0),
+      recurringAmountMode: recurringAmountMode?.value || "gross",
       endDate: endDate?.value,
       endValue: terminal,
       benchmarkKinds: selectedBenchmarkKinds(),
@@ -501,6 +519,9 @@ function applyImportedFundData(data) {
   initialAmount.value = formatGermanNumber(normalized.inputs.initialAmount);
   initialAmountMode.value = normalized.inputs.initialAmountMode;
   purchaseFee.value = String(normalized.inputs.purchaseFeePercent);
+  if (recurringPurchaseFee) recurringPurchaseFee.value = String(normalized.inputs.recurringPurchaseFeePercent ?? 0);
+  if (recurringAmountMode) recurringAmountMode.value = normalized.inputs.recurringAmountMode || "gross";
+  syncRecurringFeeControls();
   endDate.value = normalized.inputs.endDate;
   endValue.value = formatGermanNumber(normalized.inputs.endValue);
   kestExemption.value = normalized.inputs.kestExemption;
@@ -803,36 +824,232 @@ function svgText(value) {
   return escapeHtml(String(value));
 }
 
-function renderDepotHistorySvg(history) {
-  if (!depotHistoryChart) return;
-  const points = history.points || [];
-  if (!points.length) { depotHistoryChart.innerHTML = ""; return; }
+const HISTORY_COLORS = {
+  depotValue: "#316880",
+  netInvested: "#a67523",
+  depotReturn: "#1c728f",
+  overnight: "#d8ad57",
+  euribor3m: "#c88a32",
+  euribor6m: "#b56b28",
+  euribor12m: "#914c22"
+};
+const HISTORY_FUND_COLORS = ["#4f7391", "#5c8068", "#765f8d", "#9a6b4a", "#4f7f82", "#7b7049", "#6877a0", "#8a5f72"];
+const chartCurrency = new Intl.NumberFormat("de-AT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const chartPercent = new Intl.NumberFormat("de-AT", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+function historySeriesIsSelected(key, defaultValue = false) {
+  if (!historySeriesSelection.has(key)) historySeriesSelection.set(key, defaultValue);
+  return historySeriesSelection.get(key) === true;
+}
+
+function historyFundColor(index) {
+  return HISTORY_FUND_COLORS[index % HISTORY_FUND_COLORS.length];
+}
+
+function historySeriesDefinitions(history) {
+  const valueSeries = [
+    {
+      key: "value:depot",
+      label: "Depotwert",
+      color: HISTORY_COLORS.depotValue,
+      defaultSelected: true,
+      points: (history.points || []).map((point) => ({ date: point.date, value: point.depotValue }))
+    },
+    {
+      key: "value:invested",
+      label: "Kumulierte Nettoinvestitionen",
+      color: HISTORY_COLORS.netInvested,
+      defaultSelected: true,
+      points: (history.points || []).map((point) => ({ date: point.date, value: point.netInvested }))
+    }
+  ];
+
+  const returnSeries = [
+    {
+      key: "return:depot",
+      label: "Depotrendite",
+      color: HISTORY_COLORS.depotReturn,
+      defaultSelected: true,
+      points: (history.points || []).map((point) => ({ date: point.date, value: point.depotReturn }))
+    }
+  ];
+
+  (history.funds || []).forEach((fund, index) => {
+    returnSeries.push({
+      key: `return:fund:${fund.isin}`,
+      label: fund.title && fund.title !== fund.isin ? fund.title : fund.isin,
+      detail: fund.isin,
+      color: historyFundColor(index),
+      defaultSelected: false,
+      points: (history.points || []).map((point) => ({ date: point.date, value: point.fundReturns?.[fund.isin] }))
+    });
+  });
+
+  for (const [kind, points] of Object.entries(history.benchmarkSeries || {})) {
+    const config = BENCHMARKS[kind];
+    if (!config) continue;
+    valueSeries.push({
+      key: `value:benchmark:${kind}`,
+      label: `${config.shortLabel || config.label} – Wert`,
+      color: HISTORY_COLORS[kind] || "#a67523",
+      defaultSelected: false,
+      points: points.map((point) => ({ date: point.date, value: point.value }))
+    });
+    returnSeries.push({
+      key: `return:benchmark:${kind}`,
+      label: `${config.shortLabel || config.label} – Rendite`,
+      color: HISTORY_COLORS[kind] || "#a67523",
+      defaultSelected: false,
+      points: points.map((point) => ({ date: point.date, value: point.rate }))
+    });
+  }
+  return { valueSeries, returnSeries };
+}
+
+function createHistorySeriesCheck(series, groupLabel) {
+  const label = document.createElement("label");
+  label.className = "depot-history__series-check";
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.dataset.historySeriesKey = series.key;
+  input.checked = historySeriesIsSelected(series.key, series.defaultSelected);
+  const swatch = document.createElement("i");
+  swatch.className = "depot-history__series-swatch";
+  swatch.style.background = series.color;
+  const text = document.createElement("span");
+  text.textContent = series.label;
+  if (series.detail) text.title = series.detail;
+  label.append(input, swatch, text);
+  label.dataset.historySeriesGroup = groupLabel;
+  return label;
+}
+
+function renderHistorySeriesPicker(history) {
+  if (!historySeriesPicker) return;
+  const { valueSeries, returnSeries } = historySeriesDefinitions(history);
+  historySeriesPicker.innerHTML = "";
+
+  const groups = [
+    ["Wertentwicklung", valueSeries],
+    ["Renditen", returnSeries]
+  ];
+  for (const [title, seriesList] of groups) {
+    const group = document.createElement("div");
+    group.className = "depot-history__series-group";
+    const heading = document.createElement("strong");
+    heading.textContent = title;
+    group.append(heading);
+    const checks = document.createElement("div");
+    checks.className = "depot-history__series-checks";
+    seriesList.forEach((series) => checks.append(createHistorySeriesCheck(series, title)));
+    group.append(checks);
+    historySeriesPicker.append(group);
+  }
+}
+
+function historyPath(points, x, y) {
+  let d = "";
+  let penDown = false;
+  for (const point of points) {
+    const value = Number(point.value);
+    if (!Number.isFinite(value)) {
+      penDown = false;
+      continue;
+    }
+    d += `${penDown ? "L" : "M"}${x(point.date).toFixed(2)},${y(value).toFixed(2)} `;
+    penDown = true;
+  }
+  return d.trim();
+}
+
+function setHistoryLegend(node, series) {
+  if (!node) return;
+  node.innerHTML = "";
+  for (const item of series) {
+    const entry = document.createElement("span");
+    const key = document.createElement("i");
+    key.className = "depot-history__key";
+    key.style.background = item.color;
+    const text = document.createElement("span");
+    text.textContent = item.label;
+    entry.append(key, text);
+    node.append(entry);
+  }
+}
+
+function renderHistoryLineChart(container, series, { ariaLabel, formatter }) {
+  if (!container) return false;
+  const visible = series.filter((item) => historySeriesIsSelected(item.key, item.defaultSelected));
+  const finitePoints = visible.flatMap((item) => item.points.filter((point) => Number.isFinite(Number(point.value))));
+  if (!visible.length || !finitePoints.length) {
+    container.innerHTML = '<p class="depot-history__empty-chart">Keine Diagrammlinie mit verfügbaren Daten ausgewählt.</p>';
+    return false;
+  }
+
   const width = 1000;
-  const height = 360;
-  const left = 82, right = 24, top = 24, bottom = 54;
+  const height = 350;
+  const left = 78, right = 46, top = 24, bottom = 52;
   const plotW = width - left - right;
   const plotH = height - top - bottom;
-  const startMs = Date.parse(`${points[0].date}T00:00:00Z`);
-  const endMs = Date.parse(`${points[points.length - 1].date}T00:00:00Z`);
-  const values = points.flatMap((p) => [p.depotValue, p.netInvested, 0]);
-  const minY = Math.min(...values);
-  const maxY = Math.max(...values);
-  const spanY = Math.max(maxY - minY, 1);
+  const dates = finitePoints.map((point) => point.date).sort();
+  const startDate = dates[0];
+  const endDateValue = dates[dates.length - 1];
+  const startMs = Date.parse(`${startDate}T00:00:00Z`);
+  const endMs = Date.parse(`${endDateValue}T00:00:00Z`);
+  const values = finitePoints.map((point) => Number(point.value));
+  let minY = Math.min(...values, 0);
+  let maxY = Math.max(...values, 0);
+  if (Math.abs(maxY - minY) < 1e-12) {
+    const pad = Math.max(Math.abs(maxY) * 0.1, 1);
+    minY -= pad;
+    maxY += pad;
+  }
+  const spanY = maxY - minY;
   const x = (date) => left + ((Date.parse(`${date}T00:00:00Z`) - startMs) / Math.max(endMs - startMs, 1)) * plotW;
   const y = (value) => top + (1 - ((value - minY) / spanY)) * plotH;
-  const path = (key) => points.map((p, index) => `${index ? "L" : "M"}${x(p.date).toFixed(2)},${y(p[key]).toFixed(2)}`).join(" ");
   const yTicks = Array.from({ length: 5 }, (_, index) => minY + (spanY * index) / 4);
-  const xTickIndexes = [...new Set([0, Math.round((points.length - 1) / 3), Math.round((points.length - 1) * 2 / 3), points.length - 1])];
+  const sampleDates = [startDate];
+  const allDates = [...new Set(finitePoints.map((point) => point.date))].sort();
+  if (allDates.length > 2) {
+    sampleDates.push(allDates[Math.round((allDates.length - 1) / 3)], allDates[Math.round((allDates.length - 1) * 2 / 3)]);
+  }
+  if (endDateValue !== startDate) sampleDates.push(endDateValue);
+  const xTicks = [...new Set(sampleDates)];
   const formatDate = (iso) => new Intl.DateTimeFormat("de-AT", { month: "2-digit", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`));
-  depotHistoryChart.innerHTML = `
-    <svg class="depot-history__svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Historische Depotwertentwicklung">
-      ${yTicks.map((tick) => `<line class="depot-history__grid" x1="${left}" x2="${width-right}" y1="${y(tick)}" y2="${y(tick)}"></line><text class="depot-history__axis-label" x="${left-10}" y="${y(tick)+4}" text-anchor="end">${svgText(currency.format(tick))}</text>`).join("")}
+  const lineMarkup = visible.map((item) => {
+    const d = historyPath(item.points, x, y);
+    return d ? `<path class="depot-history__line" style="stroke:${item.color}" d="${d}"></path>` : "";
+  }).join("");
+  container.innerHTML = `
+    <svg class="depot-history__svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${svgText(ariaLabel)}">
+      ${yTicks.map((tick) => `<line class="depot-history__grid" x1="${left}" x2="${width-right}" y1="${y(tick)}" y2="${y(tick)}"></line><text class="depot-history__axis-label" x="${left-8}" y="${y(tick)+4}" text-anchor="end">${svgText(formatter(tick))}</text>`).join("")}
       <line class="depot-history__axis" x1="${left}" x2="${left}" y1="${top}" y2="${height-bottom}"></line>
       <line class="depot-history__axis" x1="${left}" x2="${width-right}" y1="${height-bottom}" y2="${height-bottom}"></line>
-      ${xTickIndexes.map((idx) => `<text class="depot-history__axis-label" x="${x(points[idx].date)}" y="${height-bottom+28}" text-anchor="middle">${svgText(formatDate(points[idx].date))}</text>`).join("")}
-      <path class="depot-history__line depot-history__line--invested" d="${path("netInvested")}"></path>
-      <path class="depot-history__line depot-history__line--value" d="${path("depotValue")}"></path>
+      ${xTicks.map((date, index) => {
+        const anchor = index === 0 ? "start" : index === xTicks.length - 1 ? "end" : "middle";
+        return `<text class="depot-history__axis-label" x="${x(date)}" y="${height-bottom+27}" text-anchor="${anchor}">${svgText(formatDate(date))}</text>`;
+      }).join("")}
+      ${lineMarkup}
     </svg>`;
+  return true;
+}
+
+function renderDepotHistoryCharts(history) {
+  const { valueSeries, returnSeries } = historySeriesDefinitions(history);
+  const selectedValues = valueSeries.filter((item) => historySeriesIsSelected(item.key, item.defaultSelected));
+  const selectedReturns = returnSeries.filter((item) => historySeriesIsSelected(item.key, item.defaultSelected));
+  setHistoryLegend(historyValueLegend, selectedValues);
+  setHistoryLegend(historyReturnLegend, selectedReturns);
+  const valueRendered = renderHistoryLineChart(depotHistoryChart, valueSeries, {
+    ariaLabel: "Historische Depotwertentwicklung",
+    formatter: (value) => chartCurrency.format(value)
+  });
+  const returnRendered = renderHistoryLineChart(depotReturnChart, returnSeries, {
+    ariaLabel: "Historische Depot- und Fondsrenditen",
+    formatter: (value) => `${chartPercent.format(value * 100)} %`
+  });
+  if (historyValueBlock) historyValueBlock.hidden = !valueRendered;
+  if (historyReturnBlock) historyReturnBlock.hidden = !returnRendered;
 }
 
 function renderDepotHistory(history) {
@@ -844,10 +1061,11 @@ function renderDepotHistory(history) {
   setText(depotHistoryValue, currency.format(history.lastValue));
   setText(depotHistoryInvested, currency.format(history.lastNetInvested));
   setText(depotHistoryFunds, `${history.isins.length} Fonds / ${history.holdings.length} aktuelle Position(en)`);
-  renderDepotHistorySvg(history);
+  renderHistorySeriesPicker(history);
+  renderDepotHistoryCharts(history);
 }
 
-async function refreshDepotHistory(endIso) {
+async function refreshDepotHistory(calc) {
   const flows = securityFlowsForHistory();
   if (!flows.length) {
     if (depotHistory) depotHistory.hidden = true;
@@ -857,11 +1075,33 @@ async function refreshDepotHistory(endIso) {
   const isins = [...new Set(flows.map((flow) => flow.isin))].sort();
   if (depotHistory) depotHistory.hidden = false;
   setDepotHistoryStatus(`Historische Rücknahmepreise für ${isins.length} ISIN(s) werden geladen …`);
-  const pricePairs = await Promise.all(isins.map(async (isin) => [isin, await ensureUnionPriceRange(isin, start, endIso)]));
+  const pricePairs = await Promise.all(isins.map(async (isin) => [isin, await ensureUnionPriceRange(isin, start, calc.finishDate)]));
   const pricesByIsin = Object.fromEntries(pricePairs);
-  const history = buildDepotHistory({ cashflows, pricesByIsin, endDate: endIso, maxPoints: 850 });
+  const history = buildDepotHistory({
+    cashflows,
+    pricesByIsin,
+    endDate: calc.finishDate,
+    maxPoints: 520,
+    returnCashflows: calc.benchmarkFlows
+  });
   renderDepotHistory(history);
   return history;
+}
+
+function enrichDepotHistoryWithBenchmarks(calc, benchmarkResults) {
+  if (!lastDepotHistory) return;
+  const benchmarkSeries = {};
+  for (const item of benchmarkResults || []) {
+    benchmarkSeries[item.kind] = buildBenchmarkHistory({
+      historyPoints: lastDepotHistory.points,
+      cashflows: calc.benchmarkFlows,
+      observations: item.apiData.observations,
+      taxPercent: item.effectiveTaxPercent,
+      seriesLabel: item.config.seriesLabel
+    });
+  }
+  lastDepotHistory.benchmarkSeries = benchmarkSeries;
+  renderDepotHistory(lastDepotHistory);
 }
 
 async function fetchBenchmarkRates(kind, startIso, endIso) {
@@ -1165,7 +1405,7 @@ function printItem(label, value) {
   `;
 }
 
-function buildPrintReport({ includeCashflows = true } = {}) {
+function buildPrintReport({ includeCashflows = true, includeHistoryCharts = false } = {}) {
   if (!printReport || !resultsNode || resultsNode.hidden) return false;
 
   const startAmountValue = parseGermanNumber(initialAmount?.value);
@@ -1180,7 +1420,8 @@ function buildPrintReport({ includeCashflows = true } = {}) {
     ["Kauf-/Startdatum", formatReportDate(purchaseDate?.value)],
     ["Startbetrag", Number.isFinite(startAmountValue) ? currency.format(startAmountValue) : "–"],
     ["Startbetrag ist", selectedOptionText(initialAmountMode)],
-    ["Kaufspesen / Ausgabeaufschlag", `${percent.format(Number.isFinite(feeValue) ? feeValue : 0)} %`],
+    ["Kaufspesen Start-/Einmalanlage", `${percent.format(Number.isFinite(feeValue) ? feeValue : 0)} %`],
+    ["Kaufspesen Sparrate/Dauerauftrag", `${percent.format(Number(recurringPurchaseFee?.value || 0))} %`],
     ["End-/Bewertungsdatum", formatReportDate(endDate?.value)],
     ["End-/Verkaufswert", Number.isFinite(endAmountValue) ? currency.format(endAmountValue) : "–"],
     ["Benchmarks", selectedBenchmarks],
@@ -1260,6 +1501,20 @@ function buildPrintReport({ includeCashflows = true } = {}) {
     printReport.append(chartSection);
   }
 
+  if (includeHistoryCharts && depotHistory && !depotHistory.hidden && lastDepotHistory) {
+    const historySection = document.createElement("section");
+    historySection.className = "print-report__section";
+    historySection.innerHTML = "<h2>Historische Depotentwicklung</h2>";
+    const historyClone = depotHistory.cloneNode(true);
+    historyClone.removeAttribute("hidden");
+    historyClone.removeAttribute("aria-labelledby");
+    historyClone.querySelector(".depot-history__series-picker")?.remove();
+    historyClone.querySelector(".depot-history__actions")?.remove();
+    historyClone.querySelectorAll(":scope > .field__hint").forEach((node) => node.remove());
+    historySection.append(historyClone);
+    printReport.append(historySection);
+  }
+
   if (detailsNode && !detailsNode.hidden) {
     const detailSection = document.createElement("section");
     detailSection.className = "print-report__section";
@@ -1284,6 +1539,13 @@ function buildPrintReport({ includeCashflows = true } = {}) {
 
 [initialAmount, endValue, cashflowAmount, recurringAmount].forEach((input) => {
   input?.addEventListener("blur", () => formatAmountInput(input));
+});
+
+historySeriesPicker?.addEventListener("change", (event) => {
+  const input = event.target.closest?.("[data-history-series-key]");
+  if (!input || !lastDepotHistory) return;
+  historySeriesSelection.set(input.dataset.historySeriesKey, input.checked);
+  renderDepotHistoryCharts(lastDepotHistory);
 });
 
 function handleFormMutation(event) {
@@ -1369,6 +1631,16 @@ document.querySelector("[data-add-cashflow]")?.addEventListener("click", () => {
   }
 });
 
+function syncRecurringFeeControls() {
+  const contribution = recurringType?.value === "contribution";
+  if (recurringAmountMode) recurringAmountMode.disabled = !contribution;
+  if (recurringPurchaseFee) recurringPurchaseFee.disabled = !contribution || recurringAmountMode?.value !== "net";
+}
+
+recurringType?.addEventListener("change", syncRecurringFeeControls);
+recurringAmountMode?.addEventListener("change", syncRecurringFeeControls);
+syncRecurringFeeControls();
+
 document.querySelector("[data-add-recurring]")?.addEventListener("click", () => {
   try {
     const dates = generateRecurringDates({
@@ -1376,7 +1648,19 @@ document.querySelector("[data-add-recurring]")?.addEventListener("click", () => 
       lastDate: recurringLast.value,
       intervalMonths: Number(recurringInterval.value)
     });
-    const signedAmount = normalizeSignedAmount(recurringAmount.value, recurringType.value);
+    const rawAmount = parseGermanNumber(recurringAmount.value);
+    if (!Number.isFinite(rawAmount) || rawAmount === 0) throw new Error("Bitte einen Betrag ungleich 0 eingeben.");
+    let signedAmount;
+    if (recurringType.value === "contribution") {
+      const investment = initialInvestment({
+        amount: Math.abs(rawAmount),
+        amountMode: recurringAmountMode?.value || "gross",
+        purchaseFeePercent: Number(recurringPurchaseFee?.value || 0)
+      });
+      signedAmount = -investment.customerOutflow;
+    } else {
+      signedAmount = normalizeSignedAmount(rawAmount, recurringType.value);
+    }
     for (const date of dates) {
       cashflows.push({
         id: nextCashflowId++,
@@ -1392,7 +1676,7 @@ document.querySelector("[data-add-recurring]")?.addEventListener("click", () => 
     }
     renderCashflows();
     clearCalculation();
-    recurringAmount.value = formatGermanNumber(signedAmount);
+    recurringAmount.value = formatGermanNumber(Math.abs(rawAmount));
   } catch (error) {
     showError(error.message || "Regelmäßige Zahlungen konnten nicht erzeugt werden.");
   }
@@ -1499,6 +1783,10 @@ function selectedPrintCashflowMode() {
   return printCashflowsMode?.value === "details" && cashflows.length > 0;
 }
 
+function selectedPrintHistoryCharts() {
+  return Boolean(printHistoryCharts?.checked && lastDepotHistory);
+}
+
 function updatePrintOptionsState() {
   if (!printCashflowsMode) return;
   const detailsOption = printCashflowsMode.querySelector('option[value="details"]');
@@ -1510,6 +1798,14 @@ function updatePrintOptionsState() {
     printCashflowsHint.textContent = cashflows.length
       ? `${cashflows.length} zusätzliche Zahlungsströme vorhanden.`
       : "Keine zusätzlichen Zahlungsströme vorhanden.";
+  }
+  if (printHistoryCharts) {
+    printHistoryCharts.disabled = !lastDepotHistory;
+  }
+  if (printHistoryChartsHint) {
+    printHistoryChartsHint.textContent = lastDepotHistory
+      ? "Verwendet die aktuell ausgewählten Diagrammlinien."
+      : "Keine historische Depotentwicklung verfügbar.";
   }
 }
 
@@ -1551,7 +1847,7 @@ function sanitizePdfFilename(value) {
   return `${base}.pdf`;
 }
 
-async function createPdfBytes({ includeCashflows = false } = {}) {
+async function createPdfBytes({ includeCashflows = false, includeHistoryCharts = false } = {}) {
   if (!lastCoreCalculation || resultsNode?.hidden) throw new Error("Bitte zuerst eine Depotrendite berechnen.");
 
   const { PDFDocument, StandardFonts, rgb } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
@@ -1665,6 +1961,112 @@ async function createPdfBytes({ includeCashflows = false } = {}) {
     y -= 4;
   }
 
+
+  function pdfColorFromHex(hex) {
+    const match = /^#([0-9a-f]{6})$/i.exec(String(hex || ""));
+    if (!match) return rgb(0.2, 0.4, 0.5);
+    const value = Number.parseInt(match[1], 16);
+    return rgb(((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255);
+  }
+
+  function drawPdfHistoryChart(title, series, formatter) {
+    const visible = series.filter((item) => historySeriesIsSelected(item.key, item.defaultSelected));
+    const finitePoints = visible.flatMap((item) => item.points.filter((point) => Number.isFinite(Number(point.value))));
+    if (!visible.length || !finitePoints.length) return false;
+
+    const chartHeight = 150;
+    const legendRows = Math.max(1, Math.ceil(visible.length / 3));
+    const required = 34 + legendRows * 13 + chartHeight + 34;
+    ensureSpace(required);
+    drawTextLine(title, MARGIN, y, { font: bold, size: 10.5 });
+    y -= 17;
+
+    let legendX = MARGIN;
+    let legendItemsInRow = 0;
+    for (const item of visible) {
+      const label = safePdfText(item.label);
+      const labelW = Math.min(135, textWidth(label, regular, 7.2));
+      const itemW = 18 + labelW + 12;
+      if (legendItemsInRow >= 3 || legendX + itemW > PAGE_W - MARGIN) {
+        y -= 12;
+        legendX = MARGIN;
+        legendItemsInRow = 0;
+      }
+      page.drawLine({ start: { x: legendX, y: y + 3 }, end: { x: legendX + 12, y: y + 3 }, thickness: 1.6, color: pdfColorFromHex(item.color) });
+      let shown = label;
+      while (shown.length > 8 && textWidth(shown, regular, 7.2) > 135) shown = `${shown.slice(0, -2)}…`;
+      drawTextLine(shown, legendX + 17, y, { size: 7.2 });
+      legendX += itemW;
+      legendItemsInRow += 1;
+    }
+    y -= 16;
+
+    const chartTop = y;
+    const chartBottom = chartTop - chartHeight;
+    const chartLeft = MARGIN + 52;
+    const chartRight = PAGE_W - MARGIN - 8;
+    const chartW = chartRight - chartLeft;
+    const dates = finitePoints.map((point) => point.date).sort();
+    const startDate = dates[0];
+    const endDateValue = dates[dates.length - 1];
+    const startMs = Date.parse(`${startDate}T00:00:00Z`);
+    const endMs = Date.parse(`${endDateValue}T00:00:00Z`);
+    const values = finitePoints.map((point) => Number(point.value));
+    let minY = Math.min(...values, 0);
+    let maxY = Math.max(...values, 0);
+    if (Math.abs(maxY - minY) < 1e-12) {
+      const pad = Math.max(Math.abs(maxY) * 0.1, 1);
+      minY -= pad;
+      maxY += pad;
+    }
+    const spanY = maxY - minY;
+    const x = (date) => chartLeft + ((Date.parse(`${date}T00:00:00Z`) - startMs) / Math.max(endMs - startMs, 1)) * chartW;
+    const py = (value) => chartBottom + ((value - minY) / spanY) * chartHeight;
+
+    const yTicks = Array.from({ length: 5 }, (_, index) => minY + spanY * index / 4);
+    for (const tick of yTicks) {
+      const yy = py(tick);
+      page.drawLine({ start: { x: chartLeft, y: yy }, end: { x: chartRight, y: yy }, thickness: 0.45, color: rgb(0.88, 0.90, 0.91) });
+      const label = safePdfText(formatter(tick));
+      const labelWidth = textWidth(label, regular, 6.2);
+      drawTextLine(label, chartLeft - 5 - labelWidth, yy - 2, { size: 6.2, color: rgb(0.35, 0.43, 0.47) });
+    }
+    page.drawLine({ start: { x: chartLeft, y: chartBottom }, end: { x: chartRight, y: chartBottom }, thickness: 0.65, color: rgb(0.55, 0.61, 0.64) });
+    page.drawLine({ start: { x: chartLeft, y: chartBottom }, end: { x: chartLeft, y: chartTop }, thickness: 0.65, color: rgb(0.55, 0.61, 0.64) });
+
+    for (const item of visible) {
+      let previous = null;
+      const color = pdfColorFromHex(item.color);
+      for (const point of item.points) {
+        const value = Number(point.value);
+        if (!Number.isFinite(value)) {
+          previous = null;
+          continue;
+        }
+        const current = { x: x(point.date), y: py(value) };
+        if (previous) page.drawLine({ start: previous, end: current, thickness: 1.15, color });
+        previous = current;
+      }
+    }
+
+    const middleMs = startMs + (endMs - startMs) / 2;
+    const dateLabels = [
+      { date: startDate, pos: chartLeft, anchor: "left" },
+      { date: new Date(middleMs).toISOString().slice(0, 10), pos: chartLeft + chartW / 2, anchor: "middle" },
+      { date: endDateValue, pos: chartRight, anchor: "right" }
+    ];
+    for (const item of dateLabels) {
+      const label = new Intl.DateTimeFormat("de-AT", { month: "2-digit", year: "numeric" }).format(new Date(`${item.date}T00:00:00Z`));
+      const labelW = textWidth(label, regular, 6.7);
+      let xx = item.pos;
+      if (item.anchor === "middle") xx -= labelW / 2;
+      if (item.anchor === "right") xx -= labelW;
+      drawTextLine(label, xx, chartBottom - 14, { size: 6.7, color: rgb(0.35, 0.43, 0.47) });
+    }
+    y = chartBottom - 28;
+    return true;
+  }
+
   addPage();
   drawTextLine("TOOLBOX", MARGIN, y, { font: bold, size: 10, color: rgb(...PDF_FUND_COLOR) });
   y -= 24;
@@ -1685,7 +2087,8 @@ async function createPdfBytes({ includeCashflows = false } = {}) {
     ["Kauf-/Startdatum", formatReportDate(purchaseDate?.value)],
     ["Startbetrag", Number.isFinite(startAmountValue) ? currency.format(startAmountValue) : "-"],
     ["Startbetrag ist", selectedOptionText(initialAmountMode)],
-    ["Kaufspesen / Ausgabeaufschlag", `${percent.format(Number(purchaseFee?.value || 0))} %`],
+    ["Kaufspesen Start-/Einmalanlage", `${percent.format(Number(purchaseFee?.value || 0))} %`],
+    ["Kaufspesen Sparrate/Dauerauftrag", `${percent.format(Number(recurringPurchaseFee?.value || 0))} %`],
     ["End-/Bewertungsdatum", formatReportDate(endDate?.value)],
     ["End-/Verkaufswert", Number.isFinite(endAmountValue) ? currency.format(endAmountValue) : "-"],
     ["KESt-Befreiung", selectedOptionText(kestExemption)],
@@ -1733,6 +2136,17 @@ async function createPdfBytes({ includeCashflows = false } = {}) {
       drawWrapped(`• ${line}`, { size: 9.2, lineHeight: 13 });
       y -= 2;
     }
+  }
+
+  if (includeHistoryCharts && lastDepotHistory) {
+    sectionTitle("Historische Depotentwicklung");
+    drawWrapped(`Zeitraum ${formatReportDate(lastDepotHistory.startDate)} bis ${formatReportDate(lastDepotHistory.endDate)} · Depotwert am Ende ${currency.format(lastDepotHistory.lastValue)} · kumulierte Nettoinvestitionen ${currency.format(lastDepotHistory.lastNetInvested)}.`, { size: 8.4, lineHeight: 11.5 });
+    y -= 6;
+    const historyDefs = historySeriesDefinitions(lastDepotHistory);
+    drawPdfHistoryChart("Wertentwicklung", historyDefs.valueSeries, (value) => chartCurrency.format(value));
+    y -= 5;
+    drawPdfHistoryChart("Historische Renditen (XIRR p.a.)", historyDefs.returnSeries, (value) => `${chartPercent.format(value * 100)} %`);
+    y -= 4;
   }
 
   sectionTitle("Berechnungsdetails");
@@ -1828,6 +2242,7 @@ async function openGeneratedPdf(bytes, previewWindow = null) {
 
 pdfConfirmButton?.addEventListener("click", async () => {
   const includeCashflows = selectedPrintCashflowMode();
+  const includeHistoryCharts = selectedPrintHistoryCharts();
   let previewWindow = null;
   if (isIosDevice()) {
     previewWindow = window.open("", "_blank");
@@ -1842,7 +2257,7 @@ pdfConfirmButton?.addEventListener("click", async () => {
   }
   if (pdfConfirmButton) pdfConfirmButton.disabled = true;
   try {
-    const bytes = await createPdfBytes({ includeCashflows });
+    const bytes = await createPdfBytes({ includeCashflows, includeHistoryCharts });
     await openGeneratedPdf(bytes, previewWindow);
     if (printStatus) printStatus.textContent = "PDF wurde erstellt. Am iPhone öffnet es sich in einem neuen Tab; dort kannst du es über Teilen speichern oder drucken.";
   } catch (error) {
@@ -1862,7 +2277,8 @@ pdfConfirmButton?.addEventListener("click", async () => {
 
 printConfirmButton?.addEventListener("click", () => {
   const includeCashflows = selectedPrintCashflowMode();
-  if (!buildPrintReport({ includeCashflows })) return;
+  const includeHistoryCharts = selectedPrintHistoryCharts();
+  if (!buildPrintReport({ includeCashflows, includeHistoryCharts })) return;
   const previousTitle = document.title;
   const suffix = endDate?.value ? `_${endDate.value}` : "";
   const name = safeFilenamePart(designation?.value);
@@ -1877,13 +2293,15 @@ printConfirmButton?.addEventListener("click", () => {
 
 useHistoryEndValueButton?.addEventListener("click", () => {
   if (!lastDepotHistory || !endValue) return;
-  endValue.value = formatGermanNumber(lastDepotHistory.lastValue);
+  const historyValue = lastDepotHistory.lastValue;
+  endValue.value = formatGermanNumber(historyValue);
   clearCalculation();
-  showDataStatus(`Historischen Depotwert ${currency.format(lastDepotHistory.lastValue)} als Endwert übernommen. Bitte neu berechnen.`);
+  showDataStatus(`Berechneten Depotwert ${currency.format(historyValue)} als End-/Verkaufswert übernommen. Bitte Depotrendite neu berechnen.`);
 });
 
 resetButton?.addEventListener("click", () => {
   form?.reset();
+  syncRecurringFeeControls();
   cashflows = [];
   nextCashflowId = 1;
   csvImportSessionActive = false;
@@ -1908,6 +2326,7 @@ benchmarkCheckboxes.forEach((box) => {
     renderCoreResults(calc, xirrResult);
     renderSavingsPlanSummary(calc.enteredIntermediate);
     lastBenchmarkResults = await refreshBenchmarks(calc, xirrResult, runRevision);
+    if (runRevision === calculationRevision) enrichDepotHistoryWithBenchmarks(calc, lastBenchmarkResults);
     if (runRevision === calculationRevision && printButton) printButton.hidden = false;
   });
 });
@@ -1927,7 +2346,7 @@ form?.addEventListener("submit", async (event) => {
     lastCoreCalculation = { calc, xirrResult };
 
     try {
-      await refreshDepotHistory(calc.finishDate);
+      await refreshDepotHistory(calc);
     } catch (historyError) {
       if (depotHistory) depotHistory.hidden = false;
       setDepotHistoryStatus(historyError.message || "Historische Depotwertentwicklung konnte nicht geladen werden.", true);
@@ -1942,6 +2361,7 @@ form?.addEventListener("submit", async (event) => {
 
     lastBenchmarkResults = await refreshBenchmarks(calc, xirrResult, runRevision);
     if (runRevision !== calculationRevision) return;
+    enrichDepotHistoryWithBenchmarks(calc, lastBenchmarkResults);
     if (printButton) printButton.hidden = false;
   } catch (error) {
     showError(error.message || "Berechnung nicht möglich.");
