@@ -33,7 +33,7 @@ export function formatGermanNumber(value, decimals = 2) {
 }
 
 export const FUND_RETURN_DATA_FORMAT = "toolbox-depot-return";
-export const FUND_RETURN_DATA_SCHEMA_VERSION = 4;
+export const FUND_RETURN_DATA_SCHEMA_VERSION = 5;
 
 const LEGACY_FUND_RETURN_DATA_FORMAT = "toolbox-fund-return";
 const FUND_AMOUNT_MODES = new Set(["gross", "net"]);
@@ -76,7 +76,7 @@ export function normalizeFundReturnData(payload) {
 
   const schemaVersion = Number(payload.schema_version);
   const isLegacy = payload.format === LEGACY_FUND_RETURN_DATA_FORMAT && schemaVersion === 1;
-  const isCurrent = payload.format === FUND_RETURN_DATA_FORMAT && [2, 3, FUND_RETURN_DATA_SCHEMA_VERSION].includes(schemaVersion);
+  const isCurrent = payload.format === FUND_RETURN_DATA_FORMAT && [2, 3, 4, FUND_RETURN_DATA_SCHEMA_VERSION].includes(schemaVersion);
   if (!isLegacy && !isCurrent) {
     throw new Error("Die Datei ist keine unterstützte Toolbox-Depotrendite-Datei.");
   }
@@ -125,11 +125,20 @@ export function normalizeFundReturnData(payload) {
       ? null
       : requireFiniteNumber(rawQuantity, `Menge in Zahlungsstrom ${index + 1}`);
     const unit = String(flow.unit ?? "").trim();
+    const valuationDate = String(flow.valuationDate ?? "").trim();
+    if (valuationDate) parseIsoDate(valuationDate);
+    const optionalNumber = (value, label) => value === null || value === undefined || value === ""
+      ? null
+      : requireFiniteNumber(value, label);
+    const referenceValue = optionalNumber(flow.referenceValue, `Rechenwert in Zahlungsstrom ${index + 1}`);
+    const purchaseFeePerUnit = optionalNumber(flow.purchaseFeePerUnit, `Kaufspesen je Anteil in Zahlungsstrom ${index + 1}`);
+    const purchaseFeeTotal = optionalNumber(flow.purchaseFeeTotal, `Kaufspesen gesamt in Zahlungsstrom ${index + 1}`);
+    const purchaseFeePercent = optionalNumber(flow.purchaseFeePercent, `Kaufspesen-Prozentsatz in Zahlungsstrom ${index + 1}`);
     if (title.length > 120) throw new Error(`Titel in Zahlungsstrom ${index + 1} ist zu lang.`);
     if (note.length > 120) throw new Error(`Notiz in Zahlungsstrom ${index + 1} ist zu lang.`);
     if (isin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) throw new Error(`ISIN in Zahlungsstrom ${index + 1} ist ungültig.`);
     if (unit.length > 20) throw new Error(`Einheit in Zahlungsstrom ${index + 1} ist zu lang.`);
-    cashflows.push({ date: String(flow.date), type, amount, title, note, isin, quantity, unit });
+    cashflows.push({ date: String(flow.date), type, amount, title, note, isin, quantity, unit, valuationDate, referenceValue, purchaseFeePerUnit, purchaseFeeTotal, purchaseFeePercent });
   });
 
   return {
@@ -219,9 +228,9 @@ function normalizeCsvHeader(value) {
   return String(value ?? "").replace(/\u00A0/g, " ").trim().toLocaleLowerCase("de-AT");
 }
 
-function germanDateToIso(value, lineNumber) {
+function germanDateToIso(value, lineNumber, label = "Abrechnungsdatum") {
   const match = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(String(value ?? "").trim());
-  if (!match) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsdatum ist ungültig.`);
+  if (!match) throw new Error(`CSV-Zeile ${lineNumber}: ${label} ist ungültig.`);
   const iso = `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
   parseIsoDate(iso);
   return iso;
@@ -256,6 +265,8 @@ export function parseBankTransactionsCsv(text) {
   const isinIndex = header.indexOf("isin");
   const quantityIndex = header.indexOf("menge");
   const unitIndex = header.indexOf("einheit");
+  const valuationDateIndex = header.indexOf("stichtag");
+  const referenceValueIndex = header.indexOf("rechenwert");
   const missing = Object.entries(indexes).filter(([, index]) => index < 0).map(([key]) => required[key]);
   if (missing.length) throw new Error(`CSV-Spalte(n) fehlen: ${missing.join(", ")}.`);
 
@@ -278,7 +289,9 @@ export function parseBankTransactionsCsv(text) {
     const isin = isinIndex >= 0 ? String(row[isinIndex] ?? "").trim().toUpperCase() : "";
     const rawQuantity = quantityIndex >= 0 ? String(row[quantityIndex] ?? "").trim() : "";
     const unit = unitIndex >= 0 ? String(row[unitIndex] ?? "").trim() : "";
-    if (!rawAmount && !businessType && !rawDate && !title && !isin && !rawQuantity) continue;
+    const rawValuationDate = valuationDateIndex >= 0 ? String(row[valuationDateIndex] ?? "").trim() : "";
+    const rawReferenceValue = referenceValueIndex >= 0 ? String(row[referenceValueIndex] ?? "").trim() : "";
+    if (!rawAmount && !businessType && !rawDate && !title && !isin && !rawQuantity && !rawValuationDate && !rawReferenceValue) continue;
     if (!rawAmount || !rawDate) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag oder Abrechnungsdatum fehlt.`);
     if (isin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) throw new Error(`CSV-Zeile ${lineNumber}: ISIN ist ungültig.`);
 
@@ -318,6 +331,23 @@ export function parseBankTransactionsCsv(text) {
     }
     if (isin && quantity !== null && ["contribution", "withdrawal"].includes(type)) securityIsins.add(isin);
 
+    const valuationDate = rawValuationDate ? germanDateToIso(rawValuationDate, lineNumber, "Stichtag") : "";
+    let referenceValue = null;
+    if (rawReferenceValue) {
+      referenceValue = parseGermanNumber(rawReferenceValue);
+      if (!Number.isFinite(referenceValue) || referenceValue <= 0) throw new Error(`CSV-Zeile ${lineNumber}: Rechenwert ist ungültig.`);
+    }
+    let purchaseFeePerUnit = null;
+    let purchaseFeeTotal = null;
+    let purchaseFeePercent = null;
+    if (type === "contribution" && quantity !== null && referenceValue !== null && valuationDate) {
+      const absQuantity = Math.abs(quantity);
+      const grossUnitPrice = Math.abs(amount) / absQuantity;
+      purchaseFeePerUnit = grossUnitPrice - referenceValue;
+      purchaseFeeTotal = Math.abs(amount) - (referenceValue * absQuantity);
+      purchaseFeePercent = referenceValue > 0 ? (purchaseFeePerUnit / referenceValue) * 100 : null;
+    }
+
     cashflows.push({
       date: isoDate,
       type,
@@ -326,7 +356,12 @@ export function parseBankTransactionsCsv(text) {
       note: businessType.slice(0, 120),
       isin,
       quantity,
-      unit: unit.slice(0, 20)
+      unit: unit.slice(0, 20),
+      valuationDate,
+      referenceValue,
+      purchaseFeePerUnit,
+      purchaseFeeTotal,
+      purchaseFeePercent
     });
   }
 
@@ -346,8 +381,43 @@ export function parseBankTransactionsCsv(text) {
     hasTitleColumn: titleIndex >= 0,
     hasIsinColumn: isinIndex >= 0,
     hasQuantityColumn: quantityIndex >= 0,
+    hasValuationDateColumn: valuationDateIndex >= 0,
+    hasReferenceValueColumn: referenceValueIndex >= 0,
     securityIsins: [...securityIsins].sort()
   };
+}
+
+export function summarizeCsvPurchaseFees(cashflows) {
+  const eligible = (cashflows ?? []).filter((flow) =>
+    flow?.type === "contribution" &&
+    /^[A-Z]{2}[A-Z0-9]{10}$/.test(String(flow?.isin || "").trim().toUpperCase()) &&
+    Number.isFinite(Number(flow?.quantity)) && Math.abs(Number(flow.quantity)) > 0 &&
+    Number.isFinite(Number(flow?.referenceValue)) && Number(flow.referenceValue) > 0 &&
+    Number.isFinite(Number(flow?.purchaseFeeTotal)) &&
+    String(flow?.valuationDate || "").trim()
+  );
+  const groups = new Map();
+  for (const flow of eligible) {
+    const isin = String(flow.isin).trim().toUpperCase();
+    if (!groups.has(isin)) groups.set(isin, {
+      isin, title: String(flow.title || "").trim() || isin, purchases: 0, units: 0, referenceAmount: 0, customerOutflow: 0, feeTotal: 0, firstValuationDate: null, lastValuationDate: null
+    });
+    const group = groups.get(isin);
+    const units = Math.abs(Number(flow.quantity));
+    const referenceAmount = Number(flow.referenceValue) * units;
+    group.purchases += 1;
+    group.units += units;
+    group.referenceAmount += referenceAmount;
+    group.customerOutflow += Math.abs(Number(flow.amount));
+    group.feeTotal += Number(flow.purchaseFeeTotal);
+    const date = String(flow.valuationDate);
+    if (!group.firstValuationDate || date < group.firstValuationDate) group.firstValuationDate = date;
+    if (!group.lastValuationDate || date > group.lastValuationDate) group.lastValuationDate = date;
+  }
+  return [...groups.values()].map((group) => ({
+    ...group,
+    averageFeePercent: group.referenceAmount > 0 ? (group.feeTotal / group.referenceAmount) * 100 : null
+  })).sort((a, b) => a.title.localeCompare(b.title, "de"));
 }
 
 function monthSerial(isoDate) {
@@ -706,6 +776,10 @@ export function buildDepotHistory({ cashflows, pricesByIsin, endDate, maxPoints 
     .filter((flow) => flow.type !== "terminal")
     .sort((a, b) => a.date.localeCompare(b.date));
   const fundFlowsByIsin = Object.fromEntries(isins.map((isin) => [isin, allCashflows.filter((flow) => flow.isin === isin && flow.amount !== 0)]));
+  const firstPositionDateByIsin = Object.fromEntries(isins.map((isin) => {
+    const first = securityFlows.find((flow) => flow.isin === isin && flow.type === "contribution" && flow.quantity > 0);
+    return [isin, first ? (String(first.valuationDate || "").trim() || first.date) : null];
+  }));
   let depotGuess = 0.05;
   const fundGuesses = Object.fromEntries(isins.map((isin) => [isin, 0.05]));
   let economicFlowIndex = 0;
@@ -718,7 +792,10 @@ export function buildDepotHistory({ cashflows, pricesByIsin, endDate, maxPoints 
     const profit = point.depotValue + cumulativeInvestorCashflow;
     const fundReturns = {};
     for (const isin of isins) {
-      const rate = historicalXirrFast(fundFlowsByIsin[isin], point.date, Number(point.fundValues?.[isin] || 0), fundGuesses[isin]);
+      const firstPositionDate = firstPositionDateByIsin[isin];
+      const rate = firstPositionDate && point.date >= firstPositionDate
+        ? historicalXirrFast(fundFlowsByIsin[isin], point.date, Number(point.fundValues?.[isin] || 0), fundGuesses[isin])
+        : null;
       fundReturns[isin] = rate;
       if (Number.isFinite(rate)) fundGuesses[isin] = rate;
     }

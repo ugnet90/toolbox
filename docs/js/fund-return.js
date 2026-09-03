@@ -15,7 +15,8 @@ import {
   parseBankTransactionsCsv,
   parseGermanNumber,
   simulateHistoricalRateBenchmark,
-  summarizeCashflows
+  summarizeCashflows,
+  summarizeCsvPurchaseFees
 } from "./fund-return-utils.js";
 
 const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
@@ -92,6 +93,8 @@ const csvImportDialogNo = document.querySelector("[data-csv-import-dialog-no]");
 const dataStatusNode = document.querySelector("[data-fund-data-status]");
 const savingsPlanSummary = document.querySelector("[data-savings-plan-summary]");
 const savingsPlanList = document.querySelector("[data-savings-plan-list]");
+const csvPurchaseFeeSummary = document.querySelector("[data-csv-purchase-fee-summary]");
+const csvPurchaseFeeList = document.querySelector("[data-csv-purchase-fee-list]");
 const benchmarkCheckboxes = [...document.querySelectorAll("[data-benchmark-checkbox]")];
 const depotHistory = document.querySelector("[data-depot-history]");
 const depotHistoryStatus = document.querySelector("[data-depot-history-status]");
@@ -448,9 +451,14 @@ function currentFundData() {
       benchmarkKinds: selectedBenchmarkKinds(),
       kestExemption: kestExemption?.value
     },
-    cashflows: cashflows.map(({ date, type, amount, title, note, isin, quantity, unit }) => ({
+    cashflows: cashflows.map(({ date, type, amount, title, note, isin, quantity, unit, valuationDate, referenceValue, purchaseFeePerUnit, purchaseFeeTotal, purchaseFeePercent }) => ({
       date, type, amount, title: title || "", note: note || "", isin: isin || "",
-      quantity: Number.isFinite(Number(quantity)) ? Number(quantity) : null, unit: unit || ""
+      quantity: Number.isFinite(Number(quantity)) ? Number(quantity) : null, unit: unit || "",
+      valuationDate: valuationDate || "",
+      referenceValue: Number.isFinite(Number(referenceValue)) ? Number(referenceValue) : null,
+      purchaseFeePerUnit: Number.isFinite(Number(purchaseFeePerUnit)) ? Number(purchaseFeePerUnit) : null,
+      purchaseFeeTotal: Number.isFinite(Number(purchaseFeeTotal)) ? Number(purchaseFeeTotal) : null,
+      purchaseFeePercent: Number.isFinite(Number(purchaseFeePercent)) ? Number(purchaseFeePercent) : null
     }))
   });
 }
@@ -579,6 +587,12 @@ async function importBankTransactionsCsv(file) {
   if (parsed.normalizedQuantitySigns > 0) {
     appendWarning(`${parsed.normalizedQuantitySigns} Mengenangabe(n) wurden für Kauf/Verkauf auf das passende Vorzeichen normalisiert.`);
   }
+  if (!parsed.hasValuationDateColumn || !parsed.hasReferenceValueColumn) {
+    appendWarning("Für die buchungsgenaue Ermittlung der Fondskaufspesen werden zusätzlich die CSV-Spalten „Stichtag“ und „Rechenwert“ benötigt.");
+  } else {
+    const feeRows = parsed.cashflows.filter((flow) => Number.isFinite(Number(flow.purchaseFeeTotal)));
+    if (feeRows.length) showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} Kaufspesen wurden für ${feeRows.length} Kaufbuchung(en) aus Abrechnungsbetrag, Menge und Rechenwert ermittelt.`);
+  }
   return parsed;
 }
 
@@ -650,6 +664,25 @@ function typeOptions(selected) {
   ).join("");
 }
 
+function renderCsvPurchaseFeeSummary() {
+  if (!csvPurchaseFeeSummary || !csvPurchaseFeeList) return;
+  const summaries = summarizeCsvPurchaseFees(cashflows);
+  csvPurchaseFeeList.innerHTML = "";
+  csvPurchaseFeeSummary.hidden = summaries.length === 0;
+  for (const item of summaries) {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.isin)}</small></td>
+      <td>${item.purchases}</td>
+      <td>${currency.format(item.referenceAmount)}</td>
+      <td>${currency.format(item.customerOutflow)}</td>
+      <td>${currency.format(item.feeTotal)}</td>
+      <td>${Number.isFinite(item.averageFeePercent) ? `${percent.format(item.averageFeePercent)} %` : "–"}</td>
+    `;
+    csvPurchaseFeeList.append(row);
+  }
+}
+
 function renderCashflows() {
   if (!cashflowBody || !cashflowTableWrap) return;
   cashflowBody.innerHTML = "";
@@ -676,6 +709,7 @@ function renderCashflows() {
     if (cashflowSummary) cashflowSummary.textContent = cashflows.length === 1 ? "1 Zahlungsstrom anzeigen" : `${cashflows.length} Zahlungsströme anzeigen`;
   }
   enhanceDateInputs(cashflowBody);
+  renderCsvPurchaseFeeSummary();
 }
 
 function escapeHtml(value) {
@@ -885,7 +919,7 @@ function historySeriesDefinitions(history) {
   (history.funds || []).forEach((fund, index) => {
     returnSeries.push({
       key: `return:fund:${fund.isin}`,
-      label: fund.title && fund.title !== fund.isin ? fund.title : fund.isin,
+      label: `${fund.title && fund.title !== fund.isin ? fund.title : fund.isin} · Positionsrendite`,
       detail: fund.isin,
       color: historyFundColor(index),
       defaultSelected: false,
@@ -955,12 +989,18 @@ function renderHistorySeriesPicker(history) {
   }
 }
 
+function historyNumericValue(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
 function historyPath(points, x, y) {
   let d = "";
   let penDown = false;
   for (const point of points) {
-    const value = Number(point.value);
-    if (!Number.isFinite(value)) {
+    const value = historyNumericValue(point.value);
+    if (value === null) {
       penDown = false;
       continue;
     }
@@ -988,7 +1028,7 @@ function setHistoryLegend(node, series) {
 function renderHistoryLineChart(container, series, { ariaLabel, formatter }) {
   if (!container) return false;
   const visible = series.filter((item) => historySeriesIsSelected(item.key, item.defaultSelected));
-  const finitePoints = visible.flatMap((item) => item.points.filter((point) => Number.isFinite(Number(point.value))));
+  const finitePoints = visible.flatMap((item) => item.points.filter((point) => historyNumericValue(point.value) !== null));
   if (!visible.length || !finitePoints.length) {
     container.innerHTML = '<p class="depot-history__empty-chart">Keine Diagrammlinie mit verfügbaren Daten ausgewählt.</p>';
     return false;
@@ -1004,7 +1044,7 @@ function renderHistoryLineChart(container, series, { ariaLabel, formatter }) {
   const endDateValue = dates[dates.length - 1];
   const startMs = Date.parse(`${startDate}T00:00:00Z`);
   const endMs = Date.parse(`${endDateValue}T00:00:00Z`);
-  const values = finitePoints.map((point) => Number(point.value));
+  const values = finitePoints.map((point) => historyNumericValue(point.value));
   let minY = Math.min(...values, 0);
   let maxY = Math.max(...values, 0);
   if (Math.abs(maxY - minY) < 1e-12) {
@@ -1653,6 +1693,15 @@ cashflowBody?.addEventListener("change", (event) => {
     } else if (field === "note") {
       flow.note = input.value.trim();
     }
+    if (field === "title") renderCsvPurchaseFeeSummary();
+    if (["type", "amount", "isin", "quantity"].includes(field)) {
+      flow.valuationDate = "";
+      flow.referenceValue = null;
+      flow.purchaseFeePerUnit = null;
+      flow.purchaseFeeTotal = null;
+      flow.purchaseFeePercent = null;
+      renderCsvPurchaseFeeSummary();
+    }
     clearCalculation();
   } catch (error) {
     showError(error.message || "Zahlungsstrom konnte nicht geändert werden.");
@@ -2021,7 +2070,7 @@ async function createPdfBytes({ includeCashflows = false, includeHistoryCharts =
 
   function drawPdfHistoryChart(title, series, formatter) {
     const visible = series.filter((item) => historySeriesIsSelected(item.key, item.defaultSelected));
-    const finitePoints = visible.flatMap((item) => item.points.filter((point) => Number.isFinite(Number(point.value))));
+    const finitePoints = visible.flatMap((item) => item.points.filter((point) => historyNumericValue(point.value) !== null));
     if (!visible.length || !finitePoints.length) return false;
 
     const chartHeight = 150;
@@ -2061,7 +2110,7 @@ async function createPdfBytes({ includeCashflows = false, includeHistoryCharts =
     const endDateValue = dates[dates.length - 1];
     const startMs = Date.parse(`${startDate}T00:00:00Z`);
     const endMs = Date.parse(`${endDateValue}T00:00:00Z`);
-    const values = finitePoints.map((point) => Number(point.value));
+    const values = finitePoints.map((point) => historyNumericValue(point.value));
     let minY = Math.min(...values, 0);
     let maxY = Math.max(...values, 0);
     if (Math.abs(maxY - minY) < 1e-12) {
@@ -2088,8 +2137,8 @@ async function createPdfBytes({ includeCashflows = false, includeHistoryCharts =
       let previous = null;
       const color = pdfColorFromHex(item.color);
       for (const point of item.points) {
-        const value = Number(point.value);
-        if (!Number.isFinite(value)) {
+        const value = historyNumericValue(point.value);
+        if (value === null) {
           previous = null;
           continue;
         }
