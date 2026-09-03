@@ -303,6 +303,13 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 Die Projektversion steht in `VERSION`. Für die sichtbaren Seiten-Footer wird sie zentral als `SITE_VERSION` in `docs/js/site-map.js` gesetzt und von `docs/js/navigation.js` ausgegeben.
 
-Aktuelle Version: **0.5.4**
+Aktuelle Version: **0.5.5**
 
 - Depotrendite-Ergebnisse können über **PDF / Drucken** als A4-Bericht mit Eingaben, optionalen Cashflow-Details, Sparplan-Hinweisen, Benchmarks, Vergleichsgrafiken und Berechnungsdetails ausgegeben werden.
+
+
+### 0.5.5
+
+- Historische Depotwertentwicklung: Fehler `formatDate is not defined` behoben.
+- Ein Startbetrag von `0,00` ist zulässig, wenn die tatsächlichen Einzahlungen erst über spätere Zahlungsströme erfolgen.
+- Beginnt ein Bank-CSV am frühesten Buchungsdatum mit einer Nullbuchung aus einem Dauerauftrag, wird diese Buchung weiterhin nicht als Zahlungsstrom importiert, kann bei leerem Startbereich aber automatisch das Depot-Startdatum mit Startwert `0,00` setzen.
