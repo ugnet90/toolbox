@@ -7,6 +7,9 @@ import {
   formatGermanNumber,
   generateRecurringDates,
   initialInvestment,
+  mergeDateRanges,
+  missingDateRanges,
+  buildDepotHistory,
   normalizeFundReturnData,
   parseBankTransactionsCsv,
   parseGermanNumber,
@@ -82,6 +85,14 @@ const dataStatusNode = document.querySelector("[data-fund-data-status]");
 const savingsPlanSummary = document.querySelector("[data-savings-plan-summary]");
 const savingsPlanList = document.querySelector("[data-savings-plan-list]");
 const benchmarkCheckboxes = [...document.querySelectorAll("[data-benchmark-checkbox]")];
+const depotHistory = document.querySelector("[data-depot-history]");
+const depotHistoryStatus = document.querySelector("[data-depot-history-status]");
+const depotHistoryChart = document.querySelector("[data-depot-history-chart]");
+const depotHistoryPeriod = document.querySelector("[data-depot-history-period]");
+const depotHistoryValue = document.querySelector("[data-depot-history-value]");
+const depotHistoryInvested = document.querySelector("[data-depot-history-invested]");
+const depotHistoryFunds = document.querySelector("[data-depot-history-funds]");
+const useHistoryEndValueButton = document.querySelector("[data-use-history-end-value]");
 
 const benchmarkCards = Object.fromEntries(
   Object.keys(BENCHMARKS).map((kind) => [kind, document.querySelector(`[data-benchmark-card="${kind}"]`)])
@@ -114,6 +125,8 @@ const cashflowDate = document.querySelector("#cashflowDate");
 const cashflowType = document.querySelector("#cashflowType");
 const cashflowAmount = document.querySelector("#cashflowAmount");
 const cashflowTitle = document.querySelector("#cashflowTitle");
+const cashflowIsin = document.querySelector("#cashflowIsin");
+const cashflowQuantity = document.querySelector("#cashflowQuantity");
 const cashflowNote = document.querySelector("#cashflowNote");
 
 const recurringType = document.querySelector("#recurringType");
@@ -170,6 +183,8 @@ let nextCashflowId = 1;
 let calculationRevision = 0;
 let lastCoreCalculation = null;
 let lastBenchmarkResults = [];
+let lastDepotHistory = null;
+const memoryPriceCache = new Map();
 
 function isTouchDateEnvironment() {
   return navigator.maxTouchPoints > 0 && window.matchMedia?.("(pointer: coarse)")?.matches;
@@ -348,6 +363,10 @@ function clearCalculation() {
   if (savingsPlanList) savingsPlanList.innerHTML = "";
   lastCoreCalculation = null;
   lastBenchmarkResults = [];
+  lastDepotHistory = null;
+  if (depotHistory) depotHistory.hidden = true;
+  if (depotHistoryChart) depotHistoryChart.innerHTML = "";
+  if (depotHistoryStatus) { depotHistoryStatus.hidden = true; depotHistoryStatus.textContent = ""; }
   if (valueChart) valueChart.innerHTML = "";
   if (returnChart) returnChart.innerHTML = "";
   if (printButton) printButton.hidden = true;
@@ -402,7 +421,10 @@ function currentFundData() {
       benchmarkKinds: selectedBenchmarkKinds(),
       kestExemption: kestExemption?.value
     },
-    cashflows: cashflows.map(({ date, type, amount, title, note }) => ({ date, type, amount, title: title || "", note: note || "" }))
+    cashflows: cashflows.map(({ date, type, amount, title, note, isin, quantity, unit }) => ({
+      date, type, amount, title: title || "", note: note || "", isin: isin || "",
+      quantity: Number.isFinite(Number(quantity)) ? Number(quantity) : null, unit: unit || ""
+    }))
   });
 }
 
@@ -518,6 +540,14 @@ async function importBankTransactionsCsv(file) {
   if (!parsed.hasTitleColumn) {
     appendWarning("Die CSV-Datei enthält keine Spalte „Titel“. Eine fondsbezogene Sparplan-Erkennung ist daher für diese Buchungen nicht möglich.");
   }
+  if (!parsed.hasIsinColumn || !parsed.hasQuantityColumn) {
+    appendWarning("Für die historische Depotwert-Grafik werden zusätzlich die CSV-Spalten „ISIN“ und „Menge“ benötigt.");
+  } else if (parsed.securityIsins.length) {
+    showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped} ${parsed.securityIsins.length} Wertpapier-ISIN(s) mit Stückbewegungen erkannt. Bitte Depotrendite neu berechnen.`);
+  }
+  if (parsed.normalizedQuantitySigns > 0) {
+    appendWarning(`${parsed.normalizedQuantitySigns} Mengenangabe(n) wurden für Kauf/Verkauf auf das passende Vorzeichen normalisiert.`);
+  }
 }
 
 function typeOptions(selected) {
@@ -539,6 +569,8 @@ function renderCashflows() {
       <td><select class="table-input" data-flow-field="type" aria-label="Art">${typeOptions(flow.type)}</select></td>
       <td><input class="table-input table-input--amount" type="text" inputmode="decimal" value="${formatGermanNumber(flow.amount)}" data-flow-field="amount" aria-label="Betrag"></td>
       <td><input class="table-input" type="text" maxlength="120" value="${escapeHtml(flow.title || "")}" data-flow-field="title" aria-label="Titel"></td>
+      <td><input class="table-input table-input--isin" type="text" maxlength="12" value="${escapeHtml(flow.isin || "")}" data-flow-field="isin" aria-label="ISIN"></td>
+      <td><input class="table-input table-input--quantity" type="text" inputmode="decimal" value="${flow.quantity === null || flow.quantity === undefined ? "" : formatGermanNumber(flow.quantity, 6).replace(/0+$/, "").replace(/,$/, "")}" data-flow-field="quantity" aria-label="Menge"></td>
       <td><input class="table-input" type="text" maxlength="120" value="${escapeHtml(flow.note || "")}" data-flow-field="note" aria-label="Notiz"></td>
       <td><button class="icon-button" type="button" data-delete-cashflow="${flow.id}" aria-label="Zahlung löschen">×</button></td>
     `;
@@ -561,16 +593,202 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function addCashflow({ date, type, amount, title = "", note = "" }) {
+function addCashflow({ date, type, amount, title = "", isin = "", quantity = "", note = "" }) {
   if (!date) throw new Error("Bitte ein Datum für den Zahlungsstrom eingeben.");
   const signedAmount = normalizeSignedAmount(amount, type);
-  cashflows.push({ id: nextCashflowId++, date, type, amount: signedAmount, title: title.trim(), note: note.trim() });
+  const normalizedIsin = String(isin || "").trim().toUpperCase();
+  if (normalizedIsin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(normalizedIsin)) throw new Error("Die ISIN ist ungültig.");
+  let normalizedQuantity = quantity === "" || quantity === null || quantity === undefined ? null : parseGermanNumber(quantity);
+  if (normalizedQuantity !== null && !Number.isFinite(normalizedQuantity)) throw new Error("Die Menge ist ungültig.");
+  if (normalizedQuantity === 0) normalizedQuantity = null;
+  if (normalizedQuantity !== null && type === "contribution") normalizedQuantity = Math.abs(normalizedQuantity);
+  if (normalizedQuantity !== null && type === "withdrawal") normalizedQuantity = -Math.abs(normalizedQuantity);
+  cashflows.push({ id: nextCashflowId++, date, type, amount: signedAmount, title: title.trim(), note: note.trim(), isin: normalizedIsin, quantity: normalizedQuantity, unit: normalizedQuantity === null ? "" : "Stk" });
   renderCashflows();
   clearCalculation();
 }
 
 function monthFromDate(iso) {
   return String(iso).slice(0, 7);
+}
+
+
+const PRICE_DB_NAME = "toolbox-depot-price-cache";
+const PRICE_DB_VERSION = 1;
+const PRICE_STORE = "funds";
+const LOCAL_PRICE_REFRESH_MS = 20 * 60 * 60 * 1000;
+
+function openPriceDb() {
+  if (!("indexedDB" in window)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const request = indexedDB.open(PRICE_DB_NAME, PRICE_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PRICE_STORE)) db.createObjectStore(PRICE_STORE, { keyPath: "isin" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function getPriceCacheRecord(isin) {
+  const memory = memoryPriceCache.get(isin);
+  const db = await openPriceDb();
+  if (!db) return memory || null;
+  return new Promise((resolve) => {
+    const tx = db.transaction(PRICE_STORE, "readonly");
+    const request = tx.objectStore(PRICE_STORE).get(isin);
+    request.onsuccess = () => resolve(request.result || memory || null);
+    request.onerror = () => resolve(memory || null);
+    tx.oncomplete = () => db.close();
+  });
+}
+
+async function putPriceCacheRecord(record) {
+  memoryPriceCache.set(record.isin, record);
+  const db = await openPriceDb();
+  if (!db) return;
+  await new Promise((resolve) => {
+    const tx = db.transaction(PRICE_STORE, "readwrite");
+    tx.objectStore(PRICE_STORE).put(record);
+    tx.oncomplete = resolve;
+    tx.onerror = resolve;
+  });
+  db.close();
+}
+
+function isoDaysAgo(days) {
+  const date = new Date();
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function dateMax(a, b) { return a > b ? a : b; }
+
+async function fetchUnionPriceRange(isin, start, end) {
+  const url = new URL(`${DATA_PROXY}/union-prices`);
+  url.searchParams.set("isin", isin);
+  url.searchParams.set("start", start);
+  url.searchParams.set("end", end);
+  const response = await fetch(url.toString(), { headers: { Accept: "application/json" }, cache: "no-store" });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error || `${isin}: Union-Kursdaten konnten nicht geladen werden.`);
+  return payload;
+}
+
+async function ensureUnionPriceRange(isin, start, end) {
+  let record = await getPriceCacheRecord(isin) || {
+    isin,
+    currency: null,
+    prices: {},
+    coveredRanges: [],
+    updatedAt: null,
+    sourceCreationDate: null
+  };
+  const missing = missingDateRanges(start, end, record.coveredRanges || []);
+  const updatedMs = record.updatedAt ? Date.parse(record.updatedAt) : NaN;
+  const recentTailNeedsRefresh = end >= isoDaysAgo(14) && (!Number.isFinite(updatedMs) || Date.now() - updatedMs > LOCAL_PRICE_REFRESH_MS);
+  if (recentTailNeedsRefresh) {
+    const tail = { start: dateMax(start, isoDaysAgo(14)), end };
+    if (!missing.some((range) => range.start <= tail.start && range.end >= tail.end)) missing.push(tail);
+  }
+
+  for (const range of mergeDateRanges(missing)) {
+    const payload = await fetchUnionPriceRange(isin, range.start, range.end);
+    for (const obs of payload.observations || []) {
+      const price = Number(obs.redemption_price);
+      if (obs.date && Number.isFinite(price)) record.prices[obs.date] = price;
+    }
+    if (payload.previous_observation?.date && Number.isFinite(Number(payload.previous_observation.redemption_price))) {
+      record.prices[payload.previous_observation.date] = Number(payload.previous_observation.redemption_price);
+    }
+    record.currency = payload.fund?.currency || record.currency || "EUR";
+    record.sourceCreationDate = payload.creation_date || record.sourceCreationDate;
+    record.updatedAt = new Date().toISOString();
+    record.coveredRanges = mergeDateRanges([...(record.coveredRanges || []), range]);
+  }
+  await putPriceCacheRecord(record);
+  const observations = Object.entries(record.prices || {}).map(([date, redemption_price]) => ({ date, redemption_price }))
+    .filter((item) => item.date <= end)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return { currency: record.currency || "EUR", observations, updatedAt: record.updatedAt };
+}
+
+function securityFlowsForHistory() {
+  return cashflows.filter((flow) => flow.isin && Number.isFinite(Number(flow.quantity)) && Number(flow.quantity) !== 0 && ["contribution", "withdrawal"].includes(flow.type));
+}
+
+function setDepotHistoryStatus(message, isError = false) {
+  if (!depotHistoryStatus) return;
+  depotHistoryStatus.textContent = message;
+  depotHistoryStatus.hidden = false;
+  depotHistoryStatus.classList.toggle("depot-history__status--error", isError);
+}
+
+function svgText(value) {
+  return escapeHtml(String(value));
+}
+
+function renderDepotHistorySvg(history) {
+  if (!depotHistoryChart) return;
+  const points = history.points || [];
+  if (!points.length) { depotHistoryChart.innerHTML = ""; return; }
+  const width = 1000;
+  const height = 360;
+  const left = 82, right = 24, top = 24, bottom = 54;
+  const plotW = width - left - right;
+  const plotH = height - top - bottom;
+  const startMs = Date.parse(`${points[0].date}T00:00:00Z`);
+  const endMs = Date.parse(`${points[points.length - 1].date}T00:00:00Z`);
+  const values = points.flatMap((p) => [p.depotValue, p.netInvested, 0]);
+  const minY = Math.min(...values);
+  const maxY = Math.max(...values);
+  const spanY = Math.max(maxY - minY, 1);
+  const x = (date) => left + ((Date.parse(`${date}T00:00:00Z`) - startMs) / Math.max(endMs - startMs, 1)) * plotW;
+  const y = (value) => top + (1 - ((value - minY) / spanY)) * plotH;
+  const path = (key) => points.map((p, index) => `${index ? "L" : "M"}${x(p.date).toFixed(2)},${y(p[key]).toFixed(2)}`).join(" ");
+  const yTicks = Array.from({ length: 5 }, (_, index) => minY + (spanY * index) / 4);
+  const xTickIndexes = [...new Set([0, Math.round((points.length - 1) / 3), Math.round((points.length - 1) * 2 / 3), points.length - 1])];
+  const formatDate = (iso) => new Intl.DateTimeFormat("de-AT", { month: "2-digit", year: "numeric" }).format(new Date(`${iso}T00:00:00Z`));
+  depotHistoryChart.innerHTML = `
+    <svg class="depot-history__svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Historische Depotwertentwicklung">
+      ${yTicks.map((tick) => `<line class="depot-history__grid" x1="${left}" x2="${width-right}" y1="${y(tick)}" y2="${y(tick)}"></line><text class="depot-history__axis-label" x="${left-10}" y="${y(tick)+4}" text-anchor="end">${svgText(currency.format(tick))}</text>`).join("")}
+      <line class="depot-history__axis" x1="${left}" x2="${left}" y1="${top}" y2="${height-bottom}"></line>
+      <line class="depot-history__axis" x1="${left}" x2="${width-right}" y1="${height-bottom}" y2="${height-bottom}"></line>
+      ${xTickIndexes.map((idx) => `<text class="depot-history__axis-label" x="${x(points[idx].date)}" y="${height-bottom+28}" text-anchor="middle">${svgText(formatDate(points[idx].date))}</text>`).join("")}
+      <path class="depot-history__line depot-history__line--invested" d="${path("netInvested")}"></path>
+      <path class="depot-history__line depot-history__line--value" d="${path("depotValue")}"></path>
+    </svg>`;
+}
+
+function renderDepotHistory(history) {
+  lastDepotHistory = history;
+  if (!depotHistory) return;
+  depotHistory.hidden = false;
+  if (depotHistoryStatus) depotHistoryStatus.hidden = true;
+  setText(depotHistoryPeriod, `${formatDate(history.startDate)} – ${formatDate(history.endDate)}`);
+  setText(depotHistoryValue, currency.format(history.lastValue));
+  setText(depotHistoryInvested, currency.format(history.lastNetInvested));
+  setText(depotHistoryFunds, `${history.isins.length} Fonds / ${history.holdings.length} aktuelle Position(en)`);
+  renderDepotHistorySvg(history);
+}
+
+async function refreshDepotHistory(endIso) {
+  const flows = securityFlowsForHistory();
+  if (!flows.length) {
+    if (depotHistory) depotHistory.hidden = true;
+    return null;
+  }
+  const start = flows.map((flow) => flow.date).sort()[0];
+  const isins = [...new Set(flows.map((flow) => flow.isin))].sort();
+  if (depotHistory) depotHistory.hidden = false;
+  setDepotHistoryStatus(`Historische Rücknahmepreise für ${isins.length} ISIN(s) werden geladen …`);
+  const pricePairs = await Promise.all(isins.map(async (isin) => [isin, await ensureUnionPriceRange(isin, start, endIso)]));
+  const pricesByIsin = Object.fromEntries(pricePairs);
+  const history = buildDepotHistory({ cashflows, pricesByIsin, endDate: endIso, maxPoints: 850 });
+  renderDepotHistory(history);
+  return history;
 }
 
 async function fetchBenchmarkRates(kind, startIso, endIso) {
@@ -1032,6 +1250,21 @@ cashflowBody?.addEventListener("change", (event) => {
       input.value = formatGermanNumber(value);
     } else if (field === "title") {
       flow.title = input.value.trim();
+    } else if (field === "isin") {
+      const value = input.value.trim().toUpperCase();
+      if (value && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(value)) throw new Error("ISIN ist ungültig.");
+      flow.isin = value;
+      input.value = value;
+    } else if (field === "quantity") {
+      const raw = input.value.trim();
+      if (!raw) {
+        flow.quantity = null;
+      } else {
+        const value = parseGermanNumber(raw);
+        if (!Number.isFinite(value)) throw new Error("Menge ist ungültig.");
+        flow.quantity = value === 0 ? null : value;
+        input.value = flow.quantity === null ? "" : formatGermanNumber(flow.quantity, 6).replace(/0+$/, "").replace(/,$/, "");
+      }
     } else if (field === "note") {
       flow.note = input.value.trim();
     }
@@ -1049,10 +1282,14 @@ document.querySelector("[data-add-cashflow]")?.addEventListener("click", () => {
       type: cashflowType.value,
       amount: cashflowAmount.value,
       title: cashflowTitle.value,
+      isin: cashflowIsin?.value || "",
+      quantity: cashflowQuantity?.value || "",
       note: cashflowNote.value
     });
     cashflowAmount.value = "";
     cashflowTitle.value = "";
+    if (cashflowIsin) cashflowIsin.value = "";
+    if (cashflowQuantity) cashflowQuantity.value = "";
     cashflowNote.value = "";
   } catch (error) {
     showError(error.message || "Zahlungsstrom konnte nicht hinzugefügt werden.");
@@ -1074,7 +1311,10 @@ document.querySelector("[data-add-recurring]")?.addEventListener("click", () => 
         type: recurringType.value,
         amount: signedAmount,
         title: recurringTitle.value.trim(),
-        note: recurringNote.value.trim()
+        note: recurringNote.value.trim(),
+        isin: "",
+        quantity: null,
+        unit: ""
       });
     }
     renderCashflows();
@@ -1521,6 +1761,14 @@ printConfirmButton?.addEventListener("click", () => {
   window.setTimeout(restoreTitle, 1500);
 });
 
+
+useHistoryEndValueButton?.addEventListener("click", () => {
+  if (!lastDepotHistory || !endValue) return;
+  endValue.value = formatGermanNumber(lastDepotHistory.lastValue);
+  clearCalculation();
+  showDataStatus(`Historischen Depotwert ${currency.format(lastDepotHistory.lastValue)} als Endwert übernommen. Bitte neu berechnen.`);
+});
+
 resetButton?.addEventListener("click", () => {
   form?.reset();
   cashflows = [];
@@ -1560,6 +1808,13 @@ form?.addEventListener("submit", async (event) => {
     renderCoreResults(calc, xirrResult);
     renderSavingsPlanSummary(calc.enteredIntermediate);
     lastCoreCalculation = { calc, xirrResult };
+
+    try {
+      await refreshDepotHistory(calc.finishDate);
+    } catch (historyError) {
+      if (depotHistory) depotHistory.hidden = false;
+      setDepotHistoryStatus(historyError.message || "Historische Depotwertentwicklung konnte nicht geladen werden.", true);
+    }
 
     window.requestAnimationFrame(() => {
       resultsNode?.scrollIntoView({

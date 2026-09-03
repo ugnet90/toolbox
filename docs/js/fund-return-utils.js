@@ -33,7 +33,7 @@ export function formatGermanNumber(value, decimals = 2) {
 }
 
 export const FUND_RETURN_DATA_FORMAT = "toolbox-depot-return";
-export const FUND_RETURN_DATA_SCHEMA_VERSION = 2;
+export const FUND_RETURN_DATA_SCHEMA_VERSION = 3;
 
 const LEGACY_FUND_RETURN_DATA_FORMAT = "toolbox-fund-return";
 const FUND_AMOUNT_MODES = new Set(["gross", "net"]);
@@ -74,8 +74,9 @@ export function normalizeFundReturnData(payload) {
     throw new Error("Die Importdatei enthält keine gültigen Depotrendite-Daten.");
   }
 
-  const isLegacy = payload.format === LEGACY_FUND_RETURN_DATA_FORMAT && Number(payload.schema_version) === 1;
-  const isCurrent = payload.format === FUND_RETURN_DATA_FORMAT && Number(payload.schema_version) === FUND_RETURN_DATA_SCHEMA_VERSION;
+  const schemaVersion = Number(payload.schema_version);
+  const isLegacy = payload.format === LEGACY_FUND_RETURN_DATA_FORMAT && schemaVersion === 1;
+  const isCurrent = payload.format === FUND_RETURN_DATA_FORMAT && [2, FUND_RETURN_DATA_SCHEMA_VERSION].includes(schemaVersion);
   if (!isLegacy && !isCurrent) {
     throw new Error("Die Datei ist keine unterstützte Toolbox-Depotrendite-Datei.");
   }
@@ -115,9 +116,17 @@ export function normalizeFundReturnData(payload) {
     if (amount === 0) return;
     const title = String(flow.title ?? "").trim();
     const note = String(flow.note ?? "").trim();
+    const isin = String(flow.isin ?? "").trim().toUpperCase();
+    const rawQuantity = flow.quantity;
+    const quantity = rawQuantity === null || rawQuantity === undefined || rawQuantity === ""
+      ? null
+      : requireFiniteNumber(rawQuantity, `Menge in Zahlungsstrom ${index + 1}`);
+    const unit = String(flow.unit ?? "").trim();
     if (title.length > 120) throw new Error(`Titel in Zahlungsstrom ${index + 1} ist zu lang.`);
     if (note.length > 120) throw new Error(`Notiz in Zahlungsstrom ${index + 1} ist zu lang.`);
-    cashflows.push({ date: String(flow.date), type, amount, title, note });
+    if (isin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) throw new Error(`ISIN in Zahlungsstrom ${index + 1} ist ungültig.`);
+    if (unit.length > 20) throw new Error(`Einheit in Zahlungsstrom ${index + 1} ist zu lang.`);
+    cashflows.push({ date: String(flow.date), type, amount, title, note, isin, quantity, unit });
   });
 
   return {
@@ -239,13 +248,18 @@ export function parseBankTransactionsCsv(text) {
     Object.entries(required).map(([key, label]) => [key, header.indexOf(label)])
   );
   const titleIndex = header.indexOf("titel");
+  const isinIndex = header.indexOf("isin");
+  const quantityIndex = header.indexOf("menge");
+  const unitIndex = header.indexOf("einheit");
   const missing = Object.entries(indexes).filter(([, index]) => index < 0).map(([key]) => required[key]);
   if (missing.length) throw new Error(`CSV-Spalte(n) fehlen: ${missing.join(", ")}.`);
 
   const cashflows = [];
   let unknownBusinessTypes = 0;
   let normalizedOutflowSigns = 0;
+  let normalizedQuantitySigns = 0;
   let skippedZeroAmounts = 0;
+  const securityIsins = new Set();
 
   for (let index = 1; index < nonEmptyRows.length; index += 1) {
     const row = nonEmptyRows[index];
@@ -254,8 +268,12 @@ export function parseBankTransactionsCsv(text) {
     const businessType = String(row[indexes.type] ?? "").trim();
     const rawDate = String(row[indexes.date] ?? "").trim();
     const title = titleIndex >= 0 ? String(row[titleIndex] ?? "").trim() : "";
-    if (!rawAmount && !businessType && !rawDate && !title) continue;
+    const isin = isinIndex >= 0 ? String(row[isinIndex] ?? "").trim().toUpperCase() : "";
+    const rawQuantity = quantityIndex >= 0 ? String(row[quantityIndex] ?? "").trim() : "";
+    const unit = unitIndex >= 0 ? String(row[unitIndex] ?? "").trim() : "";
+    if (!rawAmount && !businessType && !rawDate && !title && !isin && !rawQuantity) continue;
     if (!rawAmount || !rawDate) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag oder Abrechnungsdatum fehlt.`);
+    if (isin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) throw new Error(`CSV-Zeile ${lineNumber}: ISIN ist ungültig.`);
 
     let amount = parseGermanNumber(rawAmount);
     if (!Number.isFinite(amount)) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag ist ungültig.`);
@@ -271,18 +289,46 @@ export function parseBankTransactionsCsv(text) {
       normalizedOutflowSigns += 1;
     }
 
+    let quantity = null;
+    if (rawQuantity) {
+      quantity = parseGermanNumber(rawQuantity);
+      if (!Number.isFinite(quantity)) throw new Error(`CSV-Zeile ${lineNumber}: Menge ist ungültig.`);
+      if (quantity === 0) quantity = null;
+    }
+    if (quantity !== null && type === "contribution" && quantity < 0) {
+      quantity = Math.abs(quantity);
+      normalizedQuantitySigns += 1;
+    } else if (quantity !== null && type === "withdrawal" && quantity > 0) {
+      quantity = -quantity;
+      normalizedQuantitySigns += 1;
+    }
+    if (isin && quantity !== null && ["contribution", "withdrawal"].includes(type)) securityIsins.add(isin);
+
     cashflows.push({
       date: germanDateToIso(rawDate, lineNumber),
       type,
       amount,
       title: title.slice(0, 120),
-      note: businessType.slice(0, 120)
+      note: businessType.slice(0, 120),
+      isin,
+      quantity,
+      unit: unit.slice(0, 20)
     });
   }
 
   if (!cashflows.length && skippedZeroAmounts === 0) throw new Error("Die CSV-Datei enthält keine importierbaren Buchungen.");
   if (cashflows.length > 5000) throw new Error("Die CSV-Datei enthält zu viele Buchungen.");
-  return { cashflows, unknownBusinessTypes, normalizedOutflowSigns, skippedZeroAmounts, hasTitleColumn: titleIndex >= 0 };
+  return {
+    cashflows,
+    unknownBusinessTypes,
+    normalizedOutflowSigns,
+    normalizedQuantitySigns,
+    skippedZeroAmounts,
+    hasTitleColumn: titleIndex >= 0,
+    hasIsinColumn: isinIndex >= 0,
+    hasQuantityColumn: quantityIndex >= 0,
+    securityIsins: [...securityIsins].sort()
+  };
 }
 
 function monthSerial(isoDate) {
@@ -403,6 +449,162 @@ export function generateRecurringDates({ firstDate, lastDate, intervalMonths }) 
   if (!dates.length) throw new Error("Es konnten keine Zahlungstermine erzeugt werden.");
   if (dates.length >= 1200) throw new Error("Zu viele Zahlungstermine.");
   return dates;
+}
+
+
+function nextIsoDay(iso) {
+  const date = parseIsoDate(iso);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return toIsoDate(date);
+}
+
+function previousIsoDay(iso) {
+  const date = parseIsoDate(iso);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return toIsoDate(date);
+}
+
+export function mergeDateRanges(ranges) {
+  const valid = (ranges ?? []).map((item) => ({ start: String(item?.start || ""), end: String(item?.end || "") }))
+    .filter((item) => {
+      try {
+        parseIsoDate(item.start);
+        parseIsoDate(item.end);
+        return item.start <= item.end;
+      } catch {
+        return false;
+      }
+    })
+    .sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+
+  const merged = [];
+  for (const range of valid) {
+    const last = merged[merged.length - 1];
+    if (!last || range.start > nextIsoDay(last.end)) {
+      merged.push({ ...range });
+    } else if (range.end > last.end) {
+      last.end = range.end;
+    }
+  }
+  return merged;
+}
+
+export function missingDateRanges(start, end, coveredRanges) {
+  parseIsoDate(start);
+  parseIsoDate(end);
+  if (start > end) throw new Error("Ungültiger Kurszeitraum.");
+  const covered = mergeDateRanges(coveredRanges).filter((range) => range.end >= start && range.start <= end);
+  const missing = [];
+  let cursor = start;
+  for (const range of covered) {
+    const overlapStart = range.start < start ? start : range.start;
+    const overlapEnd = range.end > end ? end : range.end;
+    if (overlapStart > cursor) missing.push({ start: cursor, end: previousIsoDay(overlapStart) });
+    if (overlapEnd >= cursor) cursor = nextIsoDay(overlapEnd);
+    if (cursor > end) break;
+  }
+  if (cursor <= end) missing.push({ start: cursor, end });
+  return missing;
+}
+
+function normalizedPriceSeries(series, isin) {
+  const currency = String(series?.currency || "EUR").toUpperCase();
+  if (currency && currency !== "EUR") {
+    throw new Error(`${isin}: Fondswaehrung ${currency} wird fuer die Depotwert-Historie derzeit nicht unterstuetzt.`);
+  }
+  const observations = (series?.observations ?? []).map((item) => ({
+    date: String(item?.date || ""),
+    redemption_price: Number(item?.redemption_price)
+  })).filter((item) => {
+    try { parseIsoDate(item.date); } catch { return false; }
+    return Number.isFinite(item.redemption_price) && item.redemption_price >= 0;
+  }).sort((a, b) => a.date.localeCompare(b.date));
+  if (!observations.length) throw new Error(`${isin}: Keine historischen Ruecknahmepreise verfuegbar.`);
+  return observations;
+}
+
+function sampleHistoryPoints(points, maxPoints) {
+  if (points.length <= maxPoints) return points;
+  const keep = new Set([0, points.length - 1]);
+  const step = (points.length - 1) / (maxPoints - 1);
+  for (let i = 1; i < maxPoints - 1; i += 1) keep.add(Math.round(i * step));
+  return [...keep].sort((a, b) => a - b).map((index) => points[index]);
+}
+
+export function buildDepotHistory({ cashflows, pricesByIsin, endDate, maxPoints = 800 }) {
+  parseIsoDate(endDate);
+  const securityFlows = (cashflows ?? []).map((flow) => ({
+    ...flow,
+    isin: String(flow?.isin || "").trim().toUpperCase(),
+    quantity: flow?.quantity === null || flow?.quantity === undefined || flow?.quantity === "" ? null : Number(flow.quantity),
+    amount: Number(flow?.amount),
+    date: String(flow?.date || "")
+  })).filter((flow) => {
+    if (!/^[A-Z]{2}[A-Z0-9]{10}$/.test(flow.isin) || !Number.isFinite(flow.quantity) || flow.quantity === 0) return false;
+    if (!["contribution", "withdrawal"].includes(flow.type)) return false;
+    try { parseIsoDate(flow.date); } catch { return false; }
+    return flow.date <= endDate;
+  }).sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!securityFlows.length) throw new Error("Keine Kauf-/Verkaufsbuchungen mit ISIN und Menge vorhanden.");
+  const isins = [...new Set(securityFlows.map((flow) => flow.isin))];
+  const priceSeries = Object.fromEntries(isins.map((isin) => [isin, normalizedPriceSeries(pricesByIsin?.[isin], isin)]));
+  const startDate = securityFlows[0].date;
+
+  const valuationDates = new Set([startDate, endDate]);
+  for (const flow of securityFlows) valuationDates.add(flow.date);
+  for (const isin of isins) {
+    for (const obs of priceSeries[isin]) {
+      if (obs.date >= startDate && obs.date <= endDate) valuationDates.add(obs.date);
+    }
+  }
+  const dates = [...valuationDates].sort();
+  const holdings = Object.fromEntries(isins.map((isin) => [isin, 0]));
+  const priceIndexes = Object.fromEntries(isins.map((isin) => [isin, -1]));
+  let flowIndex = 0;
+  let netInvested = 0;
+  const points = [];
+
+  for (const date of dates) {
+    while (flowIndex < securityFlows.length && securityFlows[flowIndex].date <= date) {
+      const flow = securityFlows[flowIndex];
+      holdings[flow.isin] += flow.quantity;
+      if (flow.type === "contribution" && Number.isFinite(flow.amount)) netInvested += Math.max(0, -flow.amount);
+      if (flow.type === "withdrawal" && Number.isFinite(flow.amount)) netInvested -= Math.max(0, flow.amount);
+      flowIndex += 1;
+    }
+
+    let value = 0;
+    let complete = true;
+    for (const isin of isins) {
+      const series = priceSeries[isin];
+      let idx = priceIndexes[isin];
+      while (idx + 1 < series.length && series[idx + 1].date <= date) idx += 1;
+      priceIndexes[isin] = idx;
+      const quantity = holdings[isin];
+      if (Math.abs(quantity) < 1e-12) continue;
+      if (idx < 0) {
+        complete = false;
+        break;
+      }
+      value += quantity * series[idx].redemption_price;
+    }
+    if (complete) points.push({ date, depotValue: value, netInvested });
+  }
+
+  if (!points.length) throw new Error("Fuer die importierten Stueckbewegungen konnte kein Depotwert berechnet werden.");
+  const last = points[points.length - 1];
+  const holdingsSummary = isins.map((isin) => ({ isin, quantity: holdings[isin] })).filter((item) => Math.abs(item.quantity) >= 1e-10);
+  return {
+    startDate: points[0].date,
+    endDate: last.date,
+    isins,
+    holdings: holdingsSummary,
+    lastValue: last.depotValue,
+    lastNetInvested: last.netInvested,
+    points: sampleHistoryPoints(points, Math.max(50, Number(maxPoints) || 800)),
+    fullPointCount: points.length
+  };
 }
 
 export function initialInvestment({ amount, amountMode = "gross", purchaseFeePercent = 0 }) {
