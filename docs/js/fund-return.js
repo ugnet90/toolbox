@@ -110,6 +110,25 @@ const depotHistoryValue = document.querySelector("[data-depot-history-value]");
 const depotHistoryInvested = document.querySelector("[data-depot-history-invested]");
 const depotHistoryFunds = document.querySelector("[data-depot-history-funds]");
 const useHistoryEndValueButton = document.querySelector("[data-use-history-end-value]");
+const fundWorkspace = document.querySelector("[data-fund-workspace]");
+const fundEntryChoice = document.querySelector("[data-fund-entry-choice]");
+const manualStartButton = document.querySelector("[data-manual-start]");
+const importSummary = document.querySelector("[data-import-summary]");
+const importSummaryTitle = document.querySelector("[data-import-summary-title]");
+const importSummaryText = document.querySelector("[data-import-summary-text]");
+const importSummaryDetails = document.querySelector("[data-import-summary-details]");
+const startSummaryValue = document.querySelector("[data-start-summary-value]");
+const openStartButton = document.querySelector("[data-open-start]");
+const startDetails = document.querySelector("[data-start-details]");
+const cashflowDetails = document.querySelector("[data-cashflow-details]");
+const cashflowSectionSummary = document.querySelector("[data-cashflow-section-summary]");
+const settingsSummary = document.querySelector("[data-settings-summary]");
+const benchmarkSummary = document.querySelector("[data-benchmark-summary]");
+const autoValuationStatus = document.querySelector("[data-auto-valuation-status]");
+const resultTabs = [...document.querySelectorAll("[data-result-tab]")];
+const resultPanels = [...document.querySelectorAll("[data-result-panel]")];
+const overviewInvested = document.querySelector("[data-overview-invested]");
+const overviewEndValue = document.querySelector("[data-overview-end-value]");
 
 const benchmarkCards = Object.fromEntries(
   Object.keys(BENCHMARKS).map((kind) => [kind, document.querySelector(`[data-benchmark-card="${kind}"]`)])
@@ -208,7 +227,58 @@ let csvImportSessionActive = false;
 let csvImportSessionEarliestDate = null;
 let csvImportAwaitingAdditionalFile = false;
 let csvImportDialogStep = null;
+let csvImportSessionStats = null;
+let lastCsvImportStats = null;
 const memoryPriceCache = new Map();
+const PREFERENCES_KEY = "toolbox.depotreturn.preferences.v1";
+
+function loadPreferences() {
+  try {
+    const raw = localStorage.getItem(PREFERENCES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+let savedPreferences = loadPreferences();
+
+function persistPreferences() {
+  try {
+    const historySeries = Object.fromEntries(historySeriesSelection.entries());
+    const nextPreferences = {
+      benchmarkKinds: selectedBenchmarkKinds(),
+      historySeries,
+      printHistoryCharts: printHistoryCharts?.checked ?? true,
+      printCashflowsMode: printCashflowsMode?.value || "summary"
+    };
+    localStorage.setItem(PREFERENCES_KEY, JSON.stringify(nextPreferences));
+    savedPreferences = nextPreferences;
+  } catch {
+    // Einstellungen sind Komfortfunktionen; Berechnung bleibt ohne Storage nutzbar.
+  }
+}
+
+function applySavedPreferences() {
+  savedPreferences = loadPreferences();
+  if (Array.isArray(savedPreferences.benchmarkKinds)) {
+    const selected = new Set(savedPreferences.benchmarkKinds);
+    benchmarkCheckboxes.forEach((box) => { box.checked = selected.has(box.value); });
+  }
+  historySeriesSelection.clear();
+  if (savedPreferences.historySeries && typeof savedPreferences.historySeries === "object") {
+    for (const [key, value] of Object.entries(savedPreferences.historySeries)) {
+      historySeriesSelection.set(key, value === true);
+    }
+  }
+  if (printHistoryCharts && typeof savedPreferences.printHistoryCharts === "boolean") {
+    printHistoryCharts.checked = savedPreferences.printHistoryCharts;
+  }
+  if (printCashflowsMode && ["summary", "details"].includes(savedPreferences.printCashflowsMode)) {
+    printCashflowsMode.value = savedPreferences.printCashflowsMode;
+  }
+}
 
 function isTouchDateEnvironment() {
   return navigator.maxTouchPoints > 0 && window.matchMedia?.("(pointer: coarse)")?.matches;
@@ -356,6 +426,140 @@ function formatAmountInput(input) {
   if (!input?.value.trim()) return;
   const value = parseGermanNumber(input.value);
   if (Number.isFinite(value)) input.value = formatGermanNumber(value);
+}
+
+function showWorkspace({ manual = false } = {}) {
+  if (fundEntryChoice) fundEntryChoice.hidden = true;
+  if (fundWorkspace) fundWorkspace.hidden = false;
+  if (manual && startDetails) startDetails.open = true;
+  if (manual && cashflowDetails) cashflowDetails.open = true;
+  updateWorkflowSummaries();
+}
+
+function formatCompactDateRange(first, last) {
+  if (!first && !last) return "";
+  if (first === last) return formatReportDate(first);
+  return `${formatReportDate(first)} – ${formatReportDate(last)}`;
+}
+
+function isSecurityMovementCandidate(flow) {
+  if (!["contribution", "withdrawal"].includes(flow?.type)) return false;
+  const note = String(flow?.note || "").toLocaleLowerCase("de-AT");
+  return Boolean(flow?.isin || Number.isFinite(Number(flow?.quantity)) || note.includes("kauf") || note.includes("verkauf"));
+}
+
+function portfolioValuationCoverage() {
+  const movements = cashflows.filter(isSecurityMovementCandidate);
+  const complete = movements.filter((flow) => /^[A-Z]{2}[A-Z0-9]{10}$/.test(String(flow.isin || "").trim().toUpperCase()) && Number.isFinite(Number(flow.quantity)) && Number(flow.quantity) !== 0);
+  return {
+    total: movements.length,
+    complete: complete.length,
+    incomplete: movements.length - complete.length,
+    isins: [...new Set(complete.map((flow) => String(flow.isin).trim().toUpperCase()))]
+  };
+}
+
+function updateStartSummary() {
+  if (!startSummaryValue) return;
+  const date = purchaseDate?.value;
+  const amount = parseGermanNumber(initialAmount?.value);
+  if (date && Number.isFinite(amount)) {
+    startSummaryValue.textContent = `${formatReportDate(date)} · ${currency.format(amount)}`;
+  } else if (date) {
+    startSummaryValue.textContent = formatReportDate(date);
+  } else {
+    startSummaryValue.textContent = "Noch nicht festgelegt";
+  }
+}
+
+function updateBenchmarkSummary() {
+  if (!benchmarkSummary) return;
+  const selected = selectedBenchmarkKinds().map((kind) => BENCHMARKS[kind]?.shortLabel || kind);
+  benchmarkSummary.textContent = selected.length ? selected.join(" · ") : "Keine Benchmarks";
+}
+
+function updateSettingsSummary() {
+  if (!settingsSummary) return;
+  const kest = kestExemption?.value === "yes" ? "KESt-Befreiung" : "KESt normal";
+  const startFee = Number(purchaseFee?.value || 0);
+  const recurringFee = Number(recurringPurchaseFee?.value || 0);
+  const feeText = startFee || recurringFee ? `manuelle Spesen ${percent.format(startFee)} % / ${percent.format(recurringFee)} %` : "manuelle Spesen 0 %";
+  settingsSummary.textContent = `${kest} · ${feeText}`;
+}
+
+function updateCashflowSummary() {
+  if (!cashflowSectionSummary) return;
+  if (!cashflows.length) {
+    cashflowSectionSummary.textContent = "Keine zusätzlichen Buchungen";
+    return;
+  }
+  const coverage = portfolioValuationCoverage();
+  const securityText = coverage.total ? ` · ${coverage.complete}/${coverage.total} Wertpapierbewegungen vollständig` : "";
+  cashflowSectionSummary.textContent = `${cashflows.length} Buchungen${securityText}`;
+}
+
+function updateAutoValuationAvailability() {
+  if (!useHistoryEndValueButton || !autoValuationStatus) return;
+  const coverage = portfolioValuationCoverage();
+  if (!coverage.total) {
+    useHistoryEndValueButton.hidden = true;
+    autoValuationStatus.hidden = true;
+    return;
+  }
+  useHistoryEndValueButton.hidden = false;
+  useHistoryEndValueButton.disabled = coverage.incomplete > 0;
+  autoValuationStatus.hidden = false;
+  autoValuationStatus.classList.toggle("fund-auto-valuation--warning", coverage.incomplete > 0);
+  autoValuationStatus.textContent = coverage.incomplete > 0
+    ? `${coverage.incomplete} von ${coverage.total} Kauf-/Verkaufsbewegung(en) haben keine vollständige ISIN-/Mengenangabe. Der Depotwert wird daher nicht automatisch ermittelt.`
+    : `${coverage.total} Kauf-/Verkaufsbewegung(en) vollständig (${coverage.isins.length} ISIN). Der Depotwert kann aus historischen Kursen ermittelt werden.`;
+}
+
+function updateWorkflowSummaries() {
+  updateStartSummary();
+  updateBenchmarkSummary();
+  updateSettingsSummary();
+  updateCashflowSummary();
+  updateAutoValuationAvailability();
+}
+
+function renderImportSummary(stats = lastCsvImportStats) {
+  if (!importSummary) return;
+  if (!stats) {
+    importSummary.hidden = true;
+    return;
+  }
+  importSummary.hidden = false;
+  if (importSummaryTitle) importSummaryTitle.textContent = stats.kind === "json" ? "Gespeicherte Daten importiert" : "Bank-CSV importiert";
+  if (importSummaryText) {
+    const parts = [];
+    if (stats.files) parts.push(`${stats.files} CSV`);
+    parts.push(`${stats.bookings || cashflows.length} Buchungen`);
+    if (stats.funds) parts.push(`${stats.funds} Fonds`);
+    if (stats.firstDate) parts.push(formatCompactDateRange(stats.firstDate, stats.lastDate));
+    importSummaryText.textContent = parts.join(" · ");
+  }
+  if (importSummaryDetails) {
+    const coverage = portfolioValuationCoverage();
+    const details = [
+      ["Buchungen", String(stats.bookings || cashflows.length)],
+      ["Wertpapiere", `${coverage.isins.length} ISIN`],
+      ["Kauf/Verkauf", coverage.total ? `${coverage.complete}/${coverage.total} vollständig` : "keine Stückbewegungen"],
+      ["Nullbuchungen", String(stats.skippedZeroAmounts || 0)]
+    ];
+    importSummaryDetails.innerHTML = details.map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
+  }
+}
+
+function selectResultTab(name, { reveal = true } = {}) {
+  const target = resultPanels.some((panel) => panel.dataset.resultPanel === name) ? name : "overview";
+  resultTabs.forEach((button) => {
+    const active = button.dataset.resultTab === target;
+    button.setAttribute("aria-selected", active ? "true" : "false");
+    button.classList.toggle("is-active", active);
+  });
+  resultPanels.forEach((panel) => { panel.hidden = panel.dataset.resultPanel !== target; });
+  if (reveal && resultsNode) resultsNode.hidden = false;
 }
 
 function clearCalculation() {
@@ -535,12 +739,18 @@ function applyImportedFundData(data) {
   kestExemption.value = normalized.inputs.kestExemption;
   const wanted = new Set(normalized.inputs.benchmarkKinds || []);
   benchmarkCheckboxes.forEach((box) => { box.checked = wanted.has(box.value); });
+  persistPreferences();
 
   nextCashflowId = 1;
   cashflows = normalized.cashflows.map((flow) => ({ ...flow, id: nextCashflowId++ }));
   renderCashflows();
   syncEnhancedDateInputs();
   clearCalculation();
+  showWorkspace();
+  const orderedDates = cashflows.map((flow) => flow.date).filter(Boolean).sort();
+  lastCsvImportStats = { kind: "json", bookings: cashflows.length, funds: portfolioValuationCoverage().isins.length, firstDate: orderedDates[0] || normalized.inputs.purchaseDate, lastDate: orderedDates.at(-1) || normalized.inputs.endDate, skippedZeroAmounts: 0 };
+  renderImportSummary();
+  updateWorkflowSummaries();
   const flowLabel = cashflows.length === 1 ? "1 zusätzlicher Zahlungsstrom" : `${cashflows.length} zusätzliche Zahlungsströme`;
   showDataStatus(`Daten importiert: ${flowLabel}. Bitte Depotrendite neu berechnen.`);
 }
@@ -593,6 +803,19 @@ async function importBankTransactionsCsv(file) {
     const feeRows = parsed.cashflows.filter((flow) => Number.isFinite(Number(flow.purchaseFeeTotal)));
     if (feeRows.length) showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} Kaufspesen wurden für ${feeRows.length} Kaufbuchung(en) aus Abrechnungsbetrag, Menge und Rechenwert ermittelt.`);
   }
+  if (csvImportSessionStats) {
+    csvImportSessionStats.files += 1;
+    csvImportSessionStats.bookings += parsed.cashflows.length;
+    csvImportSessionStats.skippedZeroAmounts += parsed.skippedZeroAmounts || 0;
+    parsed.securityIsins.forEach((isin) => csvImportSessionStats.funds.add(isin));
+    const dates = parsed.cashflows.map((flow) => flow.date).filter(Boolean).sort();
+    const first = parsed.earliestTransactionDate || dates[0];
+    const last = dates.at(-1) || first;
+    if (first && (!csvImportSessionStats.firstDate || first < csvImportSessionStats.firstDate)) csvImportSessionStats.firstDate = first;
+    if (last && (!csvImportSessionStats.lastDate || last > csvImportSessionStats.lastDate)) csvImportSessionStats.lastDate = last;
+  }
+  showWorkspace();
+  updateWorkflowSummaries();
   return parsed;
 }
 
@@ -600,6 +823,7 @@ function beginCsvImportSession() {
   if (!csvImportSessionActive) {
     csvImportSessionActive = true;
     csvImportSessionEarliestDate = null;
+    csvImportSessionStats = { kind: "csv", files: 0, bookings: 0, skippedZeroAmounts: 0, funds: new Set(), firstDate: null, lastDate: null };
   }
 }
 
@@ -635,9 +859,23 @@ function closeCsvImportDialog() {
 
 function endCsvImportSession() {
   closeCsvImportDialog();
+  if (csvImportSessionStats) {
+    lastCsvImportStats = {
+      kind: "csv",
+      files: csvImportSessionStats.files,
+      bookings: csvImportSessionStats.bookings,
+      skippedZeroAmounts: csvImportSessionStats.skippedZeroAmounts,
+      funds: csvImportSessionStats.funds.size,
+      firstDate: csvImportSessionStats.firstDate || csvImportSessionEarliestDate,
+      lastDate: csvImportSessionStats.lastDate || csvImportSessionEarliestDate
+    };
+    renderImportSummary(lastCsvImportStats);
+  }
   csvImportSessionActive = false;
   csvImportSessionEarliestDate = null;
   csvImportAwaitingAdditionalFile = false;
+  csvImportSessionStats = null;
+  updateWorkflowSummaries();
 }
 
 function openCsvImportQuestion(step) {
@@ -710,6 +948,7 @@ function renderCashflows() {
   }
   enhanceDateInputs(cashflowBody);
   renderCsvPurchaseFeeSummary();
+  updateWorkflowSummaries();
 }
 
 function escapeHtml(value) {
@@ -1111,6 +1350,7 @@ function renderDepotHistory(history) {
   setText(depotHistoryFunds, `${history.isins.length} Fonds / ${history.holdings.length} aktuelle Position(en)`);
   renderHistorySeriesPicker(history);
   renderDepotHistoryCharts(history);
+  if (!lastCoreCalculation) selectResultTab("development");
 }
 
 function buildHistoryContext() {
@@ -1156,6 +1396,10 @@ function buildHistoryContext() {
 }
 
 async function refreshDepotHistory(calc) {
+  const coverage = portfolioValuationCoverage();
+  if (coverage.incomplete > 0) {
+    throw new Error(`Historische Depotentwicklung nicht möglich: ${coverage.incomplete} Kauf-/Verkaufsbewegung(en) haben keine vollständige ISIN-/Mengenangabe.`);
+  }
   const flows = securityFlowsForHistory();
   if (!flows.length) {
     if (depotHistory) depotHistory.hidden = true;
@@ -1265,6 +1509,9 @@ function renderCoreResults(calc, xirrResult) {
   const intermediateSummary = summarizeCashflows(calc.intermediate);
   setText(nodes.xirr, `${percent.format(xirrResult.rate * 100)} % p.a.`);
   setText(nodes.economicResult, currency.format(summary.net));
+  const beforeEnd = summarizeCashflows(calc.benchmarkFlows);
+  setText(overviewInvested, currency.format(Math.max(0, -beforeEnd.net)));
+  setText(overviewEndValue, currency.format(calc.terminalValue));
   setText(nodes.startOutflow, currency.format(calc.start.customerOutflow));
   setText(nodes.startNet, currency.format(calc.start.netInvested));
   setText(nodes.startFee, currency.format(calc.start.feeAmount));
@@ -1574,10 +1821,12 @@ function buildPrintReport({ includeCashflows = true, includeHistoryCharts = fals
   const resultSection = document.createElement("section");
   resultSection.className = "print-report__section";
   resultSection.innerHTML = "<h2>Ergebnisse</h2>";
-  const resultClone = resultsNode.cloneNode(true);
-  resultClone.removeAttribute("hidden");
-  resultClone.removeAttribute("aria-live");
-  resultSection.append(resultClone);
+  const coreResultCards = document.querySelector(".fund-results__cards--core");
+  if (coreResultCards) {
+    const resultClone = coreResultCards.cloneNode(true);
+    resultClone.removeAttribute("aria-live");
+    resultSection.append(resultClone);
+  }
   printReport.append(resultSection);
 
   if (comparisonChart && !comparisonChart.hidden) {
@@ -1635,11 +1884,13 @@ historySeriesPicker?.addEventListener("change", (event) => {
   const input = event.target.closest?.("[data-history-series-key]");
   if (!input || !lastDepotHistory) return;
   historySeriesSelection.set(input.dataset.historySeriesKey, input.checked);
+  persistPreferences();
   renderDepotHistoryCharts(lastDepotHistory);
 });
 
 function handleFormMutation(event) {
   if (event.target?.matches?.("[data-benchmark-checkbox]")) return;
+  updateWorkflowSummaries();
   clearCalculation();
 }
 form?.addEventListener("input", handleFormMutation);
@@ -1783,7 +2034,7 @@ document.querySelector("[data-add-recurring]")?.addEventListener("click", () => 
 
 
 
-csvImportDialogYes?.addEventListener("click", () => {
+csvImportDialogYes?.addEventListener("click", async () => {
   if (csvImportDialogStep === "more") {
     closeCsvImportDialog();
     csvImportAwaitingAdditionalFile = true;
@@ -1793,12 +2044,14 @@ csvImportDialogYes?.addEventListener("click", () => {
   if (csvImportDialogStep === "start") {
     showDataStatus("CSV-Import abgeschlossen. Bitte Startdatum und Startwert eingeben.");
     endCsvImportSession();
+    determineHistoricalEndValue({ automatic: true }).catch((error) => appendWarning(error.message || "Automatische Depotbewertung nicht möglich."));
+    if (startDetails) startDetails.open = true;
     const purchaseText = enhancedDateInputs.get(purchaseDate);
     (purchaseText || purchaseDate)?.focus();
   }
 });
 
-csvImportDialogNo?.addEventListener("click", () => {
+csvImportDialogNo?.addEventListener("click", async () => {
   if (csvImportDialogStep === "more") {
     openCsvImportQuestion("start");
     return;
@@ -1806,6 +2059,7 @@ csvImportDialogNo?.addEventListener("click", () => {
   if (csvImportDialogStep === "start") {
     applyCsvZeroStart();
     endCsvImportSession();
+    determineHistoricalEndValue({ automatic: true }).catch((error) => appendWarning(error.message || "Automatische Depotbewertung nicht möglich."));
   }
 });
 
@@ -1911,7 +2165,6 @@ function updatePrintOptionsState() {
 printButton?.addEventListener("click", () => {
   if (!printOptions) return;
   updatePrintOptionsState();
-  if (printCashflowsMode) printCashflowsMode.value = "summary";
   if (printConfirmButton) printConfirmButton.hidden = isIosDevice();
   if (printStatus) { printStatus.hidden = true; printStatus.textContent = ""; }
   printOptions.hidden = false;
@@ -2431,20 +2684,34 @@ printConfirmButton?.addEventListener("click", () => {
 });
 
 
-useHistoryEndValueButton?.addEventListener("click", async () => {
-  if (!endValue) return;
+async function determineHistoricalEndValue({ automatic = false } = {}) {
+  if (!endValue) return null;
+  const coverage = portfolioValuationCoverage();
+  if (!coverage.total || coverage.incomplete) {
+    updateAutoValuationAvailability();
+    if (automatic) return null;
+    throw new Error("Für die automatische Depotbewertung müssen alle Kauf-/Verkaufsbewegungen eine gültige ISIN und Menge enthalten.");
+  }
   const button = useHistoryEndValueButton;
-  button.disabled = true;
-  clearCalculation();
+  if (button) button.disabled = true;
   try {
     const history = await refreshDepotHistory(buildHistoryContext());
     if (!history) throw new Error("Historischer Depotwert konnte nicht ermittelt werden.");
     endValue.value = formatGermanNumber(history.lastValue);
-    showDataStatus(`Depotwert ${currency.format(history.lastValue)} zum ${formatReportDate(history.endDate)} aus historischen Rücknahmepreisen übernommen. Die Depotrendite kann jetzt berechnet werden.`);
+    updateWorkflowSummaries();
+    showDataStatus(`Depotwert ${currency.format(history.lastValue)} zum ${formatReportDate(history.endDate)} aus historischen Rücknahmepreisen übernommen.${automatic ? " Automatisch nach dem Import ermittelt." : " Die Depotrendite kann jetzt berechnet werden."}`);
+    return history;
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+useHistoryEndValueButton?.addEventListener("click", async () => {
+  clearCalculation();
+  try {
+    await determineHistoricalEndValue();
   } catch (error) {
     showError(error.message || "Historischer Depotwert konnte nicht ermittelt werden.");
-  } finally {
-    button.disabled = false;
   }
 });
 
@@ -2456,17 +2723,52 @@ resetButton?.addEventListener("click", () => {
   csvImportSessionActive = false;
   csvImportSessionEarliestDate = null;
   csvImportAwaitingAdditionalFile = false;
+  csvImportSessionStats = null;
   closeCsvImportDialog();
   renderCashflows();
   syncEnhancedDateInputs();
   closePrintOptions();
   clearCalculation();
+  lastCsvImportStats = null;
+  if (importSummary) importSummary.hidden = true;
+  if (fundWorkspace) fundWorkspace.hidden = true;
+  if (fundEntryChoice) fundEntryChoice.hidden = false;
+  applySavedPreferences();
+  updateWorkflowSummaries();
+  csvImportButton?.focus();
+});
+
+manualStartButton?.addEventListener("click", () => {
+  showWorkspace({ manual: true });
+  if (importSummary) importSummary.hidden = true;
   const purchaseText = enhancedDateInputs.get(purchaseDate);
   (purchaseText || purchaseDate)?.focus();
 });
 
+openStartButton?.addEventListener("click", () => {
+  if (startDetails) {
+    startDetails.open = true;
+    startDetails.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
+});
+
+document.querySelectorAll("[data-jump-section]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const target = document.querySelector(`[data-work-section="${button.dataset.jumpSection}"]`);
+    if (!target) return;
+    if (target.tagName === "DETAILS") target.open = true;
+    target.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  });
+});
+
+resultTabs.forEach((button) => button.addEventListener("click", () => selectResultTab(button.dataset.resultTab)));
+printHistoryCharts?.addEventListener("change", persistPreferences);
+printCashflowsMode?.addEventListener("change", persistPreferences);
+
 benchmarkCheckboxes.forEach((box) => {
   box.addEventListener("change", async () => {
+    persistPreferences();
+    updateBenchmarkSummary();
     if (!lastCoreCalculation) return;
     calculationRevision += 1;
     const runRevision = calculationRevision;
@@ -2493,6 +2795,7 @@ form?.addEventListener("submit", async (event) => {
     renderCoreResults(calc, xirrResult);
     renderSavingsPlanSummary(calc.enteredIntermediate);
     lastCoreCalculation = { calc, xirrResult };
+    selectResultTab("overview");
 
     try {
       await refreshDepotHistory(calc);
@@ -2529,14 +2832,19 @@ function ensureDefaultEndDate() {
   if (endDate && !endDate.value) endDate.value = todayIsoLocal();
 }
 
+applySavedPreferences();
 ensureDefaultEndDate();
 enhanceDateInputs(document);
 syncEnhancedDateInputs();
 renderCashflows();
+updateWorkflowSummaries();
+selectResultTab("overview", { reveal: false });
 
 form?.addEventListener("reset", () => {
   window.setTimeout(() => {
     ensureDefaultEndDate();
+    applySavedPreferences();
     syncEnhancedDateInputs();
+    updateWorkflowSummaries();
   }, 0);
 });
