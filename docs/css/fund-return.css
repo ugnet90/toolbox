@@ -1342,11 +1342,85 @@
 .depot-history__svg { display: block; width: 100%; min-width: 650px; height: auto; }
 .depot-history__grid { stroke: #e6ecee; stroke-width: 1; }
 .depot-history__axis { stroke: #9caaaf; stroke-width: 1.2; }
-.depot-history__axis-label { fill: #63737a; font-size: 18px; font-family: system-ui, sans-serif; }
-.depot-history__line { fill: none; stroke-width: 3.2; stroke-linejoin: round; stroke-linecap: round; }
+.depot-history__axis-label { fill: #63737a; font-size: 12px; font-family: system-ui, sans-serif; }
+.depot-history__line { fill: none; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
 .depot-history__line--value { stroke: #316880; }
 .depot-history__line--invested { stroke: #a67523; stroke-width: 2.4; }
 .depot-history__actions { margin-top: .75rem; }
+
+.depot-history__series-picker {
+  margin: .85rem 0 1rem;
+  padding: .8rem .9rem;
+  border: 1px solid #d8e2e5;
+  border-radius: 10px;
+  background: #fff;
+}
+.depot-history__series-picker legend {
+  padding: 0 .35rem;
+  font-weight: 750;
+}
+.depot-history__series-picker > .field__hint {
+  display: block;
+  margin: 0 0 .7rem;
+}
+.depot-history__series-grid {
+  display: grid;
+  gap: .8rem;
+}
+.depot-history__series-group > strong {
+  display: block;
+  margin-bottom: .35rem;
+  font-size: .86rem;
+}
+.depot-history__series-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem .9rem;
+}
+.depot-history__series-check {
+  display: inline-flex;
+  align-items: center;
+  gap: .38rem;
+  min-width: 0;
+  font-size: .82rem;
+  cursor: pointer;
+}
+.depot-history__series-check input {
+  margin: 0;
+}
+.depot-history__series-swatch {
+  width: 1.2rem;
+  height: 3px;
+  flex: 0 0 auto;
+  border-radius: 2px;
+}
+.depot-history__chart-block {
+  margin-top: .9rem;
+}
+.depot-history__chart-block[hidden] {
+  display: none;
+}
+.depot-history__chart-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: .7rem 1rem;
+  flex-wrap: wrap;
+  margin-bottom: .45rem;
+}
+.depot-history__chart-heading h4 {
+  margin: 0;
+  font-size: .95rem;
+}
+.depot-history__chart-heading .depot-history__legend {
+  margin: 0;
+}
+.depot-history__empty-chart {
+  margin: 0;
+  padding: 1rem;
+  color: #62727a;
+  font-size: .86rem;
+}
 
 @media (max-width: 760px) {
   .depot-history__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1354,4 +1428,28 @@
 }
 @media (max-width: 430px) {
   .depot-history__stats { grid-template-columns: 1fr; }
+}
+
+@media print {
+  .fund-print-report .depot-history {
+    display: block !important;
+    margin-top: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .fund-print-report .depot-history__series-picker,
+  .fund-print-report .depot-history__actions {
+    display: none !important;
+  }
+  .fund-print-report .depot-history__chart {
+    overflow: hidden;
+  }
+  .fund-print-report .depot-history__svg {
+    min-width: 0;
+    width: 100%;
+  }
+  .fund-print-report .depot-history__axis-label {
+    font-size: 11px;
+  }
 }
