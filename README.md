@@ -303,7 +303,7 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 Die Projektversion steht in `VERSION`. Für die sichtbaren Seiten-Footer wird sie zentral als `SITE_VERSION` in `docs/js/site-map.js` gesetzt und von `docs/js/navigation.js` ausgegeben.
 
-Aktuelle Version: **0.5.6**
+Aktuelle Version: **0.5.7**
 
 - Depotrendite-Ergebnisse können über **PDF / Drucken** als A4-Bericht mit Eingaben, optionalen Cashflow-Details, Sparplan-Hinweisen, Benchmarks, Vergleichsgrafiken und Berechnungsdetails ausgegeben werden.
 
@@ -321,3 +321,15 @@ Aktuelle Version: **0.5.6**
 - Wird keine weitere CSV-Datei gewählt, folgt die Frage, ob Startdatum und Startwert manuell eingegeben werden sollen.
 - Bei „Nein“ werden Startwert `0,00` und das früheste Buchungsdatum aller in dieser Importsitzung eingelesenen CSV-Inhalte automatisch als Depotstart übernommen. Das gilt auch, wenn die früheste CSV-Zeile eine übersprungene Nullbuchung ist.
 - Bei „Ja“ bleiben Startdatum und Startwert zur manuellen Eingabe offen und der Fokus springt zum Startdatum.
+
+
+### 0.5.7
+
+- Historische Depotentwicklung erweitert: kleinere und kompaktere Achsenbeschriftungen sowie getrennte Diagramme für Wertentwicklung und Renditen.
+- Neue historische Depotrendite als geldgewichtete, datumsgenaue XIRR p.a. zum jeweiligen Bewertungstag. Werte für Zeiträume unter 30 Tagen werden bewusst nicht annualisiert dargestellt.
+- Für jede erkannte ISIN kann zusätzlich eine eigene historische Fondsrendite eingeblendet werden; ISIN-bezogene Ausschüttungen, Steuern und Gebühren fließen dabei mit ein, sofern sie im Zahlungsstrom einer ISIN zugeordnet sind.
+- Erfolgreich geladene Benchmarks können in der historischen Darstellung jeweils als Wert- und Renditelinie eingeblendet werden. Alle verfügbaren Linien werden über Checkboxen gesteuert.
+- Historische Diagramme können optional in die PDF-Ausgabe aufgenommen werden; dabei werden die aktuell ausgewählten Linien verwendet.
+- Der Button unter der Depotentwicklung heißt nun „Berechneten Depotwert als Endwert verwenden“ und wird direkt erklärt. Er übernimmt den aus Mengen und historischen Rücknahmepreisen berechneten Depotwert in das Feld End-/Verkaufswert.
+- Kaufspesen sind für Start-/Einmalanlage und manuell erzeugte Sparraten/Daueraufträge getrennt. Für Sparraten kann zwischen Brutto-Kundenaufwand und Nettoanlagebetrag gewählt werden. CSV-Abrechnungsbeträge bleiben unverändert, da sie bereits die tatsächlichen Anleger-Cashflows darstellen.
+- Depotrendite-JSON-Format auf Schema v4 erweitert; ältere v1/v2/v3-Dateien bleiben importierbar. Ein Startwert von 0,00 Euro ist auch beim JSON-Import zulässig.
