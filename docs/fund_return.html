@@ -24,16 +24,62 @@
 <header class="page-heading page-heading--compact-mobile">
 <p class="page-heading__eyebrow">Finanzen</p>
 <h1>Depotrendite &amp; Vergleich</h1>
-<p>Datumsgenaue Nettorendite eines Depots berechnen, mit historischen Zinsbenchmarks vergleichen und bei importierten Wertpapierbuchungen Depotwert- und Renditeentwicklung aus historischen Rücknahmepreisen darstellen.</p>
+<p>Depotdaten importieren oder manuell erfassen, bewerten und anschließend Rendite, Entwicklung und Vergleiche auswerten.</p>
 </header>
 <section class="panel fund-panel">
 <div class="panel__header">
-<h2>Start und Endwert</h2>
-<p>Alle Zahlungsströme werden aus Sicht des Anlegers betrachtet. Zahlungen vom Anleger sind negativ, Zuflüsse zum Anleger positiv.</p>
+<h2>Depot erfassen</h2>
+<p>Starte mit einem Bank-CSV oder erfasse die Depotdaten manuell. Weitere Bereiche werden erst eingeblendet, wenn sie benötigt werden.</p>
 </div>
 <div class="panel__body">
 <form class="fund-form" data-fund-form="">
-<div class="fund-form__meta-grid"><div class="field fund-form__designation"><label for="designation">Bezeichnung <span class="label-optional">(optional)</span></label><input autocomplete="off" id="designation" maxlength="100" name="designation" placeholder="z. B. Depot Muster / Strategie 1" type="text"/><span class="field__hint">Wird nur lokal im Browser sowie in Export/PDF verwendet und nicht an GitHub übertragen.</span></div></div><div class="fund-form__start-grid">
+<section class="fund-entry-choice" data-fund-entry-choice="">
+<div class="fund-entry-choice__title">
+<h3>Wie möchtest du beginnen?</h3>
+<p>Für Bank-CSV werden Buchungen, ISIN, Mengen und – soweit vorhanden – Kaufspesen automatisch ausgewertet.</p>
+</div>
+<div class="fund-entry-choice__actions">
+<button class="primary-button" data-import-bank-csv="" type="button">Bank-CSV importieren</button>
+<button class="secondary-button" data-manual-start="" type="button">Manuell erfassen</button>
+<button class="link-button" data-import-fund="" type="button">Gespeicherte JSON-Daten importieren</button>
+</div>
+</section><input accept="application/json,.json" data-import-fund-file="" hidden="" type="file"/><input accept=".csv,text/csv" data-import-bank-csv-file="" hidden="" type="file"/><div class="fund-workspace" data-fund-workspace="" hidden=""><section class="fund-import-summary" data-import-summary="" hidden="">
+<div class="fund-import-summary__main">
+<span aria-hidden="true" class="fund-import-summary__icon">✓</span>
+<div><strong data-import-summary-title="">Importiert</strong><span data-import-summary-text=""></span></div>
+</div>
+<details class="fund-import-summary__details">
+<summary>Importdetails</summary>
+<div class="fund-import-summary__detail-grid" data-import-summary-details=""></div>
+</details>
+</section><nav aria-label="Bereiche" class="fund-workspace-nav">
+<button data-jump-section="valuation" type="button">Bewertung</button>
+<button data-jump-section="start" type="button">Depotstart</button>
+<button data-jump-section="cashflows" type="button">Zahlungsströme</button>
+<button data-jump-section="settings" type="button">Kosten &amp; Steuern</button>
+<button data-jump-section="benchmarks" type="button">Vergleiche</button>
+</nav><section class="fund-work-section fund-work-section--depot" data-work-section="valuation">
+<div class="fund-work-section__heading"><div><span class="fund-work-section__eyebrow">Depot</span><h3>Bewertung</h3></div></div>
+<div class="fund-start-summary" data-start-summary="">
+<span>Depotstart</span><strong data-start-summary-value="">Noch nicht festgelegt</strong>
+<button class="link-button" data-open-start="" type="button">Ändern</button>
+</div>
+<div data-valuation-grid=""><div class="fund-form__end-grid">
+<div class="field">
+<label for="endDate">End-/Bewertungsdatum</label>
+<input id="endDate" name="endDate" required="" type="date"/>
+</div>
+<div class="field">
+<label for="endValue">End-/Verkaufswert</label>
+<input autocomplete="off" id="endValue" inputmode="decimal" name="endValue" placeholder="z. B. 72.500,00" required="" type="text"/>
+<button class="secondary-button fund-history-end-button" data-use-history-end-value="" type="button">Depotwert aus historischen Kursen ermitteln</button>
+<span class="field__hint">Bei Verkauf möglichst den tatsächlich verbleibenden Nettoerlös verwenden. Bei importierten Kauf-/Verkaufsbuchungen mit ISIN und Menge kann der Depotwert bereits vor der Renditeberechnung aus den historischen Rücknahmepreisen ermittelt und hier eingesetzt werden.</span>
+</div>
+</div></div>
+<p class="fund-auto-valuation" data-auto-valuation-status="" hidden=""></p>
+</section><details class="fund-work-section fund-work-section--neutral" data-start-details="" data-work-section="start">
+<summary><span><span class="fund-work-section__eyebrow">Depot</span><strong>Depotstart &amp; Bezeichnung</strong></span><small>Nur ändern, wenn die automatische Übernahme nicht passt.</small></summary>
+<div class="fund-work-section__body" data-start-body=""><div class="fund-form__meta-grid"><div class="field fund-form__designation"><label for="designation">Bezeichnung <span class="label-optional">(optional)</span></label><input autocomplete="off" id="designation" maxlength="100" name="designation" placeholder="z. B. Depot Muster / Strategie 1" type="text"/><span class="field__hint">Wird nur lokal im Browser sowie in Export/PDF verwendet und nicht an GitHub übertragen.</span></div></div><div class="fund-form__start-grid">
 <div class="field">
 <label for="purchaseDate">Kauf-/Startdatum</label>
 <input id="purchaseDate" name="purchaseDate" required="" type="date"/>
@@ -49,37 +95,11 @@
 <option value="net">Netto – tatsächlich investiert</option>
 </select>
 </div>
-<div class="field">
-<label for="purchaseFee">Kaufspesen Start-/Einmalanlage</label>
-<div class="input-suffix">
-<input id="purchaseFee" inputmode="decimal" max="100" min="0" name="purchaseFee" step="0.01" type="number" value="0"/>
-<span>%</span>
-</div>
-<span class="field__hint">Spesensatz nur für den Start-/Einmalbetrag. Sparraten können unten einen eigenen Spesensatz verwenden.</span>
-</div>
-</div>
-<div class="fund-form__end-grid">
-<div class="field">
-<label for="endDate">End-/Bewertungsdatum</label>
-<input id="endDate" name="endDate" required="" type="date"/>
-</div>
-<div class="field">
-<label for="endValue">End-/Verkaufswert</label>
-<input autocomplete="off" id="endValue" inputmode="decimal" name="endValue" placeholder="z. B. 72.500,00" required="" type="text"/>
-<button class="secondary-button fund-history-end-button" data-use-history-end-value type="button">Depotwert aus historischen Kursen ermitteln</button>
-<span class="field__hint">Bei Verkauf möglichst den tatsächlich verbleibenden Nettoerlös verwenden. Bei importierten Kauf-/Verkaufsbuchungen mit ISIN und Menge kann der Depotwert bereits vor der Renditeberechnung aus den historischen Rücknahmepreisen ermittelt und hier eingesetzt werden.</span>
-</div>
 
-<div class="field">
-<label for="kestExemption">KESt-Befreiungserklärung</label>
-<select id="kestExemption" name="kestExemption">
-<option selected="" value="no">Nein</option>
-<option value="yes">Ja – liegt wirksam vor</option>
-</select>
-<span class="field__hint">Bei „Ja“ werden KESt-Cashflows auf Fondsebene ignoriert und die historischen Zinsbenchmarks ohne KESt-Abzug gerechnet. Die Option betrifft nur den KESt-Abzug, nicht Körperschaftsteuer oder sonstige Steuern.</span>
-</div>
-</div><fieldset class="benchmark-picker" data-benchmark-picker=""><legend>Historische Benchmarks</legend><p class="benchmark-picker__hint">Ausgewählte Benchmarks werden mit denselben Anleger-Zahlungszeitpunkten berechnet. Nach einer Berechnung kannst du Benchmarks ein- oder ausblenden; der Vergleich wird automatisch neu berechnet.</p><div class="benchmark-picker__grid"><label class="benchmark-check benchmark-check--overnight"><input checked="" data-benchmark-checkbox="" type="checkbox" value="overnight"/> <span>Ø täglich fällige Einlagen AT</span></label><label class="benchmark-check benchmark-check--euribor3m"><input checked="" data-benchmark-checkbox="" type="checkbox" value="euribor3m"/> <span>3-Monats-Euribor</span></label><label class="benchmark-check benchmark-check--euribor6m"><input data-benchmark-checkbox="" type="checkbox" value="euribor6m"/> <span>6-Monats-Euribor</span></label><label class="benchmark-check benchmark-check--euribor12m"><input data-benchmark-checkbox="" type="checkbox" value="euribor12m"/> <span>12-Monats-Euribor</span></label></div><p class="field__hint">Alle Zinsbenchmarks werden als fiktive Sparprodukte behandelt: positive Zinsen unterliegen grundsätzlich 25 % KESt; bei wirksamer KESt-Befreiungserklärung 0 %.</p></fieldset>
-<section aria-labelledby="cashflow-heading" class="cashflow-section">
+</div></div>
+</details><details class="fund-work-section fund-work-section--neutral" data-cashflow-details="" data-work-section="cashflows">
+<summary><span><span class="fund-work-section__eyebrow">Buchungen</span><strong>Zahlungsströme</strong></span><small data-cashflow-section-summary="">Keine zusätzlichen Buchungen</small></summary>
+<div class="fund-work-section__body" data-cashflow-body-section=""><section aria-labelledby="cashflow-heading" class="cashflow-section">
 <div class="section-heading-row">
 <div>
 <h3 id="cashflow-heading">Weitere Zahlungsströme</h3>
@@ -107,7 +127,7 @@
 <input autocomplete="off" id="cashflowAmount" inputmode="decimal" placeholder="z. B. 200,00 oder -35,00" type="text"/>
 </div>
 <div class="field cashflow-entry__title"><label for="cashflowTitle">Titel <span class="label-optional">(optional)</span></label><input id="cashflowTitle" maxlength="120" placeholder="z. B. Fonds XY" type="text"/></div>
-<div class="field cashflow-entry__isin"><label for="cashflowIsin">ISIN <span class="label-optional">(optional)</span></label><input id="cashflowIsin" maxlength="12" placeholder="z. B. DE0008491051" type="text" autocapitalize="characters"/></div>
+<div class="field cashflow-entry__isin"><label for="cashflowIsin">ISIN <span class="label-optional">(optional)</span></label><input autocapitalize="characters" id="cashflowIsin" maxlength="12" placeholder="z. B. DE0008491051" type="text"/></div>
 <div class="field cashflow-entry__quantity"><label for="cashflowQuantity">Menge <span class="label-optional">(optional)</span></label><input id="cashflowQuantity" inputmode="decimal" placeholder="z. B. 0,467" type="text"/></div>
 <div class="field cashflow-entry__note">
 <label for="cashflowNote">Notiz</label>
@@ -148,7 +168,7 @@
 <div class="field">
 <label for="recurringAmountMode">Sparrate ist</label>
 <select id="recurringAmountMode">
-<option selected value="gross">Brutto – tatsächlicher Kundenaufwand</option>
+<option selected="" value="gross">Brutto – tatsächlicher Kundenaufwand</option>
 <option value="net">Netto – tatsächlich investiert</option>
 </select>
 </div>
@@ -184,29 +204,53 @@
 </div>
 <button class="secondary-button" data-add-recurring="" type="button">Zahlungen erzeugen</button>
 </details>
-</section>
-<p class="form-message form-message--error" data-fund-error="" hidden=""></p>
-<p class="form-message fund-warning" data-fund-warning="" hidden=""></p>
-<p aria-live="polite" class="fund-data-status" data-fund-data-status="" hidden=""></p>
-<section class="csv-fee-summary" data-csv-purchase-fee-summary hidden>
+</section><section class="csv-fee-summary" data-csv-purchase-fee-summary="" hidden="">
 <h3>Aus CSV ermittelte Fondskaufspesen</h3>
 <p>Für Kaufbuchungen mit <strong>Stichtag</strong>, <strong>Rechenwert</strong>, <strong>Menge</strong> und <strong>Abrechnungsbetrag</strong>. Die Differenz zwischen tatsächlichem Anlegeraufwand und Rechenwert × Menge wird buchungsgenau als Kaufspesen-/Preisabweichung ausgewiesen.</p>
 <div class="csv-fee-summary__table-wrap"><table class="csv-fee-summary__table">
 <thead><tr><th>Fonds</th><th>Käufe</th><th>Rechenwert gesamt</th><th>Anlegeraufwand</th><th>Differenz / Spesen</th><th>Ø in %</th></tr></thead>
-<tbody data-csv-purchase-fee-list></tbody>
+<tbody data-csv-purchase-fee-list=""></tbody>
 </table></div>
-</section>
-<input accept="application/json,.json" data-import-fund-file="" hidden="" type="file"/>
-<input accept=".csv,text/csv" data-import-bank-csv-file="" hidden="" type="file"/>
-<div aria-label="Depotrendite-Rechner Aktionen" class="fund-form__actions" role="group">
+</section></div>
+</details><details class="fund-work-section fund-work-section--settings" data-work-section="settings">
+<summary><span><span class="fund-work-section__eyebrow">Einstellungen</span><strong>Kosten &amp; Steuern</strong></span><small data-settings-summary="">KESt normal · manuelle Spesen 0 %</small></summary>
+<div class="fund-work-section__body" data-settings-body=""><div class="field">
+<label for="kestExemption">KESt-Befreiungserklärung</label>
+<select id="kestExemption" name="kestExemption">
+<option selected="" value="no">Nein</option>
+<option value="yes">Ja – liegt wirksam vor</option>
+</select>
+<span class="field__hint">Bei „Ja“ werden KESt-Cashflows auf Fondsebene ignoriert und die historischen Zinsbenchmarks ohne KESt-Abzug gerechnet. Die Option betrifft nur den KESt-Abzug, nicht Körperschaftsteuer oder sonstige Steuern.</span>
+</div><div class="field">
+<label for="purchaseFee">Kaufspesen Start-/Einmalanlage</label>
+<div class="input-suffix">
+<input id="purchaseFee" inputmode="decimal" max="100" min="0" name="purchaseFee" step="0.01" type="number" value="0"/>
+<span>%</span>
+</div>
+<span class="field__hint">Spesensatz nur für den Start-/Einmalbetrag. Sparraten können unten einen eigenen Spesensatz verwenden.</span>
+</div><p class="field__hint">Kaufspesen aus Bank-CSV werden – sofern Stichtag, Rechenwert und Menge vorhanden sind – buchungsgenau aus den importierten Daten ermittelt. Die manuellen Spesenfelder gelten nur für manuell erfasste Start-/Einmalanlagen bzw. erzeugte Sparraten.</p></div>
+</details><details class="fund-work-section fund-work-section--benchmark" data-work-section="benchmarks">
+<summary><span><span class="fund-work-section__eyebrow">Vergleich</span><strong>Benchmarks</strong></span><small data-benchmark-summary=""></small></summary>
+<div class="fund-work-section__body" data-benchmark-body=""><div class="benchmark-picker"><p class="benchmark-picker__hint">Die Auswahl wird auf diesem Gerät gespeichert und bleibt bis zur nächsten Änderung erhalten.</p><div class="benchmark-picker__grid"><div class="benchmark-category"><strong>Zinsvergleich</strong><div class="benchmark-picker__grid"><label class="benchmark-check benchmark-check--overnight"><input checked="" data-benchmark-checkbox="" type="checkbox" value="overnight"/> <span>Ø täglich fällige Einlagen AT</span></label><label class="benchmark-check benchmark-check--euribor3m"><input checked="" data-benchmark-checkbox="" type="checkbox" value="euribor3m"/> <span>3-Monats-Euribor</span></label><label class="benchmark-check benchmark-check--euribor6m"><input data-benchmark-checkbox="" type="checkbox" value="euribor6m"/> <span>6-Monats-Euribor</span></label><label class="benchmark-check benchmark-check--euribor12m"><input data-benchmark-checkbox="" type="checkbox" value="euribor12m"/> <span>12-Monats-Euribor</span></label></div></div><div class="benchmark-category benchmark-category--planned">
+<strong>Aktienmärkte</strong>
+<div class="benchmark-market-grid">
+<span>Europa</span><span>USA</span><span>Asien/Pazifik</span><span>Global</span>
+</div>
+<small>Vorbereitet. Eine automatische Quelle wird erst aktiviert, wenn ihre Weiterverwendung für dieses öffentliche Tool eindeutig zulässig ist.</small>
+</div></div><p class="field__hint">Alle Zinsbenchmarks werden als fiktive Sparprodukte behandelt: positive Zinsen unterliegen grundsätzlich 25 % KESt; bei wirksamer KESt-Befreiungserklärung 0 %.</p></div></div>
+</details><p class="form-message form-message--error" data-fund-error="" hidden=""></p><p class="form-message fund-warning" data-fund-warning="" hidden=""></p><p aria-live="polite" class="fund-data-status" data-fund-data-status="" hidden=""></p><div aria-label="Depotrendite-Rechner Aktionen" class="fund-form__actions" role="group">
 <button class="primary-button" type="submit">Depotrendite berechnen</button>
-<button class="secondary-button" data-import-fund="" type="button">Daten importieren</button>
-<button class="secondary-button" data-import-bank-csv="" type="button">CSV importieren</button>
 <button class="secondary-button" data-export-fund="" type="button">Daten exportieren</button>
 <button class="secondary-button" data-reset-fund="" type="button">Zurücksetzen</button>
+</div></div></form>
+<section aria-live="polite" class="fund-result-workspace" data-fund-results="" hidden="">
+<div aria-label="Ergebnisbereiche" class="fund-result-tabs" role="tablist">
+<button aria-selected="true" data-result-tab="overview" role="tab" type="button">Übersicht</button>
+<button aria-selected="false" data-result-tab="development" role="tab" type="button">Entwicklung</button>
+<button aria-selected="false" data-result-tab="comparison" role="tab" type="button">Vergleich</button>
+<button aria-selected="false" data-result-tab="details" role="tab" type="button">Details</button>
 </div>
-</form>
-<div aria-live="polite" class="fund-results" data-fund-results="" hidden="">
+<div class="fund-result-panel fund-result-panel--overview" data-result-panel="overview"><div aria-live="polite" class="fund-results fund-results__cards fund-results__cards--core">
 <div class="fund-result-card fund-result-card--primary fund-result-card--fund">
 <span class="fund-result-card__label">Depot · effektive Nettorendite</span>
 <strong class="fund-result-card__value" data-xirr=""></strong>
@@ -217,46 +261,44 @@
 <strong class="fund-result-card__value" data-economic-result=""></strong>
 <span class="fund-result-card__meta">alle Anleger-Cashflows inkl. Depot-Endwert</span>
 </div>
-<div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--overnight" data-benchmark-card="overnight" hidden="">
-<span class="fund-result-card__label">Historische Spareinlage</span>
-<strong class="fund-result-card__value" data-benchmark-rate="overnight"></strong>
-<span class="fund-result-card__meta" data-benchmark-meta="overnight"></span>
-</div>
-<div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--euribor3m" data-benchmark-card="euribor3m" hidden="">
-<span class="fund-result-card__label">3-Monats-Euribor</span>
-<strong class="fund-result-card__value" data-benchmark-rate="euribor3m"></strong>
-<span class="fund-result-card__meta" data-benchmark-meta="euribor3m"></span>
-</div><div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--euribor6m" data-benchmark-card="euribor6m" hidden=""><span class="fund-result-card__label">6-Monats-Euribor</span><strong class="fund-result-card__value" data-benchmark-rate="euribor6m"></strong><span class="fund-result-card__meta" data-benchmark-meta="euribor6m"></span></div><div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--euribor12m" data-benchmark-card="euribor12m" hidden=""><span class="fund-result-card__label">12-Monats-Euribor</span><strong class="fund-result-card__value" data-benchmark-rate="euribor12m"></strong><span class="fund-result-card__meta" data-benchmark-meta="euribor12m"></span></div>
-</div>
-<div class="fund-result-actions">
+<div class="fund-result-card fund-result-card--fund"><span class="fund-result-card__label">Netto-Anlegeraufwand</span><strong class="fund-result-card__value" data-overview-invested=""></strong><span class="fund-result-card__meta">Saldo der Anleger-Cashflows vor Endwert</span></div><div class="fund-result-card fund-result-card--fund"><span class="fund-result-card__label">Depotwert</span><strong class="fund-result-card__value" data-overview-end-value=""></strong><span class="fund-result-card__meta">End-/Verkaufswert am Bewertungsdatum</span></div></div><div class="fund-result-actions">
 <button class="secondary-button" data-print-fund="" hidden="" type="button">PDF / Drucken</button>
-</div>
-<section class="savings-plan-summary" data-savings-plan-summary="" hidden=""><h3>Erkannte Sparpläne</h3><p>Aus regelmäßigen Kaufbuchungen mit gleichem Titel erkannte Vermögensaufbau-Raten (Betragstoleranz etwa ±1 %).</p><ul data-savings-plan-list=""></ul></section><section aria-labelledby="depot-history-heading" class="depot-history" data-depot-history hidden>
+</div><section class="savings-plan-summary" data-savings-plan-summary="" hidden=""><h3>Erkannte Sparpläne</h3><p>Aus regelmäßigen Kaufbuchungen mit gleichem Titel erkannte Vermögensaufbau-Raten (Betragstoleranz etwa ±1 %).</p><ul data-savings-plan-list=""></ul></section></div>
+<div class="fund-result-panel" data-result-panel="development" hidden=""><section aria-labelledby="depot-history-heading" class="depot-history" data-depot-history="" hidden="">
 <h3 id="depot-history-heading">Historische Depotentwicklung</h3>
 <p>Aus importierten bzw. erfassten Kauf-/Verkaufsbuchungen mit <strong>ISIN und Menge</strong>. Für jeden Bewertungstag wird der letzte verfügbare offizielle Rücknahmepreis vor bzw. am Datum verwendet.</p>
-<p class="depot-history__status" data-depot-history-status aria-live="polite" hidden></p>
+<p aria-live="polite" class="depot-history__status" data-depot-history-status="" hidden=""></p>
 <div class="depot-history__stats">
-<div><span>Zeitraum</span><strong data-depot-history-period></strong></div>
-<div><span>Depotwert am Ende</span><strong data-depot-history-value></strong></div>
-<div><span>Kumulierte Nettoinvestitionen</span><strong data-depot-history-invested></strong></div>
-<div><span>Wertpapiere</span><strong data-depot-history-funds></strong></div>
+<div><span>Zeitraum</span><strong data-depot-history-period=""></strong></div>
+<div><span>Depotwert am Ende</span><strong data-depot-history-value=""></strong></div>
+<div><span>Kumulierte Nettoinvestitionen</span><strong data-depot-history-invested=""></strong></div>
+<div><span>Wertpapiere</span><strong data-depot-history-funds=""></strong></div>
 </div>
 <fieldset class="depot-history__series-picker">
 <legend>Diagrammlinien auswählen</legend>
 <p class="field__hint">Depotwert, kumulierte Nettoinvestitionen sowie Gewinn/Verlust verwenden die Euro-Skala. Gewinn/Verlust entspricht dem jeweils bewerteten Depotwert zuzüglich aller bis dahin angefallenen Anleger-Cashflows. Renditen werden zusätzlich als datumsgenaue XIRR p.a. seit Beginn dargestellt. Einzelne Positionsrenditen berücksichtigen Cashflows, die einer ISIN zugeordnet sind, und beginnen erst mit der ersten Kaufposition dieser ISIN. Oben ausgewählte und erfolgreich geladene Benchmarks erscheinen hier zusätzlich als Wert- und Renditelinien.</p>
-<div class="depot-history__series-grid" data-history-series-picker></div>
+<div class="depot-history__series-grid" data-history-series-picker=""></div>
 </fieldset>
-<div class="depot-history__chart-block" data-history-value-block>
-<div class="depot-history__chart-heading"><h4>Wertentwicklung</h4><div class="depot-history__legend" data-history-value-legend></div></div>
-<div class="depot-history__chart" data-depot-history-chart></div>
+<div class="depot-history__chart-block" data-history-value-block="">
+<div class="depot-history__chart-heading"><h4>Wertentwicklung</h4><div class="depot-history__legend" data-history-value-legend=""></div></div>
+<div class="depot-history__chart" data-depot-history-chart=""></div>
 </div>
-<div class="depot-history__chart-block" data-history-return-block>
-<div class="depot-history__chart-heading"><h4>Historische Renditen</h4><div class="depot-history__legend" data-history-return-legend></div></div>
-<div class="depot-history__chart" data-depot-return-chart></div>
+<div class="depot-history__chart-block" data-history-return-block="">
+<div class="depot-history__chart-heading"><h4>Historische Renditen</h4><div class="depot-history__legend" data-history-return-legend=""></div></div>
+<div class="depot-history__chart" data-depot-return-chart=""></div>
 <p class="field__hint">Die historische Depotrendite ist die geldgewichtete, datumsgenaue XIRR p.a. zum jeweiligen Bewertungstag. Bei sehr kurzen Zeiträumen unter 30 Tagen wird keine Rendite dargestellt.</p>
 </div>
 <p class="field__hint">Kursdaten werden lokal im Browser (IndexedDB) zwischengespeichert. Beim Worker werden nur ISIN und benötigter Zeitraum abgefragt; Beträge, Mengen, Titel und Depotbezeichnung werden nicht übertragen.</p>
-</section><section aria-labelledby="comparison-chart-heading" class="comparison-chart" data-comparison-chart="" hidden="">
+</section></div>
+<div class="fund-result-panel fund-result-panel--benchmark" data-result-panel="comparison" hidden=""><div class="fund-results fund-results__cards fund-results__cards--benchmarks" data-benchmark-results=""><div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--overnight" data-benchmark-card="overnight" hidden="">
+<span class="fund-result-card__label">Historische Spareinlage</span>
+<strong class="fund-result-card__value" data-benchmark-rate="overnight"></strong>
+<span class="fund-result-card__meta" data-benchmark-meta="overnight"></span>
+</div><div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--euribor3m" data-benchmark-card="euribor3m" hidden="">
+<span class="fund-result-card__label">3-Monats-Euribor</span>
+<strong class="fund-result-card__value" data-benchmark-rate="euribor3m"></strong>
+<span class="fund-result-card__meta" data-benchmark-meta="euribor3m"></span>
+</div><div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--euribor6m" data-benchmark-card="euribor6m" hidden=""><span class="fund-result-card__label">6-Monats-Euribor</span><strong class="fund-result-card__value" data-benchmark-rate="euribor6m"></strong><span class="fund-result-card__meta" data-benchmark-meta="euribor6m"></span></div><div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--euribor12m" data-benchmark-card="euribor12m" hidden=""><span class="fund-result-card__label">12-Monats-Euribor</span><strong class="fund-result-card__value" data-benchmark-rate="euribor12m"></strong><span class="fund-result-card__meta" data-benchmark-meta="euribor12m"></span></div></div><section aria-labelledby="comparison-chart-heading" class="comparison-chart" data-comparison-chart="" hidden="">
 <div class="comparison-chart__header">
 <h3 id="comparison-chart-heading">Vergleich auf einen Blick</h3>
 <p>Depot und ausgewählte Benchmarks mit denselben Anleger-Zahlungszeitpunkten.</p>
@@ -272,8 +314,8 @@
 <div class="comparison-bars comparison-bars--return" data-return-chart=""></div>
 </div>
 </div>
-</section>
-<details class="fund-details" data-fund-details="" hidden="">
+</section></div>
+<div class="fund-result-panel fund-result-panel--details" data-result-panel="details" hidden=""><details class="fund-details" data-fund-details="" hidden="">
 <summary>Berechnungsdetails</summary>
 <div class="detail-grid">
 <div class="detail-item detail-item--fund"><span class="detail-item__label">Kundenaufwand Start</span><span class="detail-item__value" data-start-outflow=""></span></div>
@@ -304,43 +346,42 @@
 <a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 3-Monats-Euribor, Monatsdurchschnitt</a>
 <a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR6MD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 6-Monats-Euribor, Monatsdurchschnitt</a><a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR1YD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 12-Monats-Euribor, Monatsdurchschnitt</a><a href="https://data.ecb.europa.eu/help/api/data" rel="noopener noreferrer" target="_blank">ECB Data Portal API</a>
 </div>
-</details>
-<aside class="fund-general-note"><strong>Hinweis:</strong> Die historische Depotwert-Grafik ist eine Bewertungsdarstellung aus Stückbewegungen und Rücknahmepreisen. Die zusätzlich dargestellten historischen Renditen sind geldgewichtete XIRR-Rechnungen auf Basis der erfassten Anleger-Cashflows und der jeweils berechneten Depot-/Fonds-Werte; sie bilden keine österreichische Fondsbesteuerung vollständig nach. Ausschüttungen, Steuern, Gebühren und sonstige Belastungen werden grundsätzlich über die tatsächlich angefallenen Cashflows erfasst. Liegt eine wirksame KESt-Befreiungserklärung vor, werden nur als „KESt / Steuer auf ausschüttungsgleichen Ertrag“ erfasste Cashflows aus der Depotrendite entfernt; bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Befreiung vom KESt-Abzug bedeutet außerdem nicht automatisch Steuerfreiheit auf Körperschaftsebene. Historische Zinsbenchmarks werden als fiktive Sparprodukte behandelt und unterliegen ohne Befreiungserklärung 25 % KESt auf positive Zinsen.</aside>
-</div>
+</details><aside class="fund-general-note"><strong>Hinweis:</strong> Die historische Depotwert-Grafik ist eine Bewertungsdarstellung aus Stückbewegungen und Rücknahmepreisen. Die zusätzlich dargestellten historischen Renditen sind geldgewichtete XIRR-Rechnungen auf Basis der erfassten Anleger-Cashflows und der jeweils berechneten Depot-/Fonds-Werte; sie bilden keine österreichische Fondsbesteuerung vollständig nach. Ausschüttungen, Steuern, Gebühren und sonstige Belastungen werden grundsätzlich über die tatsächlich angefallenen Cashflows erfasst. Liegt eine wirksame KESt-Befreiungserklärung vor, werden nur als „KESt / Steuer auf ausschüttungsgleichen Ertrag“ erfasste Cashflows aus der Depotrendite entfernt; bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Befreiung vom KESt-Abzug bedeutet außerdem nicht automatisch Steuerfreiheit auf Körperschaftsebene. Historische Zinsbenchmarks werden als fiktive Sparprodukte behandelt und unterliegen ohne Befreiungserklärung 25 % KESt auf positive Zinsen.</aside></div>
+</section></div>
 </section>
 </main>
-<div class="print-options-overlay" data-csv-import-dialog hidden>
+<div class="print-options-overlay" data-csv-import-dialog="" hidden="">
 <div aria-labelledby="csv-import-dialog-title" aria-modal="true" class="print-options-dialog" role="dialog">
-<h2 id="csv-import-dialog-title" data-csv-import-dialog-title>CSV-Import</h2>
-<p data-csv-import-dialog-question></p>
+<h2 data-csv-import-dialog-title="" id="csv-import-dialog-title">CSV-Import</h2>
+<p data-csv-import-dialog-question=""></p>
 <div class="print-options-actions">
-<button class="primary-button" data-csv-import-dialog-yes type="button">Ja</button>
-<button class="secondary-button" data-csv-import-dialog-no type="button">Nein</button>
+<button class="primary-button" data-csv-import-dialog-yes="" type="button">Ja</button>
+<button class="secondary-button" data-csv-import-dialog-no="" type="button">Nein</button>
 </div>
 </div>
 </div>
-<div class="print-options-overlay" data-print-options hidden>
+<div class="print-options-overlay" data-print-options="" hidden="">
 <div aria-labelledby="print-options-title" aria-modal="true" class="print-options-dialog" role="dialog">
 <h2 id="print-options-title">PDF / Drucken</h2>
 <p>Die Toolbox kann eine echte PDF-Datei direkt im Browser erzeugen. Am iPhone wird sie anschließend geöffnet und kann über „Teilen“ gespeichert oder gedruckt werden.</p>
 <div class="field print-options-cashflows">
 <label for="printCashflowsMode">Zahlungsströme im PDF</label>
-<select data-print-cashflows-mode id="printCashflowsMode">
-<option selected value="summary">Nur Zusammenfassung</option>
+<select data-print-cashflows-mode="" id="printCashflowsMode">
+<option selected="" value="summary">Nur Zusammenfassung</option>
 <option value="details">Einzelne Zahlungsströme anzeigen</option>
 </select>
-<span class="field__hint" data-print-cashflows-hint></span>
+<span class="field__hint" data-print-cashflows-hint=""></span>
 </div>
 <label class="print-options-check">
-<input data-print-history-charts type="checkbox" checked/>
-<span><strong>Historische Diagramme im PDF</strong><br/><small data-print-history-charts-hint>Verwendet die aktuell ausgewählten Diagrammlinien.</small></span>
+<input checked="" data-print-history-charts="" type="checkbox"/>
+<span><strong>Historische Diagramme im PDF</strong><br/><small data-print-history-charts-hint="">Verwendet die aktuell ausgewählten Diagrammlinien.</small></span>
 </label>
 <div class="print-options-actions">
-<button class="primary-button" data-pdf-confirm type="button">PDF erstellen</button>
-<button class="secondary-button" data-print-confirm type="button">Drucken</button>
-<button class="secondary-button" data-print-cancel type="button">Abbrechen</button>
+<button class="primary-button" data-pdf-confirm="" type="button">PDF erstellen</button>
+<button class="secondary-button" data-print-confirm="" type="button">Drucken</button>
+<button class="secondary-button" data-print-cancel="" type="button">Abbrechen</button>
 </div>
-<p class="print-options-status" data-print-status aria-live="polite" hidden></p>
+<p aria-live="polite" class="print-options-status" data-print-status="" hidden=""></p>
 </div>
 </div>
 <section aria-hidden="true" class="fund-print-report" data-print-report=""></section>
