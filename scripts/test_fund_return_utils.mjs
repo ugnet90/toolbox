@@ -216,6 +216,7 @@ const bankCsv = [
 const importedBankCsv = parseBankTransactionsCsv(bankCsv);
 assert.equal(importedBankCsv.cashflows.length, 1);
 assert.equal(importedBankCsv.skippedZeroAmounts, 1);
+assert.equal(importedBankCsv.earliestTransactionDate, "2026-08-17");
 assert.equal(importedBankCsv.suggestedZeroStartDate, null);
 assert.deepEqual(importedBankCsv.cashflows[0], {
   date: "2026-08-17",
@@ -241,6 +242,7 @@ const zeroStandingOrderStartCsv = [
 ].join("\n");
 const importedZeroStandingOrderStart = parseBankTransactionsCsv(zeroStandingOrderStartCsv);
 assert.equal(importedZeroStandingOrderStart.skippedZeroAmounts, 1);
+assert.equal(importedZeroStandingOrderStart.earliestTransactionDate, "2020-03-05");
 assert.equal(importedZeroStandingOrderStart.suggestedZeroStartDate, "2020-03-05");
 assert.equal(importedZeroStandingOrderStart.cashflows.length, 1);
 
