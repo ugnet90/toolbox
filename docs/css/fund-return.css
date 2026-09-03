@@ -1486,3 +1486,309 @@
 .csv-fee-summary__table th:first-child, .csv-fee-summary__table td:first-child { text-align: left; white-space: normal; min-width: 14rem; }
 .csv-fee-summary__table td:first-child small { display: block; color: #6a7e88; margin-top: 0.12rem; }
 @media (max-width: 720px) { .csv-fee-summary { padding: 0.75rem; } .csv-fee-summary__table { font-size: 0.82rem; } }
+
+/* v0.6.0 – progressive Depotrendite-Oberfläche */
+.fund-entry-choice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--fund-border);
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--fund-soft), color-mix(in srgb, var(--surface) 82%, var(--fund-soft)));
+}
+
+.fund-entry-choice__title h3,
+.fund-entry-choice__title p {
+  margin: 0;
+}
+
+.fund-entry-choice__title h3 { font-size: 1.08rem; }
+.fund-entry-choice__title p { margin-top: 4px; color: var(--text-muted); font-size: .9rem; }
+
+.fund-entry-choice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.link-button {
+  border: 0;
+  background: transparent;
+  color: var(--accent, var(--fund-color-strong));
+  padding: 8px 4px;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.fund-workspace {
+  display: grid;
+  gap: 14px;
+}
+
+.fund-import-summary {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--fund-border) 70%, var(--border));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--fund-soft) 52%, var(--surface));
+}
+
+.fund-import-summary__main {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: .86rem;
+}
+
+.fund-import-summary__main > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px 9px;
+}
+
+.fund-import-summary__main span:not(.fund-import-summary__icon) { color: var(--text-muted); }
+.fund-import-summary__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--fund-color);
+  color: white;
+  font-size: .75rem;
+  font-weight: 900;
+}
+
+.fund-import-summary__details { margin-top: 4px; }
+.fund-import-summary__details summary {
+  width: fit-content;
+  color: var(--text-muted);
+  font-size: .78rem;
+  cursor: pointer;
+}
+
+.fund-import-summary__detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.fund-import-summary__detail-grid > div {
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.fund-import-summary__detail-grid span,
+.fund-import-summary__detail-grid strong { display: block; }
+.fund-import-summary__detail-grid span { color: var(--text-muted); font-size: .72rem; }
+.fund-import-summary__detail-grid strong { margin-top: 2px; font-size: .85rem; }
+
+.fund-workspace-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 2px;
+}
+.fund-workspace-nav button {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.fund-workspace-nav button:hover { border-color: var(--fund-border); color: var(--fund-color-strong); }
+
+.fund-work-section {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface);
+  overflow: clip;
+  scroll-margin-top: 88px;
+}
+
+.fund-work-section--depot {
+  padding: 15px;
+  border-color: var(--fund-border);
+  background: color-mix(in srgb, var(--fund-soft) 34%, var(--surface));
+}
+.fund-work-section--settings { border-left: 4px solid #7a8990; }
+.fund-work-section--benchmark { border-left: 4px solid var(--benchmark-color); background: color-mix(in srgb, var(--benchmark-soft) 22%, var(--surface)); }
+
+.fund-work-section > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.fund-work-section > summary::-webkit-details-marker { display: none; }
+.fund-work-section > summary::after {
+  content: "+";
+  flex: 0 0 auto;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+.fund-work-section[open] > summary::after { content: "−"; }
+.fund-work-section > summary > span { display: grid; gap: 1px; }
+.fund-work-section > summary small { margin-left: auto; color: var(--text-muted); text-align: right; font-size: .77rem; font-weight: 500; }
+.fund-work-section__eyebrow { color: var(--text-muted); font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.fund-work-section__body { padding: 4px 14px 15px; }
+.fund-work-section__heading h3 { margin: 0; font-size: 1.05rem; }
+
+.fund-start-summary {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px 12px;
+  align-items: baseline;
+  margin: 10px 0 12px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--fund-border) 55%, var(--border));
+}
+.fund-start-summary > span { color: var(--text-muted); font-size: .78rem; }
+.fund-start-summary strong { font-size: .9rem; }
+.fund-start-summary .link-button { padding: 0; font-size: .8rem; }
+
+.fund-work-section--depot .fund-form__end-grid {
+  grid-template-columns: minmax(170px, .7fr) minmax(260px, 1.3fr);
+  max-width: 780px;
+}
+
+.fund-auto-valuation {
+  margin: 8px 0 0;
+  color: var(--fund-color-strong);
+  font-size: .8rem;
+}
+.fund-auto-valuation--warning { color: #8a5b00; }
+
+.fund-work-section .cashflow-section {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.benchmark-category { display: grid; gap: 8px; }
+.benchmark-category > strong { font-size: .86rem; }
+.benchmark-picker__grid > .benchmark-category { margin-bottom: 10px; }
+.benchmark-picker__grid > .benchmark-category:last-child { margin-bottom: 0; }
+.benchmark-picker > .benchmark-picker__grid { display: block; margin-bottom: 8px; }
+.benchmark-category .benchmark-picker__grid { margin: 0; }
+.benchmark-market-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.benchmark-market-grid span {
+  padding: 6px 9px;
+  border: 1px dashed color-mix(in srgb, var(--benchmark-border) 75%, var(--border));
+  border-radius: 8px;
+  color: var(--benchmark-color-strong);
+  background: color-mix(in srgb, var(--benchmark-soft) 55%, var(--surface));
+  font-size: .8rem;
+}
+.benchmark-category--planned small { color: var(--text-muted); line-height: 1.35; }
+
+.fund-result-workspace {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.fund-result-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+.fund-result-tabs button {
+  min-width: 110px;
+  flex: 1 0 auto;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+.fund-result-tabs button.is-active,
+.fund-result-tabs button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--fund-color-strong);
+  box-shadow: 0 1px 4px rgba(20, 50, 65, .10);
+}
+
+.fund-result-panel { padding-top: 14px; }
+.fund-result-panel--benchmark { border-top: 3px solid color-mix(in srgb, var(--benchmark-color) 55%, transparent); }
+.fund-result-panel--details { color: var(--text); }
+.fund-results__cards--core { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.fund-results__cards--benchmarks { margin-bottom: 12px; }
+
+@media (max-width: 900px) {
+  .fund-entry-choice { align-items: flex-start; flex-direction: column; }
+  .fund-entry-choice__actions { justify-content: flex-start; }
+  .fund-import-summary__detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fund-results__cards--core { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .fund-panel { padding-bottom: 116px; }
+  .fund-entry-choice { padding: 13px; }
+  .fund-entry-choice__actions { width: 100%; }
+  .fund-entry-choice__actions .primary-button,
+  .fund-entry-choice__actions .secondary-button { flex: 1 1 46%; }
+  .fund-entry-choice__actions .link-button { flex: 1 0 100%; text-align: left; }
+  .fund-workspace-nav { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .fund-workspace-nav button { flex: 0 0 auto; }
+  .fund-work-section--depot .fund-form__end-grid { grid-template-columns: 1fr; }
+  .fund-work-section > summary { align-items: flex-start; }
+  .fund-work-section > summary small { max-width: 45%; }
+  .fund-start-summary { grid-template-columns: 1fr auto; }
+  .fund-start-summary > span { grid-column: 1 / -1; }
+  .fund-import-summary__detail-grid { grid-template-columns: 1fr 1fr; }
+  .fund-results__cards--core { grid-template-columns: 1fr; }
+  .fund-result-tabs button { min-width: 96px; }
+}
+
+@media print {
+  .fund-result-tabs,
+  .fund-entry-choice,
+  .fund-workspace-nav { display: none !important; }
+  .fund-result-panel[hidden] { display: block !important; }
+}
+
+/* v0.6.0: Depotstart enthält nach der Aufteilung von Kosten/Steuern drei Hauptfelder. */
+[data-work-section="start"] .fund-form__start-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 980px) {
+  [data-work-section="start"] .fund-form__start-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  [data-work-section="start"] .fund-form__start-grid {
+    grid-template-columns: 1fr;
+  }
+}
