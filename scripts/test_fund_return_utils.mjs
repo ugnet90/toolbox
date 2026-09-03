@@ -9,6 +9,7 @@ import {
   mergeDateRanges,
   missingDateRanges,
   buildDepotHistory,
+  buildBenchmarkHistory,
   normalizeFundReturnData,
   parseBankTransactionsCsv,
   simulateHistoricalRateBenchmark,
@@ -162,6 +163,8 @@ const exportedData = createFundReturnData({
     initialAmount: 50000,
     initialAmountMode: "gross",
     purchaseFeePercent: 2,
+    recurringPurchaseFeePercent: 0.5,
+    recurringAmountMode: "net",
     endDate: "2026-08-31",
     endValue: 77500,
     benchmarkKinds: ["overnight", "euribor3m", "euribor6m"],
@@ -173,7 +176,7 @@ const exportedData = createFundReturnData({
   ]
 });
 assert.equal(exportedData.format, "toolbox-depot-return");
-assert.equal(exportedData.schema_version, 3);
+assert.equal(exportedData.schema_version, 4);
 assert.equal(exportedData.inputs.designation, "Depot Test");
 assert.deepEqual(exportedData.inputs.benchmarkKinds, ["overnight", "euribor3m", "euribor6m"]);
 assert.equal(exportedData.cashflows[0].title, "Fonds XY");
@@ -200,7 +203,13 @@ const legacyData = {
 };
 const normalizedLegacy = normalizeFundReturnData(legacyData);
 assert.deepEqual(normalizedLegacy.inputs.benchmarkKinds, ["overnight", "euribor3m"]);
+assert.equal(normalizedLegacy.inputs.recurringPurchaseFeePercent, 0);
+assert.equal(normalizedLegacy.inputs.recurringAmountMode, "gross");
 assert.equal(normalizedLegacy.cashflows[0].title, "");
+
+const zeroStartPayload = JSON.parse(JSON.stringify(exportedData));
+zeroStartPayload.inputs.initialAmount = 0;
+assert.equal(normalizeFundReturnData(zeroStartPayload).inputs.initialAmount, 0);
 
 assert.throws(
   () => normalizeFundReturnData({ ...exportedData, format: "other" }),
@@ -286,7 +295,7 @@ assert.deepEqual(missingDateRanges("2026-01-01", "2026-01-31", [
 
 const depotHistory = buildDepotHistory({
   cashflows: [
-    { date: "2026-01-02", type: "contribution", amount: -1000, isin: "DE0008491051", quantity: 10 },
+    { date: "2026-01-02", type: "contribution", amount: -1000, title: "UniGlobal", isin: "DE0008491051", quantity: 10 },
     { date: "2026-02-02", type: "contribution", amount: -520, isin: "DE0008491051", quantity: 5 },
     { date: "2026-03-02", type: "withdrawal", amount: 630, isin: "DE0008491051", quantity: -5 }
   ],
@@ -302,11 +311,48 @@ const depotHistory = buildDepotHistory({
       ]
     }
   },
-  endDate: "2026-03-31"
+  endDate: "2026-03-31",
+  returnCashflows: [
+    { date: "2026-01-02", amount: -1000, type: "contribution" },
+    { date: "2026-02-02", amount: -520, type: "contribution" },
+    { date: "2026-03-02", amount: 630, type: "withdrawal" }
+  ]
 });
 assert.equal(depotHistory.holdings[0].quantity, 10);
 assert.equal(depotHistory.lastValue, 1250);
 assert.equal(depotHistory.lastNetInvested, 890);
 assert.equal(depotHistory.endDate, "2026-03-31");
+assert.equal(depotHistory.funds[0].title, "UniGlobal");
+assert.ok(depotHistory.points.some((point) => Number.isFinite(point.depotReturn)));
+assert.ok(depotHistory.points.some((point) => Number.isFinite(point.fundReturns.DE0008491051)));
+const expectedHistoryReturn = calculateXirr([
+  { date: "2026-01-02", amount: -1000 },
+  { date: "2026-02-02", amount: -520 },
+  { date: "2026-03-02", amount: 630 },
+  { date: "2026-03-31", amount: 1250 }
+]).rate;
+assert.ok(Math.abs(depotHistory.points.at(-1).depotReturn - expectedHistoryReturn) < 1e-7);
+
+const benchmarkHistory = buildBenchmarkHistory({
+  historyPoints: [
+    { date: "2020-02-15" },
+    { date: "2021-01-01" }
+  ],
+  cashflows: [{ date: "2020-01-01", amount: -1000 }],
+  observations,
+  taxPercent: 25,
+  seriesLabel: "Testbenchmark"
+});
+assert.equal(benchmarkHistory.length, 2);
+assert.ok(benchmarkHistory[1].value > 1000);
+assert.ok(Number.isFinite(benchmarkHistory[1].rate));
+const benchmarkFinal = simulateHistoricalRateBenchmark({
+  cashflows: [{ date: "2020-01-01", amount: -1000 }],
+  endDate: "2021-01-01",
+  observations,
+  taxPercent: 25,
+  seriesLabel: "Testbenchmark"
+});
+assert.ok(Math.abs(benchmarkHistory.at(-1).value - benchmarkFinal.balance) < 1e-9);
 
 console.log("OK: fund return utils");
