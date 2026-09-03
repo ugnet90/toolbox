@@ -13,7 +13,8 @@ import {
   normalizeFundReturnData,
   parseBankTransactionsCsv,
   simulateHistoricalRateBenchmark,
-  simulateHistoricalSavings
+  simulateHistoricalSavings,
+  summarizeCsvPurchaseFees
 } from "../docs/js/fund-return-utils.js";
 
 const gross = initialInvestment({ amount: 1040, amountMode: "gross", purchaseFeePercent: 4 });
@@ -176,7 +177,7 @@ const exportedData = createFundReturnData({
   ]
 });
 assert.equal(exportedData.format, "toolbox-depot-return");
-assert.equal(exportedData.schema_version, 4);
+assert.equal(exportedData.schema_version, 5);
 assert.equal(exportedData.inputs.designation, "Depot Test");
 assert.deepEqual(exportedData.inputs.benchmarkKinds, ["overnight", "euribor3m", "euribor6m"]);
 assert.equal(exportedData.cashflows[0].title, "Fonds XY");
@@ -217,10 +218,10 @@ assert.throws(
 );
 
 const bankCsv = [
-  "ISIN;Titel;Menge;Einheit;Abrechnungsbetrag;Währung;Stichtag;Geschäftsart;Abrechnungsnummer;Abrechnungsdatum;Ausführungsnummer;Ausführungsdatum",
-  "DE0008491051;UNIGLOBAL ANTEILSSCH.KL.;0,467;Stk;-249,65;EUR;12.08.2026;Kauf aus Dauerauftrag;75273135;17.08.2026;75938106;14.08.2026",
-  "DE0008491051;UNIGLOBAL ANTEILSSCH.KL.;0;Stk;0,00;EUR;12.09.2026;Kauf aus Dauerauftrag;75273136;17.09.2026;75938107;14.09.2026",
-  ";;;;;;;;;;;"
+  "ISIN;Titel;Menge;Einheit;Abrechnungsbetrag;Währung;Stichtag;Rechenwert;Geschäftsart;Abrechnungsnummer;Abrechnungsdatum;Ausführungsnummer;Ausführungsdatum",
+  "DE0008491051;UNIGLOBAL ANTEILSSCH.KL.;0,467;Stk;-249,65;EUR;12.08.2026;524,10;Kauf aus Dauerauftrag;75273135;17.08.2026;75938106;14.08.2026",
+  "DE0008491051;UNIGLOBAL ANTEILSSCH.KL.;0;Stk;0,00;EUR;12.09.2026;524,10;Kauf aus Dauerauftrag;75273136;17.09.2026;75938107;14.09.2026",
+  ";;;;;;;;;;;;"
 ].join("\r\n");
 const importedBankCsv = parseBankTransactionsCsv(bankCsv);
 assert.equal(importedBankCsv.cashflows.length, 1);
@@ -235,8 +236,22 @@ assert.deepEqual(importedBankCsv.cashflows[0], {
   note: "Kauf aus Dauerauftrag",
   isin: "DE0008491051",
   quantity: 0.467,
-  unit: "Stk"
+  unit: "Stk",
+  valuationDate: "2026-08-12",
+  referenceValue: 524.10,
+  purchaseFeePerUnit: importedBankCsv.cashflows[0].purchaseFeePerUnit,
+  purchaseFeeTotal: importedBankCsv.cashflows[0].purchaseFeeTotal,
+  purchaseFeePercent: importedBankCsv.cashflows[0].purchaseFeePercent
 });
+assert.ok(Math.abs(importedBankCsv.cashflows[0].purchaseFeePerUnit - ((249.65 / 0.467) - 524.10)) < 1e-9);
+assert.ok(Math.abs(importedBankCsv.cashflows[0].purchaseFeeTotal - (249.65 - (524.10 * 0.467))) < 1e-9);
+assert.ok(Math.abs(importedBankCsv.cashflows[0].purchaseFeePercent - ((((249.65 / 0.467) - 524.10) / 524.10) * 100)) < 1e-9);
+assert.equal(importedBankCsv.hasValuationDateColumn, true);
+assert.equal(importedBankCsv.hasReferenceValueColumn, true);
+const purchaseFeeSummary = summarizeCsvPurchaseFees(importedBankCsv.cashflows);
+assert.equal(purchaseFeeSummary.length, 1);
+assert.equal(purchaseFeeSummary[0].purchases, 1);
+assert.ok(Math.abs(purchaseFeeSummary[0].feeTotal - importedBankCsv.cashflows[0].purchaseFeeTotal) < 1e-9);
 assert.deepEqual(importedBankCsv.securityIsins, ["DE0008491051"]);
 assert.equal(importedBankCsv.hasIsinColumn, true);
 assert.equal(importedBankCsv.hasQuantityColumn, true);
@@ -334,6 +349,28 @@ const expectedHistoryReturn = calculateXirr([
   { date: "2026-03-31", amount: 1250 }
 ]).rate;
 assert.ok(Math.abs(depotHistory.points.at(-1).depotReturn - expectedHistoryReturn) < 1e-7);
+
+const laterFundHistory = buildDepotHistory({
+  cashflows: [
+    { date: "2026-01-02", type: "contribution", amount: -1000, title: "Fonds A", isin: "DE0008491051", quantity: 10 },
+    { date: "2026-08-17", valuationDate: "2026-08-12", type: "contribution", amount: -500, title: "Fonds B", isin: "LU0000000001", quantity: 5 }
+  ],
+  pricesByIsin: {
+    DE0008491051: { observations: [
+      { date: "2026-01-02", redemption_price: 100 },
+      { date: "2026-08-01", redemption_price: 110 },
+      { date: "2026-09-30", redemption_price: 112 }
+    ] },
+    LU0000000001: { observations: [
+      { date: "2026-08-12", redemption_price: 100 },
+      { date: "2026-09-30", redemption_price: 105 }
+    ] }
+  },
+  endDate: "2026-09-30"
+});
+const beforeSecondFund = laterFundHistory.points.filter((point) => point.date < "2026-08-12");
+assert.ok(beforeSecondFund.length > 0);
+assert.ok(beforeSecondFund.every((point) => point.fundReturns.LU0000000001 === null));
 
 const benchmarkHistory = buildBenchmarkHistory({
   historyPoints: [
