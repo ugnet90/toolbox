@@ -1,8 +1,8 @@
 # Toolbox
 
-**Aktuell: v0.5.2** – Depotrendite, flexible Benchmark-Auswahl, Sparplan-Erkennung und erweiterter CSV-Import.
+**Aktuell: v0.5.3** – Depotrendite, flexible Benchmark-Auswahl, Sparplan-Erkennung und erweiterter CSV-Import.
 
-**Version:** 0.5.2
+**Version:** 0.5.3
 
 `toolbox` ist eine öffentliche, über GitHub Pages erreichbare Sammlung kleiner Rechen- und Alltagstools. Die Oberfläche ist responsiv und für Desktop sowie mobile Geräte ausgelegt.
 
@@ -67,6 +67,12 @@ Eine optionale lokale **Bezeichnung** kann für Depot, Exportdatei und PDF-Beric
 
 Beim PDF-/Druckbericht wird vorher gefragt, ob die einzelnen Zahlungsströme mit ausgegeben werden sollen.
 
+
+## Änderungen in Version 0.5.3
+
+- iOS-PDF-Erstellung neu aufgebaut: echte PDF-Datei statt automatischem Browserdruck; die PDF-Erzeugung erfolgt clientseitig mit `pdf-lib` (jsDelivr).
+- PDF-Zahlungsstromauswahl als robustes Dropdown „Zusammenfassung / Einzelbuchungen“.
+- Browser-Druck bleibt als separate Desktop-/Fallback-Funktion erhalten.
 
 ## Änderungen in Version 0.5.2
 
@@ -286,6 +292,6 @@ Der Workflow `.github/workflows/pages.yml` synchronisiert die öffentlichen Date
 
 Die Projektversion steht in `VERSION`. Für die sichtbaren Seiten-Footer wird sie zentral als `SITE_VERSION` in `docs/js/site-map.js` gesetzt und von `docs/js/navigation.js` ausgegeben.
 
-Aktuelle Version: **0.5.2**
+Aktuelle Version: **0.5.3**
 
 - Depotrendite-Ergebnisse können über **PDF / Drucken** als A4-Bericht mit Eingaben, optionalen Cashflow-Details, Sparplan-Hinweisen, Benchmarks, Vergleichsgrafiken und Berechnungsdetails ausgegeben werden.
