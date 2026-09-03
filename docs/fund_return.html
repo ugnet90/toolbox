@@ -188,6 +188,14 @@
 <p class="form-message form-message--error" data-fund-error="" hidden=""></p>
 <p class="form-message fund-warning" data-fund-warning="" hidden=""></p>
 <p aria-live="polite" class="fund-data-status" data-fund-data-status="" hidden=""></p>
+<section class="csv-fee-summary" data-csv-purchase-fee-summary hidden>
+<h3>Aus CSV ermittelte Fondskaufspesen</h3>
+<p>Für Kaufbuchungen mit <strong>Stichtag</strong>, <strong>Rechenwert</strong>, <strong>Menge</strong> und <strong>Abrechnungsbetrag</strong>. Die Differenz zwischen tatsächlichem Anlegeraufwand und Rechenwert × Menge wird buchungsgenau als Kaufspesen-/Preisabweichung ausgewiesen.</p>
+<div class="csv-fee-summary__table-wrap"><table class="csv-fee-summary__table">
+<thead><tr><th>Fonds</th><th>Käufe</th><th>Rechenwert gesamt</th><th>Anlegeraufwand</th><th>Differenz / Spesen</th><th>Ø in %</th></tr></thead>
+<tbody data-csv-purchase-fee-list></tbody>
+</table></div>
+</section>
 <input accept="application/json,.json" data-import-fund-file="" hidden="" type="file"/>
 <input accept=".csv,text/csv" data-import-bank-csv-file="" hidden="" type="file"/>
 <div aria-label="Depotrendite-Rechner Aktionen" class="fund-form__actions" role="group">
@@ -235,7 +243,7 @@
 </div>
 <fieldset class="depot-history__series-picker">
 <legend>Diagrammlinien auswählen</legend>
-<p class="field__hint">Depotwert, kumulierte Nettoinvestitionen sowie Gewinn/Verlust verwenden die Euro-Skala. Gewinn/Verlust entspricht dem jeweils bewerteten Depotwert zuzüglich aller bis dahin angefallenen Anleger-Cashflows. Renditen werden zusätzlich als datumsgenaue XIRR p.a. seit Beginn dargestellt. Einzelne Fondsrenditen berücksichtigen Cashflows, die einer ISIN zugeordnet sind. Oben ausgewählte und erfolgreich geladene Benchmarks erscheinen hier zusätzlich als Wert- und Renditelinien.</p>
+<p class="field__hint">Depotwert, kumulierte Nettoinvestitionen sowie Gewinn/Verlust verwenden die Euro-Skala. Gewinn/Verlust entspricht dem jeweils bewerteten Depotwert zuzüglich aller bis dahin angefallenen Anleger-Cashflows. Renditen werden zusätzlich als datumsgenaue XIRR p.a. seit Beginn dargestellt. Einzelne Positionsrenditen berücksichtigen Cashflows, die einer ISIN zugeordnet sind, und beginnen erst mit der ersten Kaufposition dieser ISIN. Oben ausgewählte und erfolgreich geladene Benchmarks erscheinen hier zusätzlich als Wert- und Renditelinien.</p>
 <div class="depot-history__series-grid" data-history-series-picker></div>
 </fieldset>
 <div class="depot-history__chart-block" data-history-value-block>
