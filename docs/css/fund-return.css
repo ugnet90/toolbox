@@ -1295,3 +1295,63 @@
     font-size: 16px;
   }
 }
+
+
+/* v0.5.4 – historische Depotwertentwicklung */
+.cashflow-entry__isin input { text-transform: uppercase; }
+.table-input--isin { min-width: 8.6rem; text-transform: uppercase; }
+.table-input--quantity { min-width: 6.8rem; text-align: right; }
+
+.depot-history {
+  margin-top: 1.3rem;
+  padding: 1rem;
+  border: 1px solid #cbd8dc;
+  border-radius: 14px;
+  background: #f8fbfc;
+}
+.depot-history h3 { margin: 0 0 .35rem; }
+.depot-history > p { margin-top: .35rem; }
+.depot-history__status {
+  margin: .75rem 0;
+  padding: .7rem .8rem;
+  border-radius: 10px;
+  background: #edf5f7;
+  color: #254c5d;
+}
+.depot-history__status--error { background: #fff2f0; color: #8a2b21; }
+.depot-history__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .7rem;
+  margin: 1rem 0 .7rem;
+}
+.depot-history__stats > div {
+  padding: .7rem .8rem;
+  border: 1px solid #d8e2e5;
+  border-radius: 10px;
+  background: #fff;
+}
+.depot-history__stats span { display: block; color: #62727a; font-size: .78rem; margin-bottom: .18rem; }
+.depot-history__stats strong { display: block; font-size: .98rem; }
+.depot-history__legend { display: flex; flex-wrap: wrap; gap: 1rem; margin: .55rem 0; font-size: .84rem; }
+.depot-history__legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.depot-history__key { display: inline-block; width: 1.7rem; height: 3px; border-radius: 2px; }
+.depot-history__key--value { background: #316880; }
+.depot-history__key--invested { background: #a67523; }
+.depot-history__chart { overflow-x: auto; background: #fff; border: 1px solid #d8e2e5; border-radius: 10px; }
+.depot-history__svg { display: block; width: 100%; min-width: 650px; height: auto; }
+.depot-history__grid { stroke: #e6ecee; stroke-width: 1; }
+.depot-history__axis { stroke: #9caaaf; stroke-width: 1.2; }
+.depot-history__axis-label { fill: #63737a; font-size: 18px; font-family: system-ui, sans-serif; }
+.depot-history__line { fill: none; stroke-width: 3.2; stroke-linejoin: round; stroke-linecap: round; }
+.depot-history__line--value { stroke: #316880; }
+.depot-history__line--invested { stroke: #a67523; stroke-width: 2.4; }
+.depot-history__actions { margin-top: .75rem; }
+
+@media (max-width: 760px) {
+  .depot-history__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .depot-history { padding: .8rem; }
+}
+@media (max-width: 430px) {
+  .depot-history__stats { grid-template-columns: 1fr; }
+}
