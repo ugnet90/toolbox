@@ -4,7 +4,7 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.5.11
+- **Toolbox:** 0.6.0
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
@@ -42,7 +42,7 @@ Worker-Endpunkt:
 
 ### Depotrendite & Vergleich
 
-Der Rechner bildet ein Depot als datierte Zahlungsströme aus Sicht des Anlegers ab. Unterstützt werden unter anderem:
+Der Rechner bildet ein Depot als datierte Zahlungsströme aus Sicht des Anlegers ab. Die Oberfläche verwendet ab v0.6.0 eine progressive Darstellung: Beim Einstieg werden nur Datenquelle und die unmittelbar nötigen Eingaben gezeigt; Importdetails, Kosten/Steuern, Zahlungsströme und Vergleiche werden erst bei Bedarf eingeblendet. Unterstützt werden unter anderem:
 
 - Startinvestition,
 - Zuzahlungen und Sparraten,
@@ -104,7 +104,7 @@ Positionsrenditen beginnen erst mit der ersten Kaufposition der jeweiligen ISIN.
 
 Für Bewertungstage ohne eigenen NAV wird der letzte verfügbare offizielle Rücknahmepreis davor verwendet.
 
-Der Button **„Depotwert aus historischen Kursen ermitteln“** kann bereits vor der eigentlichen Renditeberechnung verwendet werden und übernimmt den berechneten Depotwert als End-/Verkaufswert.
+Sind bei allen erkannten Wertpapierbewegungen – ausdrücklich Käufen **und Verkäufen** – ISIN und Menge vollständig vorhanden, kann die Toolbox den Depotwert am Bewertungsdatum aus historischen Rücknahmepreisen ermitteln. Nach einem Bank-CSV-Import wird diese Bewertung automatisch versucht; der manuelle Button **„Depotwert aus historischen Kursen ermitteln“** bleibt zusätzlich verfügbar. Unvollständige Wertpapierbewegungen verhindern bewusst eine Teilbewertung.
 
 #### Historische Benchmarks
 
@@ -117,6 +117,10 @@ Verfügbar sind:
 
 Die ECB-Reihen werden über den Cloudflare-Worker geladen. Für fehlende Monate nach dem letzten offiziellen Datenpunkt kann der letzte verfügbare Zinssatz bis zum Vergleichsende fortgeführt werden; echte Lücken innerhalb der Datenreihe bleiben Fehler.
 
+Die Benchmark-Auswahl wird lokal auf dem jeweiligen Gerät gespeichert und bleibt auch nach einem Reset oder erneuten Öffnen bis zur nächsten Änderung erhalten. Dasselbe gilt für die ausgewählten historischen Diagrammlinien sowie die PDF-Darstellungsoptionen.
+
+Die Oberfläche enthält bereits eine getrennte Kategorie **Aktienmärkte** für Europa, USA, Asien/Pazifik und Global. Diese Marktbenchmarks sind noch nicht aktiv an eine Datenquelle angebunden. Eine öffentliche Datenreihe wird erst aktiviert, wenn ihre Weiterverwendung bzw. Weitergabe im öffentlichen GitHub-Tool eindeutig zulässig ist; Drittanbieter-Reihen werden nicht ungeprüft übernommen.
+
 #### PDF und Datenexport
 
 - Clientseitige PDF-Erzeugung, auch für iPhone/iPad.
@@ -124,6 +128,18 @@ Die ECB-Reihen werden über den Cloudflare-Worker geladen. Für fehlende Monate 
 - Historische Diagramme optional im PDF.
 - Vollständiger JSON-Import/-Export des Rechnerzustands.
 - Aktuelles JSON-Schema: **v5**; ältere unterstützte Schema-Versionen bleiben importierbar.
+
+## Bedienkonzept der Depotrendite
+
+Ab v0.6.0 ist die Depotrendite nach dem Prinzip der progressiven Offenlegung aufgebaut:
+
+1. **Datenquelle wählen:** Bank-CSV, manuelle Erfassung oder vorhandene JSON-Datei.
+2. **Import kompakt zusammenfassen:** Anzahl CSV-Dateien, Buchungen, Fonds und Zeitraum erscheinen dezent; Detailinformationen sind ausklappbar.
+3. **Bewertung:** Depotstart wird kompakt angezeigt, das Bewertungsdatum ist standardmäßig heute. Bei vollständigen ISIN-/Mengenangaben aller Käufe und Verkäufe wird der historische Depotwert automatisch ermittelt.
+4. **Weitere Eingaben nach Bedarf:** Depotstart, Zahlungsströme, Kosten & Steuern sowie Benchmarks liegen in getrennten ausklappbaren Themenbereichen.
+5. **Ergebnisse in Registern:** `Übersicht`, `Entwicklung`, `Vergleich` und `Details` trennen Kennzahlen, historische Diagramme, Benchmarks und technische Berechnungsinformationen.
+
+Die Farblogik unterstützt die Trennung der Themen: Petrol/Blau steht für das eigene Depot, Gold/Orange für Benchmarks, Violett/Grau für einzelne Wertpapiere, Gelb für Hinweise und Rot für Fehler. Ein zusätzlicher Basic-/Advanced-Modus ist bewusst nicht vorgesehen; die Seite zeigt relevante Funktionen automatisch im jeweiligen Arbeitsschritt.
 
 ## Daten- und Cache-Architektur
 
@@ -226,6 +242,19 @@ Für die Toolbox gilt:
 5. Der Änderungsverlauf steht ausschließlich im folgenden Changelog.
 
 ## Changelog
+
+### 0.6.0
+
+- Depotrendite-Oberfläche grundlegend auf progressive Darstellung umgestellt: Einstieg zunächst nur über Bank-CSV, manuelle Erfassung oder JSON-Import.
+- Importzusammenfassung kompakt und ausklappbar gestaltet; nach Wahl einer Datenquelle verschwindet die große Einstiegsbox.
+- Bewertung als primärer Arbeitsbereich hervorgehoben; Depotstart wird kompakt angezeigt und kann gezielt aufgeklappt werden.
+- Automatische historische Depotbewertung nach CSV-Import nur dann, wenn **alle** erkannten Kauf- und Verkaufsbewegungen vollständige ISIN- und Mengenangaben besitzen; Teilbewertungen werden verhindert.
+- Zahlungsströme, Kosten & Steuern sowie Benchmarks in getrennte ausklappbare Themenbereiche verschoben.
+- Benchmark-Auswahl, historische Diagrammlinien sowie PDF-Darstellungsoptionen werden gerätebezogen in `localStorage` gespeichert und durch „Zurücksetzen“ nicht gelöscht.
+- Ergebnisse in die Register **Übersicht**, **Entwicklung**, **Vergleich** und **Details** gegliedert.
+- Farbige Themenlogik geschärft: Depot in Petrol/Blau, Benchmarks in Gold/Orange, Einzeltitel in Violett/Grau sowie neutrale Eingabebereiche.
+- Aktienmarkt-Benchmarkgruppe für Europa, USA, Asien/Pazifik und Global strukturell vorbereitet; noch keine Datenquelle aktiviert, solange die öffentliche Weiterverwendung nicht eindeutig geklärt ist.
+- Toolbox-Version auf 0.6.0 angehoben; Cloudflare-Datenworker bleibt unverändert auf 0.5.6.
 
 ### 0.5.11
 
