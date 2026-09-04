@@ -43,7 +43,7 @@
 <button class="secondary-button" data-manual-start="" type="button">Manuell erfassen</button>
 <button class="link-button" data-import-fund="" type="button">Gespeicherte JSON-Daten importieren</button>
 </div>
-</section><input accept="application/json,.json" data-import-fund-file="" hidden="" type="file"/><input accept=".csv,text/csv" data-import-bank-csv-file="" hidden="" type="file"/><div class="fund-workspace" data-fund-workspace="" hidden=""><section class="fund-import-summary" data-import-summary="" hidden="">
+</section><input accept="application/json,.json" data-import-fund-file="" hidden="" type="file"/><input accept=".csv,text/csv" data-import-bank-csv-file="" hidden="" type="file"/><input accept=".csv,text/csv" data-import-price-file="" hidden="" type="file"/><div class="fund-workspace" data-fund-workspace="" hidden=""><section class="fund-import-summary" data-import-summary="" hidden="">
 <div class="fund-import-summary__main">
 <span aria-hidden="true" class="fund-import-summary__icon">✓</span>
 <div><strong data-import-summary-title="">Importiert</strong><span data-import-summary-text=""></span></div>
@@ -73,10 +73,17 @@
 <label for="endValue">End-/Verkaufswert</label>
 <input autocomplete="off" id="endValue" inputmode="decimal" name="endValue" placeholder="z. B. 72.500,00" required="" type="text"/>
 <button class="secondary-button fund-history-end-button" data-use-history-end-value="" type="button">Depotwert aus historischen Kursen ermitteln</button>
-<span class="field__hint">Bei Verkauf möglichst den tatsächlich verbleibenden Nettoerlös verwenden. Bei importierten Kauf-/Verkaufsbuchungen mit ISIN und Menge kann der Depotwert bereits vor der Renditeberechnung aus den historischen Rücknahmepreisen ermittelt und hier eingesetzt werden.</span>
+<span class="field__hint">Bei Verkauf möglichst den tatsächlich verbleibenden Nettoerlös verwenden. Bei importierten Kauf-/Verkaufsbuchungen mit ISIN und Menge kann der Depotwert bereits vor der Renditeberechnung aus den hinterlegten historischen Kursquellen ermittelt und hier eingesetzt werden.</span>
 </div>
 </div></div>
 <p class="fund-auto-valuation" data-auto-valuation-status="" hidden=""></p>
+<details class="fund-price-sources" data-price-sources="" hidden="">
+<summary><span><strong>Kursversorgung</strong><small data-price-source-summary="">Noch nicht geprüft</small></span></summary>
+<div class="fund-price-sources__body">
+<p class="field__hint">Für jede ISIN wird zuerst eine automatische Kursquelle geprüft. Ist keine verfügbar, kannst du eine historische Kursdatei lokal importieren. Benötigt werden mindestens eine Datumsspalte und eine Kurs-/Preis-Spalte; ISIN und Währung sind optional. Importierte Kursdaten bleiben ausschließlich im Browser (IndexedDB).</p>
+<div class="fund-price-source-list" data-price-source-list=""></div>
+</div>
+</details>
 </section><details class="fund-work-section fund-work-section--neutral" data-start-details="" data-work-section="start">
 <summary><span><span class="fund-work-section__eyebrow">Depot</span><strong>Depotstart &amp; Bezeichnung</strong></span><small>Nur ändern, wenn die automatische Übernahme nicht passt.</small></summary>
 <div class="fund-work-section__body" data-start-body=""><div class="fund-form__meta-grid"><div class="field fund-form__designation"><label for="designation">Bezeichnung <span class="label-optional">(optional)</span></label><input autocomplete="off" id="designation" maxlength="100" name="designation" placeholder="z. B. Depot Muster / Strategie 1" type="text"/><span class="field__hint">Wird nur lokal im Browser sowie in Export/PDF verwendet und nicht an GitHub übertragen.</span></div></div><div class="fund-form__start-grid">
@@ -266,7 +273,7 @@
 </div><section class="savings-plan-summary" data-savings-plan-summary="" hidden=""><h3>Erkannte Sparpläne</h3><p>Aus regelmäßigen Kaufbuchungen mit gleichem Titel erkannte Vermögensaufbau-Raten (Betragstoleranz etwa ±1 %).</p><ul data-savings-plan-list=""></ul></section></div>
 <div class="fund-result-panel" data-result-panel="development" hidden=""><section aria-labelledby="depot-history-heading" class="depot-history" data-depot-history="" hidden="">
 <h3 id="depot-history-heading">Historische Depotentwicklung</h3>
-<p>Aus importierten bzw. erfassten Kauf-/Verkaufsbuchungen mit <strong>ISIN und Menge</strong>. Für jeden Bewertungstag wird der letzte verfügbare offizielle Rücknahmepreis vor bzw. am Datum verwendet.</p>
+<p>Aus importierten bzw. erfassten Kauf-/Verkaufsbuchungen mit <strong>ISIN und Menge</strong>. Für jeden Bewertungstag wird der letzte verfügbare Kurs der zugeordneten Kursquelle vor bzw. am Datum verwendet.</p>
 <p aria-live="polite" class="depot-history__status" data-depot-history-status="" hidden=""></p>
 <div class="depot-history__stats">
 <div><span>Zeitraum</span><strong data-depot-history-period=""></strong></div>
@@ -288,7 +295,7 @@
 <div class="depot-history__chart" data-depot-return-chart=""></div>
 <p class="field__hint">Die historische Depotrendite ist die geldgewichtete, datumsgenaue XIRR p.a. zum jeweiligen Bewertungstag. Bei sehr kurzen Zeiträumen unter 30 Tagen wird keine Rendite dargestellt.</p>
 </div>
-<p class="field__hint">Kursdaten werden lokal im Browser (IndexedDB) zwischengespeichert. Beim Worker werden nur ISIN und benötigter Zeitraum abgefragt; Beträge, Mengen, Titel und Depotbezeichnung werden nicht übertragen.</p>
+<p class="field__hint">Kursdaten werden lokal im Browser (IndexedDB) zwischengespeichert. Automatische Quellen erhalten über den Worker nur ISIN und benötigten Zeitraum; manuell importierte Kursdateien verlassen den Browser nicht. Beträge, Mengen, Titel und Depotbezeichnung werden nicht übertragen.</p>
 </section></div>
 <div class="fund-result-panel fund-result-panel--benchmark" data-result-panel="comparison" hidden=""><div class="fund-results fund-results__cards fund-results__cards--benchmarks" data-benchmark-results=""><div class="fund-result-card fund-result-card--compare fund-result-card--benchmark benchmark-tone--overnight" data-benchmark-card="overnight" hidden="">
 <span class="fund-result-card__label">Historische Spareinlage</span>
@@ -346,7 +353,7 @@
 <a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 3-Monats-Euribor, Monatsdurchschnitt</a>
 <a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR6MD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 6-Monats-Euribor, Monatsdurchschnitt</a><a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR1YD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 12-Monats-Euribor, Monatsdurchschnitt</a><a href="https://data.ecb.europa.eu/help/api/data" rel="noopener noreferrer" target="_blank">ECB Data Portal API</a>
 </div>
-</details><aside class="fund-general-note"><strong>Hinweis:</strong> Die historische Depotwert-Grafik ist eine Bewertungsdarstellung aus Stückbewegungen und Rücknahmepreisen. Die zusätzlich dargestellten historischen Renditen sind geldgewichtete XIRR-Rechnungen auf Basis der erfassten Anleger-Cashflows und der jeweils berechneten Depot-/Fonds-Werte; sie bilden keine österreichische Fondsbesteuerung vollständig nach. Ausschüttungen, Steuern, Gebühren und sonstige Belastungen werden grundsätzlich über die tatsächlich angefallenen Cashflows erfasst. Liegt eine wirksame KESt-Befreiungserklärung vor, werden nur als „KESt / Steuer auf ausschüttungsgleichen Ertrag“ erfasste Cashflows aus der Depotrendite entfernt; bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Befreiung vom KESt-Abzug bedeutet außerdem nicht automatisch Steuerfreiheit auf Körperschaftsebene. Historische Zinsbenchmarks werden als fiktive Sparprodukte behandelt und unterliegen ohne Befreiungserklärung 25 % KESt auf positive Zinsen.</aside></div>
+</details><aside class="fund-general-note"><strong>Hinweis:</strong> Die historische Depotwert-Grafik ist eine Bewertungsdarstellung aus Stückbewegungen und den je ISIN hinterlegten historischen Kursquellen. Die zusätzlich dargestellten historischen Renditen sind geldgewichtete XIRR-Rechnungen auf Basis der erfassten Anleger-Cashflows und der jeweils berechneten Depot-/Fonds-Werte; sie bilden keine österreichische Fondsbesteuerung vollständig nach. Ausschüttungen, Steuern, Gebühren und sonstige Belastungen werden grundsätzlich über die tatsächlich angefallenen Cashflows erfasst. Liegt eine wirksame KESt-Befreiungserklärung vor, werden nur als „KESt / Steuer auf ausschüttungsgleichen Ertrag“ erfasste Cashflows aus der Depotrendite entfernt; bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Befreiung vom KESt-Abzug bedeutet außerdem nicht automatisch Steuerfreiheit auf Körperschaftsebene. Historische Zinsbenchmarks werden als fiktive Sparprodukte behandelt und unterliegen ohne Befreiungserklärung 25 % KESt auf positive Zinsen.</aside></div>
 </section></div>
 </section>
 </main>
