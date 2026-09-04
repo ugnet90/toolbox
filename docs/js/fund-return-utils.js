@@ -387,6 +387,156 @@ export function parseBankTransactionsCsv(text) {
   };
 }
 
+
+function parseDelimitedCsv(text, delimiter) {
+  const source = String(text ?? "").replace(/^\uFEFF/, "");
+  const rows = [];
+  let row = [];
+  let field = "";
+  let quoted = false;
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    if (quoted) {
+      if (char === '"') {
+        if (source[i + 1] === '"') { field += '"'; i += 1; }
+        else quoted = false;
+      } else field += char;
+      continue;
+    }
+    if (char === '"') quoted = true;
+    else if (char === delimiter) { row.push(field); field = ""; }
+    else if (char === "\n") { row.push(field.replace(/\r$/, "")); rows.push(row); row = []; field = ""; }
+    else field += char;
+  }
+  if (quoted) throw new Error("Die Kursdatei enthält ein nicht geschlossenes Anführungszeichen.");
+  if (field.length || row.length) { row.push(field.replace(/\r$/, "")); rows.push(row); }
+  return rows;
+}
+
+function normalizePriceCsvHeader(value) {
+  return String(value ?? "")
+    .replace(/\u00A0/g, " ")
+    .trim()
+    .toLocaleLowerCase("de-AT")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ß/g, "ss");
+}
+
+function flexiblePriceDateToIso(value, lineNumber) {
+  const raw = String(value ?? "").trim();
+  let match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(raw);
+  if (match) {
+    const iso = `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
+    parseIsoDate(iso);
+    return iso;
+  }
+  match = /^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/.exec(raw);
+  if (match) {
+    const iso = `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+    parseIsoDate(iso);
+    return iso;
+  }
+  throw new Error(`Kursdatei Zeile ${lineNumber}: Datum ist ungültig.`);
+}
+
+export function parseHistoricalPriceCsv(text, { expectedIsin = "" } = {}) {
+  const source = String(text ?? "").replace(/^\uFEFF/, "");
+  const firstLine = source.split(/\r?\n/).find((line) => line.trim()) || "";
+  const delimiter = firstLine.includes(";") ? ";" : firstLine.includes("\t") ? "\t" : ",";
+  const rows = parseDelimitedCsv(source, delimiter).filter((row) => row.some((cell) => String(cell ?? "").trim() !== ""));
+  if (rows.length < 2) throw new Error("Die Kursdatei enthält keine Kursdaten.");
+
+  const header = rows[0].map(normalizePriceCsvHeader);
+  const findColumn = (candidates) => candidates.map((name) => header.indexOf(name)).find((index) => index >= 0) ?? -1;
+  const dateIndex = findColumn(["datum", "date", "stichtag", "kursdatum", "bewertungsdatum"]);
+  const priceIndex = findColumn(["rucknahmepreis", "ruecknahmepreis", "kurs", "preis", "nav", "close", "schlusskurs", "rechenwert"]);
+  const isinIndex = findColumn(["isin"]);
+  const currencyIndex = findColumn(["wahrung", "waehrung", "currency"]);
+  if (dateIndex < 0) throw new Error("Kursdatei: Spalte „Datum“ wurde nicht gefunden.");
+  if (priceIndex < 0) throw new Error("Kursdatei: Es wurde keine Kurs-/Preis-Spalte gefunden.");
+
+  const wantedIsin = String(expectedIsin || "").trim().toUpperCase();
+  if (wantedIsin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(wantedIsin)) throw new Error("Die erwartete ISIN ist ungültig.");
+  const prices = new Map();
+  let currency = null;
+  let matchedRows = 0;
+
+  for (let index = 1; index < rows.length; index += 1) {
+    const row = rows[index];
+    const lineNumber = index + 1;
+    const rawDate = String(row[dateIndex] ?? "").trim();
+    const rawPrice = String(row[priceIndex] ?? "").trim();
+    if (!rawDate && !rawPrice) continue;
+    const rowIsin = isinIndex >= 0 ? String(row[isinIndex] ?? "").trim().toUpperCase() : "";
+    if (wantedIsin && rowIsin && rowIsin !== wantedIsin) continue;
+    if (rowIsin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(rowIsin)) continue;
+    if (!rawDate || !rawPrice || rawPrice === "-") continue;
+    let date;
+    try { date = flexiblePriceDateToIso(rawDate, lineNumber); } catch { continue; }
+    const price = parseGermanNumber(rawPrice);
+    if (!Number.isFinite(price) || price <= 0) continue;
+    prices.set(date, price);
+    matchedRows += 1;
+    if (!currency && currencyIndex >= 0) currency = String(row[currencyIndex] ?? "").trim().toUpperCase() || null;
+  }
+
+  const observations = [...prices.entries()]
+    .map(([date, redemption_price]) => ({ date, redemption_price }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!observations.length) {
+    if (wantedIsin && isinIndex >= 0) throw new Error(`Kursdatei enthält keine gültigen Kurse für ${wantedIsin}.`);
+    throw new Error("Kursdatei enthält keine gültigen Kurswerte.");
+  }
+  return {
+    observations,
+    currency: currency || null,
+    firstDate: observations[0].date,
+    lastDate: observations.at(-1).date,
+    validPrices: observations.length,
+    matchedRows,
+    priceColumn: rows[0][priceIndex] || "Kurs",
+    dateColumn: rows[0][dateIndex] || "Datum"
+  };
+}
+
+export function securityHoldingPeriods(cashflows, endDate) {
+  parseIsoDate(endDate);
+  const groups = new Map();
+  for (const flow of cashflows ?? []) {
+    const isin = String(flow?.isin || "").trim().toUpperCase();
+    const quantity = Number(flow?.quantity);
+    const date = String(flow?.date || "");
+    if (!/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin) || !Number.isFinite(quantity) || quantity === 0) continue;
+    if (!["contribution", "withdrawal"].includes(flow?.type)) continue;
+    try { parseIsoDate(date); } catch { continue; }
+    if (date > endDate) continue;
+    if (!groups.has(isin)) groups.set(isin, { title: String(flow?.title || "").trim() || isin, deltas: new Map() });
+    const group = groups.get(isin);
+    group.deltas.set(date, (group.deltas.get(date) || 0) + quantity);
+    if (group.title === isin && String(flow?.title || "").trim()) group.title = String(flow.title).trim();
+  }
+
+  const result = [];
+  for (const [isin, group] of groups) {
+    const dates = [...group.deltas.keys()].sort();
+    let holding = 0;
+    let start = null;
+    const ranges = [];
+    for (const date of dates) {
+      const wasOpen = Math.abs(holding) > 1e-10;
+      holding += group.deltas.get(date);
+      const isOpen = Math.abs(holding) > 1e-10;
+      if (!wasOpen && isOpen) start = date;
+      if (wasOpen && !isOpen && start) { ranges.push({ start, end: date }); start = null; }
+    }
+    if (start) ranges.push({ start, end: endDate });
+    if (!ranges.length && dates.length) ranges.push({ start: dates[0], end: dates[0] });
+    result.push({ isin, title: group.title, ranges, currentQuantity: holding });
+  }
+  return result.sort((a, b) => a.isin.localeCompare(b.isin));
+}
+
 export function summarizeCsvPurchaseFees(cashflows) {
   const eligible = (cashflows ?? []).filter((flow) =>
     flow?.type === "contribution" &&

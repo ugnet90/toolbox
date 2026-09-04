@@ -13,8 +13,10 @@ import {
   buildBenchmarkHistory,
   normalizeFundReturnData,
   parseBankTransactionsCsv,
+  parseHistoricalPriceCsv,
   parseGermanNumber,
   simulateHistoricalRateBenchmark,
+  securityHoldingPeriods,
   summarizeCashflows,
   summarizeCsvPurchaseFees
 } from "./fund-return-utils.js";
@@ -125,6 +127,10 @@ const cashflowSectionSummary = document.querySelector("[data-cashflow-section-su
 const settingsSummary = document.querySelector("[data-settings-summary]");
 const benchmarkSummary = document.querySelector("[data-benchmark-summary]");
 const autoValuationStatus = document.querySelector("[data-auto-valuation-status]");
+const priceSources = document.querySelector("[data-price-sources]");
+const priceSourceSummary = document.querySelector("[data-price-source-summary]");
+const priceSourceList = document.querySelector("[data-price-source-list]");
+const priceImportFileInput = document.querySelector("[data-import-price-file]");
 const resultTabs = [...document.querySelectorAll("[data-result-tab]")];
 const resultPanels = [...document.querySelectorAll("[data-result-panel]")];
 const overviewInvested = document.querySelector("[data-overview-invested]");
@@ -230,6 +236,9 @@ let csvImportDialogStep = null;
 let csvImportSessionStats = null;
 let lastCsvImportStats = null;
 const memoryPriceCache = new Map();
+const priceSourceRuntime = new Map();
+let pendingPriceImportIsin = null;
+let priceSourceRenderRevision = 0;
 const PREFERENCES_KEY = "toolbox.depotreturn.preferences.v1";
 
 function loadPreferences() {
@@ -521,6 +530,7 @@ function updateWorkflowSummaries() {
   updateSettingsSummary();
   updateCashflowSummary();
   updateAutoValuationAvailability();
+  renderPriceSources().catch(() => {});
 }
 
 function renderImportSummary(stats = lastCsvImportStats) {
@@ -1071,15 +1081,150 @@ async function ensureUnionPriceRange(isin, start, end) {
       record.prices[payload.previous_observation.date] = Number(payload.previous_observation.redemption_price);
     }
     record.currency = payload.fund?.currency || record.currency || "EUR";
+    record.provider = "union";
+    record.sourceLabel = "Union Investment";
+    record.priceType = "redemption_price";
     record.sourceCreationDate = payload.creation_date || record.sourceCreationDate;
     record.updatedAt = new Date().toISOString();
     record.coveredRanges = mergeDateRanges([...(record.coveredRanges || []), range]);
   }
+  record.provider = "union";
+  record.sourceLabel = "Union Investment";
+  record.priceType = "redemption_price";
   await putPriceCacheRecord(record);
   const observations = Object.entries(record.prices || {}).map(([date, redemption_price]) => ({ date, redemption_price }))
     .filter((item) => item.date <= end)
     .sort((a, b) => a.date.localeCompare(b.date));
   return { currency: record.currency || "EUR", observations, updatedAt: record.updatedAt };
+}
+
+function formatPriceRange(range) {
+  return `${formatReportDate(range.start)} – ${formatReportDate(range.end)}`;
+}
+
+function requiredSecurityPricePeriods(finishDate = endDate?.value || todayIsoLocal()) {
+  if (!finishDate) return [];
+  return securityHoldingPeriods(cashflows, finishDate);
+}
+
+function manualPriceCoverageMissing(record, ranges) {
+  const covered = record?.coveredRanges || [];
+  return ranges.flatMap((range) => missingDateRanges(range.start, range.end, covered));
+}
+
+async function ensureManualPriceRanges(isin, ranges, record) {
+  const missing = manualPriceCoverageMissing(record, ranges);
+  if (missing.length) {
+    const error = new Error(`${isin}: lokale Kursdaten fehlen für ${missing.map(formatPriceRange).join(", ")}. Bitte Kursdatei ergänzen.`);
+    error.code = "MANUAL_PRICE_RANGE_MISSING";
+    throw error;
+  }
+  const end = ranges.map((range) => range.end).sort().at(-1);
+  const observations = Object.entries(record.prices || {})
+    .map(([date, redemption_price]) => ({ date, redemption_price }))
+    .filter((item) => item.date <= end)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return { currency: record.currency || "EUR", observations, updatedAt: record.updatedAt, provider: "manual" };
+}
+
+async function ensureSecurityPriceRanges(isin, ranges) {
+  let record = await getPriceCacheRecord(isin);
+  if (record?.provider === "manual") {
+    const result = await ensureManualPriceRanges(isin, ranges, record);
+    priceSourceRuntime.set(isin, { status: "manual", message: record.sourceFilename || "Lokale Kursdatei" });
+    return result;
+  }
+
+  try {
+    let result = null;
+    for (const range of ranges) result = await ensureUnionPriceRange(isin, range.start, range.end);
+    priceSourceRuntime.set(isin, { status: "union", message: "Union Investment" });
+    return result;
+  } catch (cause) {
+    const error = new Error(`${isin}: keine automatische Kursquelle verfügbar. Bitte eine historische Kursdatei importieren.`);
+    error.code = "PRICE_SOURCE_REQUIRED";
+    error.cause = cause;
+    priceSourceRuntime.set(isin, { status: "missing", message: cause?.message || "Automatischer Abruf nicht verfügbar" });
+    throw error;
+  }
+}
+
+async function importHistoricalPriceFile(file, isin) {
+  if (!file) return;
+  if (file.size > 12_000_000) throw new Error("Die Kursdatei ist zu groß.");
+  const text = decodeCsvBuffer(await file.arrayBuffer());
+  const parsed = parseHistoricalPriceCsv(text, { expectedIsin: isin });
+  const existing = await getPriceCacheRecord(isin) || { isin, prices: {}, coveredRanges: [] };
+  const prices = { ...(existing.prices || {}) };
+  for (const observation of parsed.observations) prices[observation.date] = observation.redemption_price;
+  const record = {
+    ...existing,
+    isin,
+    provider: "manual",
+    sourceLabel: "Lokale Kursdatei",
+    sourceFilename: file.name || "Kursdatei.csv",
+    priceType: "valuation_price",
+    currency: parsed.currency || existing.currency || "EUR",
+    prices,
+    coveredRanges: mergeDateRanges([...(existing.coveredRanges || []), { start: parsed.firstDate, end: parsed.lastDate }]),
+    updatedAt: new Date().toISOString(),
+    manualImportedAt: new Date().toISOString()
+  };
+  await putPriceCacheRecord(record);
+  priceSourceRuntime.set(isin, { status: "manual", message: record.sourceFilename });
+  showDataStatus(`${parsed.validPrices} historische Kurse für ${isin} aus „${record.sourceFilename}“ lokal gespeichert (${formatReportDate(parsed.firstDate)} – ${formatReportDate(parsed.lastDate)}).`);
+  await renderPriceSources();
+  clearCalculation();
+}
+
+async function renderPriceSources() {
+  if (!priceSources || !priceSourceList || !priceSourceSummary) return;
+  const revision = ++priceSourceRenderRevision;
+  const securities = requiredSecurityPricePeriods();
+  if (!securities.length) {
+    priceSources.hidden = true;
+    priceSourceList.innerHTML = "";
+    return;
+  }
+  priceSources.hidden = false;
+  const rows = [];
+  let automatic = 0;
+  let local = 0;
+  let open = 0;
+  for (const security of securities) {
+    const record = await getPriceCacheRecord(security.isin);
+    if (revision !== priceSourceRenderRevision) return;
+    const runtime = priceSourceRuntime.get(security.isin);
+    let status = "Automatische Quelle wird bei der Bewertung geprüft";
+    let tone = "pending";
+    if (record?.provider === "union") { status = "Union Investment · automatisch"; tone = "ok"; automatic += 1; }
+    else if (record?.provider === "manual") {
+      const missing = manualPriceCoverageMissing(record, security.ranges);
+      if (missing.length) { status = `Lokale Kursdatei · ${missing.length} Zeitraum/Zeiträume fehlen`; tone = "warning"; open += 1; }
+      else { status = `Lokale Kursdatei · ${record.sourceFilename || "importiert"}`; tone = "ok"; local += 1; }
+    } else if (runtime?.status === "missing") { status = "Keine automatische Quelle · Kursdatei erforderlich"; tone = "warning"; open += 1; }
+    else if (runtime?.status === "union") { status = "Union Investment · automatisch"; tone = "ok"; automatic += 1; }
+    else { open += 1; }
+
+    const requiredText = security.ranges.length === 1
+      ? formatPriceRange(security.ranges[0])
+      : `${security.ranges.length} Haltezeiträume`;
+    rows.push(`
+      <div class="fund-price-source-row fund-price-source-row--${tone}">
+        <div class="fund-price-source-row__identity"><strong>${escapeHtml(security.title || security.isin)}</strong><small>${escapeHtml(security.isin)} · benötigt ${escapeHtml(requiredText)}</small></div>
+        <div class="fund-price-source-row__status">${escapeHtml(status)}</div>
+        <div class="fund-price-source-row__actions">
+          ${record?.provider === "union" ? "" : `<button class="secondary-button" type="button" data-import-price-for="${escapeHtml(security.isin)}">${record?.provider === "manual" ? "Kursdatei ergänzen" : "Kursdatei importieren"}</button>`}
+          ${runtime?.status === "missing" && record?.provider !== "manual" ? `<button class="link-button" type="button" data-retry-price-for="${escapeHtml(security.isin)}">Automatisch erneut prüfen</button>` : ""}
+        </div>
+      </div>`);
+  }
+  priceSourceList.innerHTML = rows.join("");
+  const parts = [];
+  if (automatic) parts.push(`${automatic} automatisch`);
+  if (local) parts.push(`${local} lokal`);
+  if (open) parts.push(`${open} offen`);
+  priceSourceSummary.textContent = parts.join(" · ") || `${securities.length} Wertpapier(e)`;
 }
 
 function securityFlowsForHistory() {
@@ -1347,7 +1492,7 @@ function renderDepotHistory(history) {
   setText(depotHistoryPeriod, `${formatReportDate(history.startDate)} – ${formatReportDate(history.endDate)}`);
   setText(depotHistoryValue, currency.format(history.lastValue));
   setText(depotHistoryInvested, currency.format(history.lastNetInvested));
-  setText(depotHistoryFunds, `${history.isins.length} Fonds / ${history.holdings.length} aktuelle Position(en)`);
+  setText(depotHistoryFunds, `${history.isins.length} Wertpapier(e) / ${history.holdings.length} aktuelle Position(en)`);
   renderHistorySeriesPicker(history);
   renderDepotHistoryCharts(history);
   if (!lastCoreCalculation) selectResultTab("development");
@@ -1405,11 +1550,22 @@ async function refreshDepotHistory(calc) {
     if (depotHistory) depotHistory.hidden = true;
     return null;
   }
-  const start = flows.map((flow) => flow.date).sort()[0];
-  const isins = [...new Set(flows.map((flow) => flow.isin))].sort();
+  const periods = securityHoldingPeriods(cashflows, calc.finishDate);
+  const isins = periods.map((item) => item.isin);
   if (depotHistory) depotHistory.hidden = false;
-  setDepotHistoryStatus(`Historische Rücknahmepreise für ${isins.length} ISIN(s) werden geladen …`);
-  const pricePairs = await Promise.all(isins.map(async (isin) => [isin, await ensureUnionPriceRange(isin, start, calc.finishDate)]));
+  setDepotHistoryStatus(`Historische Kurse für ${isins.length} ISIN(s) werden geprüft …`);
+  const settled = await Promise.allSettled(periods.map(async (security) => [security.isin, await ensureSecurityPriceRanges(security.isin, security.ranges)]));
+  const failures = settled.filter((item) => item.status === "rejected");
+  await renderPriceSources();
+  if (failures.length) {
+    const missing = failures.map((item) => item.reason?.message || "Kursquelle fehlt");
+    throw new Error(`Historische Depotbewertung noch nicht vollständig. ${missing.join(" ")}`);
+  }
+  const pricePairs = settled.map((item) => item.value);
+  const nonEur = pricePairs.filter(([, series]) => String(series?.currency || "EUR").toUpperCase() !== "EUR");
+  if (nonEur.length) {
+    throw new Error(`Historische Depotbewertung derzeit nur in EUR möglich. Für ${nonEur.map(([isin, series]) => `${isin} (${series.currency})`).join(", ")} wird noch eine Währungsumrechnung benötigt.`);
+  }
   const pricesByIsin = Object.fromEntries(pricePairs);
   const history = buildDepotHistory({
     cashflows,
@@ -2699,7 +2855,7 @@ async function determineHistoricalEndValue({ automatic = false } = {}) {
     if (!history) throw new Error("Historischer Depotwert konnte nicht ermittelt werden.");
     endValue.value = formatGermanNumber(history.lastValue);
     updateWorkflowSummaries();
-    showDataStatus(`Depotwert ${currency.format(history.lastValue)} zum ${formatReportDate(history.endDate)} aus historischen Rücknahmepreisen übernommen.${automatic ? " Automatisch nach dem Import ermittelt." : " Die Depotrendite kann jetzt berechnet werden."}`);
+    showDataStatus(`Depotwert ${currency.format(history.lastValue)} zum ${formatReportDate(history.endDate)} aus historischen Kursen übernommen.${automatic ? " Automatisch nach dem Import ermittelt." : " Die Depotrendite kann jetzt berechnet werden."}`);
     return history;
   } finally {
     if (button) button.disabled = false;
@@ -2712,6 +2868,43 @@ useHistoryEndValueButton?.addEventListener("click", async () => {
     await determineHistoricalEndValue();
   } catch (error) {
     showError(error.message || "Historischer Depotwert konnte nicht ermittelt werden.");
+  }
+});
+
+
+priceSourceList?.addEventListener("click", async (event) => {
+  const importButtonFor = event.target.closest?.("[data-import-price-for]");
+  if (importButtonFor) {
+    pendingPriceImportIsin = importButtonFor.dataset.importPriceFor;
+    if (priceImportFileInput) {
+      priceImportFileInput.value = "";
+      priceImportFileInput.click();
+    }
+    return;
+  }
+  const retryButtonFor = event.target.closest?.("[data-retry-price-for]");
+  if (retryButtonFor) {
+    const isin = retryButtonFor.dataset.retryPriceFor;
+    priceSourceRuntime.delete(isin);
+    await renderPriceSources();
+    clearCalculation();
+    try { await determineHistoricalEndValue(); }
+    catch (error) { showError(error.message || "Automatische Kursquelle konnte nicht geprüft werden."); }
+  }
+});
+
+priceImportFileInput?.addEventListener("change", async () => {
+  const file = priceImportFileInput.files?.[0];
+  const isin = pendingPriceImportIsin;
+  pendingPriceImportIsin = null;
+  if (!file || !isin) return;
+  try {
+    await importHistoricalPriceFile(file, isin);
+    await determineHistoricalEndValue({ automatic: true });
+  } catch (error) {
+    showError(error.message || "Historische Kursdatei konnte nicht importiert werden.");
+  } finally {
+    priceImportFileInput.value = "";
   }
 });
 
@@ -2730,6 +2923,8 @@ resetButton?.addEventListener("click", () => {
   closePrintOptions();
   clearCalculation();
   lastCsvImportStats = null;
+  priceSourceRuntime.clear();
+  pendingPriceImportIsin = null;
   if (importSummary) importSummary.hidden = true;
   if (fundWorkspace) fundWorkspace.hidden = true;
   if (fundEntryChoice) fundEntryChoice.hidden = false;
