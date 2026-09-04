@@ -4,7 +4,7 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.0
+- **Toolbox:** 0.6.1
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
@@ -88,7 +88,7 @@ Für manuell angelegte Start-/Einmalanlagen und manuell erzeugte Sparraten bleib
 
 #### Historische Depotwertentwicklung
 
-Für Wertpapierbuchungen mit ISIN und Menge kann die historische Depotentwicklung aus offiziellen Union-Investment-Rücknahmepreisen rekonstruiert werden.
+Für Wertpapierbuchungen mit ISIN und Menge kann die historische Depotentwicklung aus einer Kursquelle je ISIN rekonstruiert werden. Union-Investment-Fonds werden weiterhin automatisch über den Worker versorgt; für andere Wertpapiere kann eine historische Kursdatei lokal importiert werden.
 
 Darstellbar sind per Checkbox unter anderem:
 
@@ -102,9 +102,22 @@ Darstellbar sind per Checkbox unter anderem:
 
 Positionsrenditen beginnen erst mit der ersten Kaufposition der jeweiligen ISIN. Fehlende Renditewerte werden nicht als 0-%-Linie dargestellt.
 
-Für Bewertungstage ohne eigenen NAV wird der letzte verfügbare offizielle Rücknahmepreis davor verwendet.
+Für Bewertungstage ohne eigenen Kurs wird der letzte verfügbare Kurs der jeweiligen Quelle davor verwendet.
 
-Sind bei allen erkannten Wertpapierbewegungen – ausdrücklich Käufen **und Verkäufen** – ISIN und Menge vollständig vorhanden, kann die Toolbox den Depotwert am Bewertungsdatum aus historischen Rücknahmepreisen ermitteln. Nach einem Bank-CSV-Import wird diese Bewertung automatisch versucht; der manuelle Button **„Depotwert aus historischen Kursen ermitteln“** bleibt zusätzlich verfügbar. Unvollständige Wertpapierbewegungen verhindern bewusst eine Teilbewertung.
+Sind bei allen erkannten Wertpapierbewegungen – ausdrücklich Käufen **und Verkäufen** – ISIN und Menge vollständig vorhanden, kann die Toolbox den Depotwert am Bewertungsdatum aus den hinterlegten historischen Kursquellen ermitteln. Nach einem Bank-CSV-Import wird diese Bewertung automatisch versucht; der manuelle Button **„Depotwert aus historischen Kursen ermitteln“** bleibt zusätzlich verfügbar. Unvollständige Wertpapierbewegungen verhindern bewusst eine Teilbewertung.
+
+#### Kursversorgung je ISIN
+
+Die historische Depotbewertung ist nicht mehr auf Union-Fonds beschränkt. Für jede ISIN wird der tatsächlich benötigte Haltezeitraum aus Kauf- und Verkaufsbewegungen ermittelt. Bereits vollständig verkaufte Positionen werden für ihre früheren Haltezeiträume weiterhin berücksichtigt.
+
+Kursquellen:
+
+- **Union Investment:** automatischer Abruf über den bestehenden Worker,
+- **andere Wertpapiere:** lokaler Import einer historischen CSV-Kursdatei.
+
+Der Kursdatei-Import akzeptiert mindestens eine Datums- und eine Kurs-/Preis-Spalte. Unterstützt werden u. a. `Datum`, `Date`, `Stichtag` sowie `Kurs`, `Preis`, `Rücknahmepreis`, `NAV`, `Close`, `Schlusskurs` oder `Rechenwert`. Eine `ISIN`- und `Währung`-Spalte ist optional. Importierte Kursdaten werden ausschließlich in IndexedDB gespeichert und nicht an den Worker oder GitHub übertragen. Weitere Dateien können später zur Ergänzung fehlender Zeiträume eingelesen werden.
+
+Die Toolbox gibt keine scheinbar vollständige Teilbewertung aus: Fehlt für auch nur eine gehaltene Position die Kursquelle oder der notwendige Zeitraum, wird die historische Depotbewertung abgebrochen und die fehlende ISIN in **Kursversorgung** ausgewiesen. Derzeit wird die gemeinsame Depotbewertung in EUR durchgeführt; explizit als andere Währung gekennzeichnete Kursreihen werden bis zur späteren FX-Anbindung nicht stillschweigend zusammengerechnet.
 
 #### Historische Benchmarks
 
@@ -143,33 +156,31 @@ Die Farblogik unterstützt die Trennung der Themen: Petrol/Blau steht für das e
 
 ## Daten- und Cache-Architektur
 
-### Historische Union-Fondspreise
+### Historische Wertpapierkurse
 
-Die historische Preisabfrage verwendet den Cloudflare-Worker-Endpunkt:
+Für Union-Investment-Fonds verwendet die automatische Preisabfrage den Cloudflare-Worker-Endpunkt:
 
 `/union-prices?isin=<ISIN>&start=YYYY-MM-DD&end=YYYY-MM-DD`
 
 Datenweg:
 
 ```text
-Union Investment API
-        ↓
-Cloudflare Worker
-        ↓
-Cloudflare KV je ISIN
-        ↓
-Browser / benötigter Zeitraum
-        ↓
-IndexedDB je ISIN
-        ↓
-Depotberechnung und Diagramme
+Union Investment API                 lokale Kursdatei
+        ↓                                  ↓
+Cloudflare Worker                      Browser
+        ↓                                  ↓
+Cloudflare KV je ISIN ─────────────→ IndexedDB je ISIN
+                                           ↓
+                               Depotberechnung und Diagramme
 ```
 
 - Der Union-API-Key liegt ausschließlich als Cloudflare-Secret `UNION_API_KEY` im Worker.
 - Das KV-Binding heißt `UNION_PRICE_KV`.
 - Historische Kursreihen werden serverseitig zwischengespeichert.
 - Im Browser werden bereits geladene Kursbereiche zusätzlich in IndexedDB gespeichert.
-- Die Seite fordert nur lokal fehlende Zeiträume beim Worker an.
+- Die Seite fordert für Union-Fonds nur lokal fehlende Haltezeiträume beim Worker an.
+- Für andere Wertpapiere werden importierte Kursdateien lokal je ISIN gespeichert und bei Bedarf um weitere Zeiträume ergänzt.
+- Auch bereits verkaufte Positionen bleiben für ihre historischen Haltezeiträume bewertbar.
 
 ### Weitere Worker-Endpunkte
 
@@ -182,7 +193,7 @@ Depotberechnung und Diagramme
 
 ## Datenschutz
 
-Berechnungsdaten und Depotbezeichnungen werden lokal im Browser verarbeitet. Beim Abruf historischer Union-Preise werden nur ISIN und benötigter Zeitraum an den Worker übertragen; Beträge, Mengen, Titel und Depotbezeichnungen werden nicht an Union übertragen.
+Berechnungsdaten und Depotbezeichnungen werden lokal im Browser verarbeitet. Beim Abruf historischer Union-Preise werden nur ISIN und benötigter Haltezeitraum an den Worker übertragen; Beträge, Mengen, Titel und Depotbezeichnungen werden nicht an Union übertragen. Manuell importierte Kursdateien werden ausschließlich lokal verarbeitet und nicht hochgeladen.
 
 JSON-Import und -Export erfolgen lokal. Historische Kursdaten werden lokal in IndexedDB zwischengespeichert; der Worker kann dieselben öffentlichen Preisreihen zusätzlich in Cloudflare KV cachen.
 
@@ -242,6 +253,18 @@ Für die Toolbox gilt:
 5. Der Änderungsverlauf steht ausschließlich im folgenden Changelog.
 
 ## Changelog
+
+### 0.6.1
+
+- Historische Depotbewertung auf ein allgemeines Kursquellen-System je ISIN erweitert.
+- Union Investment bleibt automatische Kursquelle; andere Wertpapiere können über lokale historische CSV-Kursdateien versorgt werden.
+- Neuer ausklappbarer Bereich **Kursversorgung** zeigt je Wertpapier Titel, ISIN, benötigten Haltezeitraum und verwendete bzw. fehlende Kursquelle.
+- Haltezeiträume werden aus sämtlichen Käufen und Verkäufen abgeleitet; vollständig verkaufte und später erneut gekaufte Positionen erzeugen getrennte benötigte Kurszeiträume.
+- Fehlende Kursquellen oder Kurszeiträume verhindern bewusst eine unvollständige historische Depotkurve.
+- Lokale Kursdateien werden je ISIN in IndexedDB gespeichert und können durch weitere Dateien ergänzt werden.
+- Generischer Kursdatei-Import unterstützt mehrere gebräuchliche Datums-/Kurs-Spalten sowie optional ISIN und Währung.
+- Depotbewertung mit expliziten Nicht-EUR-Kursreihen wird bis zur späteren Währungsumrechnung blockiert statt nominal zusammengerechnet.
+- Toolbox-Version auf 0.6.1 angehoben; Cloudflare-Datenworker bleibt unverändert auf 0.5.6.
 
 ### 0.6.0
 
