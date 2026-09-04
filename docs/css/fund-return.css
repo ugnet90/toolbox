@@ -1792,3 +1792,79 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* v0.6.1 – Kursversorgung je ISIN */
+.fund-price-sources {
+  margin-top: .8rem;
+  border: 1px solid #d9e3e6;
+  border-radius: 10px;
+  background: #fbfcfc;
+}
+.fund-price-sources > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem;
+  padding: .7rem .85rem;
+}
+.fund-price-sources > summary::-webkit-details-marker { display: none; }
+.fund-price-sources > summary span {
+  display: flex;
+  align-items: baseline;
+  gap: .65rem;
+  flex-wrap: wrap;
+}
+.fund-price-sources > summary small {
+  color: var(--text-muted);
+  font-size: .78rem;
+  font-weight: 500;
+}
+.fund-price-sources__body {
+  padding: 0 .85rem .85rem;
+  border-top: 1px solid #e6ecee;
+}
+.fund-price-source-list {
+  display: grid;
+  gap: .55rem;
+  margin-top: .65rem;
+}
+.fund-price-source-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(190px, 1fr) auto;
+  align-items: center;
+  gap: .7rem;
+  padding: .65rem .7rem;
+  border: 1px solid #dfe7e9;
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: #fff;
+}
+.fund-price-source-row--ok { border-left-color: #4f7d66; }
+.fund-price-source-row--warning { border-left-color: #b57b1d; background: #fffdf8; }
+.fund-price-source-row--pending { border-left-color: #9aa9ad; }
+.fund-price-source-row__identity strong,
+.fund-price-source-row__identity small { display: block; }
+.fund-price-source-row__identity small {
+  margin-top: .15rem;
+  color: var(--text-muted);
+  font-size: .74rem;
+}
+.fund-price-source-row__status {
+  font-size: .82rem;
+  color: #43555c;
+}
+.fund-price-source-row__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.fund-price-source-row__actions button { white-space: nowrap; }
+
+@media (max-width: 760px) {
+  .fund-price-source-row { grid-template-columns: 1fr; }
+  .fund-price-source-row__actions { justify-content: flex-start; }
+}
