@@ -12,10 +12,37 @@ import {
   buildBenchmarkHistory,
   normalizeFundReturnData,
   parseBankTransactionsCsv,
+  parseHistoricalPriceCsv,
+  securityHoldingPeriods,
   simulateHistoricalRateBenchmark,
   simulateHistoricalSavings,
   summarizeCsvPurchaseFees
 } from "../docs/js/fund-return-utils.js";
+
+
+const genericPrices = parseHistoricalPriceCsv(`Datum;Kurs;Währung\n31.12.2025;99,50;EUR\n02.01.2026;100,25;EUR\n`, { expectedIsin: "DE0008491051" });
+assert.equal(genericPrices.validPrices, 2);
+assert.equal(genericPrices.firstDate, "2025-12-31");
+assert.equal(genericPrices.lastDate, "2026-01-02");
+assert.equal(genericPrices.observations[1].redemption_price, 100.25);
+assert.equal(genericPrices.currency, "EUR");
+
+const genericPricesWithIsin = parseHistoricalPriceCsv(`ISIN;Datum;NAV\nDE0008491051;01.01.2026;100,00\nLU0000000001;01.01.2026;50,00\nDE0008491051;02.01.2026;101,00\n`, { expectedIsin: "DE0008491051" });
+assert.equal(genericPricesWithIsin.validPrices, 2);
+assert.deepEqual(genericPricesWithIsin.observations.map((item) => item.date), ["2026-01-01", "2026-01-02"]);
+
+const holdingPeriods = securityHoldingPeriods([
+  { date: "2020-01-10", type: "contribution", isin: "DE0008491051", quantity: 10, title: "Fonds A" },
+  { date: "2021-05-01", type: "withdrawal", isin: "DE0008491051", quantity: -10, title: "Fonds A" },
+  { date: "2022-02-01", type: "contribution", isin: "DE0008491051", quantity: 5, title: "Fonds A" },
+  { date: "2023-03-01", type: "contribution", isin: "LU0000000001", quantity: 2, title: "Fonds B" }
+], "2024-12-31");
+assert.deepEqual(holdingPeriods[0].ranges, [
+  { start: "2020-01-10", end: "2021-05-01" },
+  { start: "2022-02-01", end: "2024-12-31" }
+]);
+assert.equal(holdingPeriods[0].currentQuantity, 5);
+assert.deepEqual(holdingPeriods[1].ranges, [{ start: "2023-03-01", end: "2024-12-31" }]);
 
 const gross = initialInvestment({ amount: 1040, amountMode: "gross", purchaseFeePercent: 4 });
 assert.ok(Math.abs(gross.netInvested - 1000) < 1e-9);
