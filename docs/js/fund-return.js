@@ -1,4 +1,4 @@
-import { SITE_VERSION } from "./site-map.js?v=0.6.6";
+import { SITE_VERSION } from "./site-map.js?v=0.6.7";
 import {
   applyKestExemption,
   calculateXirr,
@@ -19,7 +19,7 @@ import {
   securityHoldingPeriods,
   summarizeCashflows,
   summarizeCsvPurchaseFees
-} from "./fund-return-utils.js?v=0.6.6";
+} from "./fund-return-utils.js?v=0.6.7";
 
 const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
 const BENCHMARKS = {
@@ -741,12 +741,17 @@ async function saveJsonFile(data) {
       return { saved: true, picker: true };
     } catch (error) {
       if (error?.name === "AbortError") return { saved: false, cancelled: true };
-      throw error;
+      // Einige Browser/Plattformkontexte stellen showSaveFilePicker() bereit,
+      // erlauben den Aufruf aber trotzdem nicht (z. B. NotAllowedError/SecurityError).
+      // In diesem Fall soll der Export nicht scheitern, sondern den normalen
+      // Browser-Download verwenden.
+      downloadJsonFallback(text, filename);
+      return { saved: true, picker: false, pickerFallback: true };
     }
   }
 
   downloadJsonFallback(text, filename);
-  return { saved: true, picker: false };
+  return { saved: true, picker: false, pickerFallback: false };
 }
 
 function applyImportedFundData(data) {
@@ -2293,7 +2298,11 @@ exportButton?.addEventListener("click", async () => {
     const result = await saveJsonFile(data);
     if (result.cancelled) return;
     const flowLabel = data.cashflows.length === 1 ? "1 zusätzlicher Zahlungsstrom" : `${data.cashflows.length} zusätzliche Zahlungsströme`;
-    const locationNote = result.picker ? " Speicherort wurde ausgewählt." : " Browser-Download verwendet.";
+    const locationNote = result.picker
+      ? " Speicherort wurde ausgewählt."
+      : result.pickerFallback
+        ? " Speichern-Dialog war in diesem Browserkontext nicht erlaubt; Browser-Download verwendet."
+        : " Browser-Download verwendet.";
     showDataStatus(`Berechnungsdaten exportiert (${flowLabel}).${locationNote}`);
   } catch (error) {
     showError(error.message || "Daten konnten nicht exportiert werden.");
