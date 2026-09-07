@@ -234,12 +234,24 @@ function normalizeCsvHeader(value) {
   return String(value ?? "").replace(/\u00A0/g, " ").trim().toLocaleLowerCase("de-AT");
 }
 
-function germanDateToIso(value, lineNumber, label = "Abrechnungsdatum") {
-  const match = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(String(value ?? "").trim());
-  if (!match) throw new Error(`CSV-Zeile ${lineNumber}: ${label} ist ungültig.`);
-  const iso = `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
-  parseIsoDate(iso);
-  return iso;
+function csvDateToIso(value, lineNumber, label = "Abrechnungsdatum") {
+  const raw = String(value ?? "").trim();
+
+  let match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(raw);
+  if (match) {
+    const iso = `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
+    parseIsoDate(iso);
+    return iso;
+  }
+
+  match = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(raw);
+  if (match) {
+    const iso = `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+    parseIsoDate(iso);
+    return iso;
+  }
+
+  throw new Error(`CSV-Zeile ${lineNumber}: ${label} ist ungültig.`);
 }
 
 function mapCsvBusinessType(value) {
@@ -317,7 +329,7 @@ export function parseBankTransactionsCsv(text) {
     if (!rawAmount || !rawDate) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag oder ${transactionDateLabel} fehlt.`);
     if (isin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) throw new Error(`CSV-Zeile ${lineNumber}: ISIN ist ungültig.`);
 
-    const isoDate = germanDateToIso(rawDate, lineNumber, transactionDateLabel);
+    const isoDate = csvDateToIso(rawDate, lineNumber, transactionDateLabel);
     const type = mapCsvBusinessType(businessType);
     if (!earliestTransactionDate || isoDate < earliestTransactionDate) earliestTransactionDate = isoDate;
 
@@ -351,7 +363,7 @@ export function parseBankTransactionsCsv(text) {
     }
     if (isin && quantity !== null && ["contribution", "withdrawal"].includes(type)) securityIsins.add(isin);
 
-    const valuationDate = rawValuationDate ? germanDateToIso(rawValuationDate, lineNumber, "Stichtag") : "";
+    const valuationDate = rawValuationDate ? csvDateToIso(rawValuationDate, lineNumber, "Stichtag") : "";
     let referenceValue = null;
     if (rawReferenceValue) {
       referenceValue = parseGermanNumber(rawReferenceValue);
