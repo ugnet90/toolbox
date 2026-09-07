@@ -1,4 +1,4 @@
-import { SITE_VERSION } from "./site-map.js?v=0.6.5";
+import { SITE_VERSION } from "./site-map.js?v=0.6.6";
 import {
   applyKestExemption,
   calculateXirr,
@@ -19,7 +19,7 @@ import {
   securityHoldingPeriods,
   summarizeCashflows,
   summarizeCsvPurchaseFees
-} from "./fund-return-utils.js?v=0.6.5";
+} from "./fund-return-utils.js?v=0.6.6";
 
 const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
 const BENCHMARKS = {
@@ -541,7 +541,7 @@ function renderImportSummary(stats = lastCsvImportStats) {
     return;
   }
   importSummary.hidden = false;
-  if (importSummaryTitle) importSummaryTitle.textContent = stats.kind === "json" ? "Gespeicherte Daten importiert" : "Bank-CSV importiert";
+  if (importSummaryTitle) importSummaryTitle.textContent = stats.kind === "json" ? "Gespeicherte Daten importiert" : "CSV importiert";
   if (importSummaryText) {
     const parts = [];
     if (stats.files) parts.push(`${stats.files} CSV`);
@@ -652,6 +652,12 @@ function selectedBenchmarkKinds() {
   return benchmarkCheckboxes.filter((box) => box.checked).map((box) => box.value).filter((key) => BENCHMARKS[key]);
 }
 
+function optionalFiniteNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 function currentFundData() {
   const initial = parseGermanNumber(initialAmount?.value);
   const terminal = parseGermanNumber(endValue?.value);
@@ -675,15 +681,15 @@ function currentFundData() {
     },
     cashflows: cashflows.map(({ date, type, amount, title, note, isin, quantity, unit, valuationDate, referenceValue, executionPrice, executionPriceCurrency, cashflowCurrency, purchaseFeePerUnit, purchaseFeeTotal, purchaseFeePercent }) => ({
       date, type, amount, title: title || "", note: note || "", isin: isin || "",
-      quantity: Number.isFinite(Number(quantity)) ? Number(quantity) : null, unit: unit || "",
+      quantity: optionalFiniteNumber(quantity), unit: unit || "",
       valuationDate: valuationDate || "",
-      referenceValue: Number.isFinite(Number(referenceValue)) ? Number(referenceValue) : null,
-      executionPrice: Number.isFinite(Number(executionPrice)) ? Number(executionPrice) : null,
+      referenceValue: optionalFiniteNumber(referenceValue),
+      executionPrice: optionalFiniteNumber(executionPrice),
       executionPriceCurrency: executionPriceCurrency || "",
       cashflowCurrency: cashflowCurrency || "",
-      purchaseFeePerUnit: Number.isFinite(Number(purchaseFeePerUnit)) ? Number(purchaseFeePerUnit) : null,
-      purchaseFeeTotal: Number.isFinite(Number(purchaseFeeTotal)) ? Number(purchaseFeeTotal) : null,
-      purchaseFeePercent: Number.isFinite(Number(purchaseFeePercent)) ? Number(purchaseFeePercent) : null
+      purchaseFeePerUnit: optionalFiniteNumber(purchaseFeePerUnit),
+      purchaseFeeTotal: optionalFiniteNumber(purchaseFeeTotal),
+      purchaseFeePercent: optionalFiniteNumber(purchaseFeePercent)
     }))
   });
 }
