@@ -4,7 +4,7 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.1
+- **Toolbox:** 0.6.3
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
@@ -71,6 +71,8 @@ Unterstützt werden insbesondere die Spalten:
 Mehrere CSV-Dateien können in einer Importsitzung nacheinander ergänzt werden. Nach dem letzten Import kann Startdatum/-wert manuell eingegeben werden; alternativ übernimmt die Toolbox Startwert `0,00 €` und das früheste Buchungsdatum der Importsitzung.
 
 Nullbuchungen werden nicht als Zahlungsstrom übernommen, können aber für die automatische Startdatumsbestimmung relevant sein.
+
+Zusätzlich wird das Depot-Umsatz-Format mit `Stichtag`, `Depot`, `Titel`, `ISIN`, `Menge`, `Mengeneinheit`, `Ausführungskurs`, `Ausführungskurseinheit`, `Abrechnungsbetrag`, `Abrechnungsbetrag-einheit` und `Geschäftsart` erkannt. Die Spalte `Depot` wird aus Datenschutzgründen bewusst nicht in den Rechnerzustand übernommen.
 
 #### Buchungsgenaue Fondskaufspesen aus CSV
 
@@ -253,6 +255,19 @@ Für die Toolbox gilt:
 5. Der Änderungsverlauf steht ausschließlich im folgenden Changelog.
 
 ## Changelog
+
+### 0.6.3
+
+- CSV-Import zeigt bereits während des Einlesens einen sichtbaren Status im Einstiegsbereich.
+- Importfehler werden dort ebenfalls sichtbar angezeigt; Fehler vor dem Öffnen des Arbeitsbereichs wirken dadurch nicht mehr wie ein funktionsloser Import.
+- Das hochgeladene Windows-1252-Demoformat mit `Stichtag`, `Mengeneinheit`, `Ausführungskurs` und `Geschäftsart` wurde direkt gegen den Parser getestet.
+
+### 0.6.2
+
+- Zweites Depot-Umsatz-CSV-Format ergänzt; `Stichtag` dient ohne `Abrechnungsdatum` als Transaktionsdatum.
+- `Ausführungskurs`, Kurs-/Abrechnungswährung und `Mengeneinheit` werden übernommen.
+- Die CSV-Spalte `Depot` wird aus Datenschutzgründen weder in Rechnerzustand noch JSON-Export übernommen.
+- JSON-Schema auf v6 erweitert; ältere unterstützte Exporte bleiben importierbar.
 
 ### 0.6.1
 
