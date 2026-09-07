@@ -29,17 +29,17 @@
 <section class="panel fund-panel">
 <div class="panel__header">
 <h2>Depot erfassen</h2>
-<p>Starte mit einem Bank-CSV oder erfasse die Depotdaten manuell. Weitere Bereiche werden erst eingeblendet, wenn sie benötigt werden.</p>
+<p>Starte mit einem CSV oder erfasse die Depotdaten manuell. Weitere Bereiche werden erst eingeblendet, wenn sie benötigt werden.</p>
 </div>
 <div class="panel__body">
 <form class="fund-form" data-fund-form="">
 <section class="fund-entry-choice" data-fund-entry-choice="">
 <div class="fund-entry-choice__title">
 <h3>Wie möchtest du beginnen?</h3>
-<p>Für Bank-CSV werden Buchungen, ISIN, Mengen und – soweit vorhanden – Kaufspesen automatisch ausgewertet.</p>
+<p>Für CSV werden Buchungen, ISIN, Mengen und – soweit vorhanden – Kaufspesen automatisch ausgewertet.</p>
 </div>
 <div class="fund-entry-choice__actions">
-<button class="primary-button" data-import-bank-csv="" type="button">Bank-CSV importieren</button>
+<button class="primary-button" data-import-bank-csv="" type="button">CSV importieren</button>
 <button class="secondary-button" data-manual-start="" type="button">Manuell erfassen</button>
 <button class="link-button" data-import-fund="" type="button">Gespeicherte JSON-Daten importieren</button>
 </div>
@@ -236,7 +236,7 @@
 <span>%</span>
 </div>
 <span class="field__hint">Spesensatz nur für den Start-/Einmalbetrag. Sparraten können unten einen eigenen Spesensatz verwenden.</span>
-</div><p class="field__hint">Kaufspesen aus Bank-CSV werden – sofern Stichtag, Rechenwert und Menge vorhanden sind – buchungsgenau aus den importierten Daten ermittelt. Die manuellen Spesenfelder gelten nur für manuell erfasste Start-/Einmalanlagen bzw. erzeugte Sparraten.</p></div>
+</div><p class="field__hint">Kaufspesen aus CSV werden – sofern Stichtag, Rechenwert und Menge vorhanden sind – buchungsgenau aus den importierten Daten ermittelt. Die manuellen Spesenfelder gelten nur für manuell erfasste Start-/Einmalanlagen bzw. erzeugte Sparraten.</p></div>
 </details><details class="fund-work-section fund-work-section--benchmark" data-work-section="benchmarks">
 <summary><span><span class="fund-work-section__eyebrow">Vergleich</span><strong>Benchmarks</strong></span><small data-benchmark-summary=""></small></summary>
 <div class="fund-work-section__body" data-benchmark-body=""><div class="benchmark-picker"><p class="benchmark-picker__hint">Die Auswahl wird auf diesem Gerät gespeichert und bleibt bis zur nächsten Änderung erhalten.</p><div class="benchmark-picker__grid"><div class="benchmark-category"><strong>Zinsvergleich</strong><div class="benchmark-picker__grid"><label class="benchmark-check benchmark-check--overnight"><input checked="" data-benchmark-checkbox="" type="checkbox" value="overnight"/> <span>Ø täglich fällige Einlagen AT</span></label><label class="benchmark-check benchmark-check--euribor3m"><input checked="" data-benchmark-checkbox="" type="checkbox" value="euribor3m"/> <span>3-Monats-Euribor</span></label><label class="benchmark-check benchmark-check--euribor6m"><input data-benchmark-checkbox="" type="checkbox" value="euribor6m"/> <span>6-Monats-Euribor</span></label><label class="benchmark-check benchmark-check--euribor12m"><input data-benchmark-checkbox="" type="checkbox" value="euribor12m"/> <span>12-Monats-Euribor</span></label></div></div><div class="benchmark-category benchmark-category--planned">
@@ -395,6 +395,6 @@
 <section aria-hidden="true" class="fund-print-report" data-print-report=""></section>
 <footer class="site-footer">Toolbox</footer>
 <script src="js/navigation.js" type="module"></script>
-<script src="js/fund-return.js?v=0.6.5" type="module"></script>
+<script src="js/fund-return.js?v=0.6.6" type="module"></script>
 </body>
 </html>
