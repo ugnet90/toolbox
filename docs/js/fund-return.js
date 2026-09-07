@@ -665,11 +665,14 @@ function currentFundData() {
       benchmarkKinds: selectedBenchmarkKinds(),
       kestExemption: kestExemption?.value
     },
-    cashflows: cashflows.map(({ date, type, amount, title, note, isin, quantity, unit, valuationDate, referenceValue, purchaseFeePerUnit, purchaseFeeTotal, purchaseFeePercent }) => ({
+    cashflows: cashflows.map(({ date, type, amount, title, note, isin, quantity, unit, valuationDate, referenceValue, executionPrice, executionPriceCurrency, cashflowCurrency, purchaseFeePerUnit, purchaseFeeTotal, purchaseFeePercent }) => ({
       date, type, amount, title: title || "", note: note || "", isin: isin || "",
       quantity: Number.isFinite(Number(quantity)) ? Number(quantity) : null, unit: unit || "",
       valuationDate: valuationDate || "",
       referenceValue: Number.isFinite(Number(referenceValue)) ? Number(referenceValue) : null,
+      executionPrice: Number.isFinite(Number(executionPrice)) ? Number(executionPrice) : null,
+      executionPriceCurrency: executionPriceCurrency || "",
+      cashflowCurrency: cashflowCurrency || "",
       purchaseFeePerUnit: Number.isFinite(Number(purchaseFeePerUnit)) ? Number(purchaseFeePerUnit) : null,
       purchaseFeeTotal: Number.isFinite(Number(purchaseFeeTotal)) ? Number(purchaseFeeTotal) : null,
       purchaseFeePercent: Number.isFinite(Number(purchaseFeePercent)) ? Number(purchaseFeePercent) : null
@@ -790,6 +793,12 @@ async function importBankTransactionsCsv(file) {
   const label = count === 1 ? "1 Buchung" : `${count} Buchungen`;
   const skipped = parsed.skippedZeroAmounts > 0 ? ` ${parsed.skippedZeroAmounts} Nullbuchung(en) wurden übersprungen.` : "";
   showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped}`);
+  if (parsed.sourceFormat === "depot-turnover") {
+    showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} Format „Depot-Umsatz“ erkannt.`);
+  }
+  if (parsed.ignoredDepotColumn) {
+    appendWarning("Die CSV-Spalte „Depot“ wird aus Datenschutzgründen bewusst ignoriert. Depotnummern/-kennungen werden weder in den Rechnerzustand noch in JSON-Exporte übernommen.");
+  }
   if (parsed.unknownBusinessTypes > 0) {
     appendWarning(`${parsed.unknownBusinessTypes} unbekannte Geschäftsart(en) wurden als „Sonstiger Cashflow“ übernommen; Originaltext steht in der Notiz.`);
   }
@@ -807,8 +816,16 @@ async function importBankTransactionsCsv(file) {
   if (parsed.normalizedQuantitySigns > 0) {
     appendWarning(`${parsed.normalizedQuantitySigns} Mengenangabe(n) wurden für Kauf/Verkauf auf das passende Vorzeichen normalisiert.`);
   }
+  const nonEurCashflowCurrencies = (parsed.cashflowCurrencies || []).filter((item) => item && item !== "EUR");
+  if (nonEurCashflowCurrencies.length) {
+    appendWarning(`Die CSV enthält Abrechnungsbeträge in ${nonEurCashflowCurrencies.join(", ")}. Die Depotrendite rechnet derzeit ohne automatische Währungsumrechnung.`);
+  }
   if (!parsed.hasValuationDateColumn || !parsed.hasReferenceValueColumn) {
-    appendWarning("Für die buchungsgenaue Ermittlung der Fondskaufspesen werden zusätzlich die CSV-Spalten „Stichtag“ und „Rechenwert“ benötigt.");
+    if (parsed.hasExecutionPriceColumn && parsed.hasValuationDateColumn) {
+      appendWarning("Der Ausführungskurs wurde übernommen. Ohne separaten Rechenwert lassen sich Ausgabeaufschlag bzw. Fondskaufspesen aus dieser CSV allein nicht eindeutig vom Ausführungskurs trennen.");
+    } else {
+      appendWarning("Für die buchungsgenaue Ermittlung der Fondskaufspesen werden zusätzlich die CSV-Spalten „Stichtag“ und „Rechenwert“ benötigt.");
+    }
   } else {
     const feeRows = parsed.cashflows.filter((flow) => Number.isFinite(Number(flow.purchaseFeeTotal)));
     if (feeRows.length) showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} Kaufspesen wurden für ${feeRows.length} Kaufbuchung(en) aus Abrechnungsbetrag, Menge und Rechenwert ermittelt.`);
@@ -2101,9 +2118,11 @@ cashflowBody?.addEventListener("change", (event) => {
       flow.note = input.value.trim();
     }
     if (field === "title") renderCsvPurchaseFeeSummary();
-    if (["type", "amount", "isin", "quantity"].includes(field)) {
+    if (["date", "type", "amount", "isin", "quantity"].includes(field)) {
       flow.valuationDate = "";
       flow.referenceValue = null;
+      flow.executionPrice = null;
+      flow.executionPriceCurrency = "";
       flow.purchaseFeePerUnit = null;
       flow.purchaseFeeTotal = null;
       flow.purchaseFeePercent = null;

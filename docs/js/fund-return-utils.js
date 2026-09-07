@@ -33,7 +33,7 @@ export function formatGermanNumber(value, decimals = 2) {
 }
 
 export const FUND_RETURN_DATA_FORMAT = "toolbox-depot-return";
-export const FUND_RETURN_DATA_SCHEMA_VERSION = 5;
+export const FUND_RETURN_DATA_SCHEMA_VERSION = 6;
 
 const LEGACY_FUND_RETURN_DATA_FORMAT = "toolbox-fund-return";
 const FUND_AMOUNT_MODES = new Set(["gross", "net"]);
@@ -76,7 +76,7 @@ export function normalizeFundReturnData(payload) {
 
   const schemaVersion = Number(payload.schema_version);
   const isLegacy = payload.format === LEGACY_FUND_RETURN_DATA_FORMAT && schemaVersion === 1;
-  const isCurrent = payload.format === FUND_RETURN_DATA_FORMAT && [2, 3, 4, FUND_RETURN_DATA_SCHEMA_VERSION].includes(schemaVersion);
+  const isCurrent = payload.format === FUND_RETURN_DATA_FORMAT && [2, 3, 4, 5, FUND_RETURN_DATA_SCHEMA_VERSION].includes(schemaVersion);
   if (!isLegacy && !isCurrent) {
     throw new Error("Die Datei ist keine unterstützte Toolbox-Depotrendite-Datei.");
   }
@@ -131,6 +131,9 @@ export function normalizeFundReturnData(payload) {
       ? null
       : requireFiniteNumber(value, label);
     const referenceValue = optionalNumber(flow.referenceValue, `Rechenwert in Zahlungsstrom ${index + 1}`);
+    const executionPrice = optionalNumber(flow.executionPrice, `Ausführungskurs in Zahlungsstrom ${index + 1}`);
+    const executionPriceCurrency = String(flow.executionPriceCurrency ?? "").trim().toUpperCase();
+    const cashflowCurrency = String(flow.cashflowCurrency ?? "").trim().toUpperCase();
     const purchaseFeePerUnit = optionalNumber(flow.purchaseFeePerUnit, `Kaufspesen je Anteil in Zahlungsstrom ${index + 1}`);
     const purchaseFeeTotal = optionalNumber(flow.purchaseFeeTotal, `Kaufspesen gesamt in Zahlungsstrom ${index + 1}`);
     const purchaseFeePercent = optionalNumber(flow.purchaseFeePercent, `Kaufspesen-Prozentsatz in Zahlungsstrom ${index + 1}`);
@@ -138,7 +141,10 @@ export function normalizeFundReturnData(payload) {
     if (note.length > 120) throw new Error(`Notiz in Zahlungsstrom ${index + 1} ist zu lang.`);
     if (isin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) throw new Error(`ISIN in Zahlungsstrom ${index + 1} ist ungültig.`);
     if (unit.length > 20) throw new Error(`Einheit in Zahlungsstrom ${index + 1} ist zu lang.`);
-    cashflows.push({ date: String(flow.date), type, amount, title, note, isin, quantity, unit, valuationDate, referenceValue, purchaseFeePerUnit, purchaseFeeTotal, purchaseFeePercent });
+    if (executionPrice !== null && executionPrice <= 0) throw new Error(`Ausführungskurs in Zahlungsstrom ${index + 1} muss größer als 0 sein.`);
+    if (executionPriceCurrency.length > 12) throw new Error(`Ausführungskurs-Währung in Zahlungsstrom ${index + 1} ist zu lang.`);
+    if (cashflowCurrency.length > 12) throw new Error(`Abrechnungsbetrag-Währung in Zahlungsstrom ${index + 1} ist zu lang.`);
+    cashflows.push({ date: String(flow.date), type, amount, title, note, isin, quantity, unit, valuationDate, referenceValue, executionPrice, executionPriceCurrency, cashflowCurrency, purchaseFeePerUnit, purchaseFeeTotal, purchaseFeePercent });
   });
 
   return {
@@ -253,22 +259,33 @@ export function parseBankTransactionsCsv(text) {
   if (nonEmptyRows.length < 2) throw new Error("Die CSV-Datei enthält keine Buchungsdaten.");
 
   const header = nonEmptyRows[0].map(normalizeCsvHeader);
-  const required = {
-    amount: "abrechnungsbetrag",
-    type: "geschäftsart",
-    date: "abrechnungsdatum"
-  };
-  const indexes = Object.fromEntries(
-    Object.entries(required).map(([key, label]) => [key, header.indexOf(label)])
-  );
+  const amountIndex = header.indexOf("abrechnungsbetrag");
+  const typeIndex = header.indexOf("geschäftsart");
+  const settlementDateIndex = header.indexOf("abrechnungsdatum");
+  const valuationDateIndex = header.indexOf("stichtag");
+  const transactionDateIndex = settlementDateIndex >= 0 ? settlementDateIndex : valuationDateIndex;
+  const transactionDateLabel = settlementDateIndex >= 0 ? "Abrechnungsdatum" : "Stichtag";
+  const sourceFormat = settlementDateIndex >= 0 ? "bank-settlement" : "depot-turnover";
+
+  const missing = [];
+  if (amountIndex < 0) missing.push("abrechnungsbetrag");
+  if (typeIndex < 0) missing.push("geschäftsart");
+  if (transactionDateIndex < 0) missing.push("abrechnungsdatum oder stichtag");
+  if (missing.length) throw new Error(`CSV-Spalte(n) fehlen: ${missing.join(", ")}.`);
+
   const titleIndex = header.indexOf("titel");
   const isinIndex = header.indexOf("isin");
   const quantityIndex = header.indexOf("menge");
-  const unitIndex = header.indexOf("einheit");
-  const valuationDateIndex = header.indexOf("stichtag");
+  const unitIndex = header.indexOf("einheit") >= 0 ? header.indexOf("einheit") : header.indexOf("mengeneinheit");
   const referenceValueIndex = header.indexOf("rechenwert");
-  const missing = Object.entries(indexes).filter(([, index]) => index < 0).map(([key]) => required[key]);
-  if (missing.length) throw new Error(`CSV-Spalte(n) fehlen: ${missing.join(", ")}.`);
+  const executionPriceIndex = header.indexOf("ausführungskurs");
+  const executionPriceCurrencyIndex = header.indexOf("ausführungskurseinheit");
+  const cashflowCurrencyIndex = header.indexOf("abrechnungsbetrag-einheit") >= 0
+    ? header.indexOf("abrechnungsbetrag-einheit")
+    : header.indexOf("währung");
+  // Eine ggf. vorhandene Spalte „Depot“ wird absichtlich nicht ausgelesen.
+  // Depotnummern/-kennungen gehören weder in den Rechnerzustand noch in JSON-Exporte.
+  const ignoredDepotColumn = header.includes("depot");
 
   const cashflows = [];
   let unknownBusinessTypes = 0;
@@ -278,24 +295,29 @@ export function parseBankTransactionsCsv(text) {
   let earliestTransactionDate = null;
   const zeroStandingOrderDates = [];
   const securityIsins = new Set();
+  const cashflowCurrencies = new Set();
 
   for (let index = 1; index < nonEmptyRows.length; index += 1) {
     const row = nonEmptyRows[index];
     const lineNumber = index + 1;
-    const rawAmount = String(row[indexes.amount] ?? "").trim();
-    const businessType = String(row[indexes.type] ?? "").trim();
-    const rawDate = String(row[indexes.date] ?? "").trim();
+    const rawAmount = String(row[amountIndex] ?? "").trim();
+    const businessType = String(row[typeIndex] ?? "").trim();
+    const rawDate = String(row[transactionDateIndex] ?? "").trim();
     const title = titleIndex >= 0 ? String(row[titleIndex] ?? "").trim() : "";
     const isin = isinIndex >= 0 ? String(row[isinIndex] ?? "").trim().toUpperCase() : "";
     const rawQuantity = quantityIndex >= 0 ? String(row[quantityIndex] ?? "").trim() : "";
     const unit = unitIndex >= 0 ? String(row[unitIndex] ?? "").trim() : "";
     const rawValuationDate = valuationDateIndex >= 0 ? String(row[valuationDateIndex] ?? "").trim() : "";
     const rawReferenceValue = referenceValueIndex >= 0 ? String(row[referenceValueIndex] ?? "").trim() : "";
-    if (!rawAmount && !businessType && !rawDate && !title && !isin && !rawQuantity && !rawValuationDate && !rawReferenceValue) continue;
-    if (!rawAmount || !rawDate) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag oder Abrechnungsdatum fehlt.`);
+    const rawExecutionPrice = executionPriceIndex >= 0 ? String(row[executionPriceIndex] ?? "").trim() : "";
+    const executionPriceCurrency = executionPriceCurrencyIndex >= 0 ? String(row[executionPriceCurrencyIndex] ?? "").trim().toUpperCase() : "";
+    const cashflowCurrency = cashflowCurrencyIndex >= 0 ? String(row[cashflowCurrencyIndex] ?? "").trim().toUpperCase() : "";
+
+    if (!rawAmount && !businessType && !rawDate && !title && !isin && !rawQuantity && !rawValuationDate && !rawReferenceValue && !rawExecutionPrice) continue;
+    if (!rawAmount || !rawDate) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag oder ${transactionDateLabel} fehlt.`);
     if (isin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) throw new Error(`CSV-Zeile ${lineNumber}: ISIN ist ungültig.`);
 
-    const isoDate = germanDateToIso(rawDate, lineNumber);
+    const isoDate = germanDateToIso(rawDate, lineNumber, transactionDateLabel);
     const type = mapCsvBusinessType(businessType);
     if (!earliestTransactionDate || isoDate < earliestTransactionDate) earliestTransactionDate = isoDate;
 
@@ -304,9 +326,7 @@ export function parseBankTransactionsCsv(text) {
     if (amount === 0) {
       skippedZeroAmounts += 1;
       const normalizedBusinessType = businessType.toLocaleLowerCase("de-AT");
-      if (type === "contribution" && normalizedBusinessType.includes("dauerauftrag")) {
-        zeroStandingOrderDates.push(isoDate);
-      }
+      if (type === "contribution" && normalizedBusinessType.includes("dauerauftrag")) zeroStandingOrderDates.push(isoDate);
       continue;
     }
 
@@ -337,6 +357,13 @@ export function parseBankTransactionsCsv(text) {
       referenceValue = parseGermanNumber(rawReferenceValue);
       if (!Number.isFinite(referenceValue) || referenceValue <= 0) throw new Error(`CSV-Zeile ${lineNumber}: Rechenwert ist ungültig.`);
     }
+    let executionPrice = null;
+    if (rawExecutionPrice) {
+      executionPrice = parseGermanNumber(rawExecutionPrice);
+      if (!Number.isFinite(executionPrice) || executionPrice <= 0) throw new Error(`CSV-Zeile ${lineNumber}: Ausführungskurs ist ungültig.`);
+    }
+    if (cashflowCurrency) cashflowCurrencies.add(cashflowCurrency);
+
     let purchaseFeePerUnit = null;
     let purchaseFeeTotal = null;
     let purchaseFeePercent = null;
@@ -359,6 +386,9 @@ export function parseBankTransactionsCsv(text) {
       unit: unit.slice(0, 20),
       valuationDate,
       referenceValue,
+      executionPrice,
+      executionPriceCurrency: executionPriceCurrency.slice(0, 12),
+      cashflowCurrency: cashflowCurrency.slice(0, 12),
       purchaseFeePerUnit,
       purchaseFeeTotal,
       purchaseFeePercent
@@ -367,11 +397,11 @@ export function parseBankTransactionsCsv(text) {
 
   if (!cashflows.length && skippedZeroAmounts === 0) throw new Error("Die CSV-Datei enthält keine importierbaren Buchungen.");
   if (cashflows.length > 5000) throw new Error("Die CSV-Datei enthält zu viele Buchungen.");
-  const suggestedZeroStartDate = zeroStandingOrderDates.includes(earliestTransactionDate)
-    ? earliestTransactionDate
-    : null;
+  const suggestedZeroStartDate = zeroStandingOrderDates.includes(earliestTransactionDate) ? earliestTransactionDate : null;
   return {
     cashflows,
+    sourceFormat,
+    ignoredDepotColumn,
     unknownBusinessTypes,
     normalizedOutflowSigns,
     normalizedQuantitySigns,
@@ -383,10 +413,13 @@ export function parseBankTransactionsCsv(text) {
     hasQuantityColumn: quantityIndex >= 0,
     hasValuationDateColumn: valuationDateIndex >= 0,
     hasReferenceValueColumn: referenceValueIndex >= 0,
+    hasExecutionPriceColumn: executionPriceIndex >= 0,
+    hasExecutionPriceCurrencyColumn: executionPriceCurrencyIndex >= 0,
+    hasCashflowCurrencyColumn: cashflowCurrencyIndex >= 0,
+    cashflowCurrencies: [...cashflowCurrencies].sort(),
     securityIsins: [...securityIsins].sort()
   };
 }
-
 
 function parseDelimitedCsv(text, delimiter) {
   const source = String(text ?? "").replace(/^\uFEFF/, "");
