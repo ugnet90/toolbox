@@ -4,7 +4,7 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.3
+- **Toolbox:** 0.6.4
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
@@ -255,6 +255,12 @@ Für die Toolbox gilt:
 5. Der Änderungsverlauf steht ausschließlich im folgenden Changelog.
 
 ## Changelog
+
+### 0.6.4
+
+- ES-Module der Depotrendite-Seite werden mit einer Versionskennung geladen, damit Browser- bzw. GitHub-Pages-Caches nicht unterschiedliche Dateistände mischen.
+- `fund-return.js` lädt `fund-return-utils.js` und `site-map.js` explizit mit `?v=0.6.4`; auch das Einstiegsmodul in `fund_return.html` ist versioniert.
+- Der CSV-Datumsparser selbst wurde nicht geändert: Das Depot-Umsatz-Demodatum `12.08.2026` wurde mit dem v0.6.2-Parser erneut erfolgreich getestet.
 
 ### 0.6.3
 
