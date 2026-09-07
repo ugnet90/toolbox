@@ -4,16 +4,21 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.5
+- **Toolbox:** 0.6.6
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
 
+## Änderungen in 0.6.6
+
+- JSON-Export korrigiert: optionale numerische CSV-Metadaten wie Ausführungskurs, Rechenwert, Menge und berechnete Kaufspesen bleiben bei fehlendem Wert `null` und werden nicht mehr fälschlich zu `0`.
+- Die sichtbare Bezeichnung „Bank-CSV“ wurde konsequent auf „CSV“ verkürzt.
+
 ## Änderungen in 0.6.5
 
-- Bank-CSV-Import akzeptiert Datumswerte jetzt sowohl als `TT.MM.JJJJ` als auch als `JJJJ-MM-TT`.
+- CSV-Import akzeptiert Datumswerte jetzt sowohl als `TT.MM.JJJJ` als auch als `JJJJ-MM-TT`.
 - Damit werden insbesondere Originaldateien im Depot-Umsatz-Format mit ISO-Datum wie `2024-10-14` ohne vorheriges Öffnen/Speichern in Excel importiert.
 - Die Datumswerte werden intern weiterhin einheitlich als `JJJJ-MM-TT` verarbeitet; echte ungültige Kalenderdaten bleiben Fehler.
 
@@ -60,7 +65,7 @@ Der Rechner bildet ein Depot als datierte Zahlungsströme aus Sicht des Anlegers
 
 Die Depotrendite wird als datumsgenaue XIRR berechnet.
 
-#### Bank-CSV-Import
+#### CSV-Import
 
 Unterstützt werden insbesondere die Spalten:
 
@@ -112,7 +117,7 @@ Positionsrenditen beginnen erst mit der ersten Kaufposition der jeweiligen ISIN.
 
 Für Bewertungstage ohne eigenen Kurs wird der letzte verfügbare Kurs der jeweiligen Quelle davor verwendet.
 
-Sind bei allen erkannten Wertpapierbewegungen – ausdrücklich Käufen **und Verkäufen** – ISIN und Menge vollständig vorhanden, kann die Toolbox den Depotwert am Bewertungsdatum aus den hinterlegten historischen Kursquellen ermitteln. Nach einem Bank-CSV-Import wird diese Bewertung automatisch versucht; der manuelle Button **„Depotwert aus historischen Kursen ermitteln“** bleibt zusätzlich verfügbar. Unvollständige Wertpapierbewegungen verhindern bewusst eine Teilbewertung.
+Sind bei allen erkannten Wertpapierbewegungen – ausdrücklich Käufen **und Verkäufen** – ISIN und Menge vollständig vorhanden, kann die Toolbox den Depotwert am Bewertungsdatum aus den hinterlegten historischen Kursquellen ermitteln. Nach einem CSV-Import wird diese Bewertung automatisch versucht; der manuelle Button **„Depotwert aus historischen Kursen ermitteln“** bleibt zusätzlich verfügbar. Unvollständige Wertpapierbewegungen verhindern bewusst eine Teilbewertung.
 
 #### Kursversorgung je ISIN
 
@@ -154,7 +159,7 @@ Die Oberfläche enthält bereits eine getrennte Kategorie **Aktienmärkte** für
 
 Ab v0.6.0 ist die Depotrendite nach dem Prinzip der progressiven Offenlegung aufgebaut:
 
-1. **Datenquelle wählen:** Bank-CSV, manuelle Erfassung oder vorhandene JSON-Datei.
+1. **Datenquelle wählen:** CSV, manuelle Erfassung oder vorhandene JSON-Datei.
 2. **Import kompakt zusammenfassen:** Anzahl CSV-Dateien, Buchungen, Fonds und Zeitraum erscheinen dezent; Detailinformationen sind ausklappbar.
 3. **Bewertung:** Depotstart wird kompakt angezeigt, das Bewertungsdatum ist standardmäßig heute. Bei vollständigen ISIN-/Mengenangaben aller Käufe und Verkäufe wird der historische Depotwert automatisch ermittelt.
 4. **Weitere Eingaben nach Bedarf:** Depotstart, Zahlungsströme, Kosten & Steuern sowie Benchmarks liegen in getrennten ausklappbaren Themenbereichen.
@@ -295,7 +300,7 @@ Für die Toolbox gilt:
 
 ### 0.6.0
 
-- Depotrendite-Oberfläche grundlegend auf progressive Darstellung umgestellt: Einstieg zunächst nur über Bank-CSV, manuelle Erfassung oder JSON-Import.
+- Depotrendite-Oberfläche grundlegend auf progressive Darstellung umgestellt: Einstieg zunächst nur über CSV, manuelle Erfassung oder JSON-Import.
 - Importzusammenfassung kompakt und ausklappbar gestaltet; nach Wahl einer Datenquelle verschwindet die große Einstiegsbox.
 - Bewertung als primärer Arbeitsbereich hervorgehoben; Depotstart wird kompakt angezeigt und kann gezielt aufgeklappt werden.
 - Automatische historische Depotbewertung nach CSV-Import nur dann, wenn **alle** erkannten Kauf- und Verkaufsbewegungen vollständige ISIN- und Mengenangaben besitzen; Teilbewertungen werden verhindert.
