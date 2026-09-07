@@ -204,7 +204,7 @@ const exportedData = createFundReturnData({
   ]
 });
 assert.equal(exportedData.format, "toolbox-depot-return");
-assert.equal(exportedData.schema_version, 5);
+assert.equal(exportedData.schema_version, 6);
 assert.equal(exportedData.inputs.designation, "Depot Test");
 assert.deepEqual(exportedData.inputs.benchmarkKinds, ["overnight", "euribor3m", "euribor6m"]);
 assert.equal(exportedData.cashflows[0].title, "Fonds XY");
@@ -266,6 +266,9 @@ assert.deepEqual(importedBankCsv.cashflows[0], {
   unit: "Stk",
   valuationDate: "2026-08-12",
   referenceValue: 524.10,
+  executionPrice: null,
+  executionPriceCurrency: "",
+  cashflowCurrency: "EUR",
   purchaseFeePerUnit: importedBankCsv.cashflows[0].purchaseFeePerUnit,
   purchaseFeeTotal: importedBankCsv.cashflows[0].purchaseFeeTotal,
   purchaseFeePercent: importedBankCsv.cashflows[0].purchaseFeePercent
@@ -284,6 +287,38 @@ assert.equal(importedBankCsv.hasIsinColumn, true);
 assert.equal(importedBankCsv.hasQuantityColumn, true);
 assert.equal(importedBankCsv.unknownBusinessTypes, 0);
 assert.equal(importedBankCsv.hasTitleColumn, true);
+assert.equal(importedBankCsv.sourceFormat, "bank-settlement");
+assert.equal(importedBankCsv.ignoredDepotColumn, false);
+
+const depotTurnoverCsv = [
+  "Stichtag;Depot;Titel;ISIN;Menge;Mengeneinheit;Ausführungskurs;Ausführungskurseinheit;Abrechnungsbetrag;Abrechnungsbetrag-einheit;Geschäftsart",
+  "12.08.2026;IGNORED;TESTFONDS A;DE0000000001;0,250;Stück;200,00;EUR;-50,00;EUR;Kauf aus Dauerauftrag"
+].join("\r\n");
+const importedDepotTurnover = parseBankTransactionsCsv(depotTurnoverCsv);
+assert.equal(importedDepotTurnover.sourceFormat, "depot-turnover");
+assert.equal(importedDepotTurnover.ignoredDepotColumn, true);
+assert.equal(importedDepotTurnover.cashflows.length, 1);
+assert.equal(importedDepotTurnover.cashflows[0].date, "2026-08-12");
+assert.equal(importedDepotTurnover.cashflows[0].valuationDate, "2026-08-12");
+assert.equal(importedDepotTurnover.cashflows[0].quantity, 0.25);
+assert.equal(importedDepotTurnover.cashflows[0].unit, "Stück");
+assert.equal(importedDepotTurnover.cashflows[0].executionPrice, 200);
+assert.equal(importedDepotTurnover.cashflows[0].executionPriceCurrency, "EUR");
+assert.equal(importedDepotTurnover.cashflows[0].cashflowCurrency, "EUR");
+assert.equal(importedDepotTurnover.cashflows[0].referenceValue, null);
+assert.equal(Object.hasOwn(importedDepotTurnover.cashflows[0], "depot"), false);
+assert.equal(Object.hasOwn(importedDepotTurnover.cashflows[0], "depotNumber"), false);
+assert.deepEqual(importedDepotTurnover.securityIsins, ["DE0000000001"]);
+
+const privacyExport = createFundReturnData({
+  toolboxVersion: "0.6.2",
+  exportedAt: "2026-09-07T07:00:00.000Z",
+  inputs: exportedData.inputs,
+  cashflows: [{ ...importedDepotTurnover.cashflows[0], depot: "MUST-NOT-EXPORT", depotNumber: "MUST-NOT-EXPORT" }]
+});
+assert.equal(Object.hasOwn(privacyExport.cashflows[0], "depot"), false);
+assert.equal(Object.hasOwn(privacyExport.cashflows[0], "depotNumber"), false);
+assert.equal(privacyExport.cashflows[0].executionPrice, 200);
 
 
 const zeroStandingOrderStartCsv = [
