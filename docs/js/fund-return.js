@@ -1,4 +1,4 @@
-import { SITE_VERSION } from "./site-map.js";
+import { SITE_VERSION } from "./site-map.js?v=0.6.4";
 import {
   applyKestExemption,
   calculateXirr,
@@ -19,7 +19,7 @@ import {
   securityHoldingPeriods,
   summarizeCashflows,
   summarizeCsvPurchaseFees
-} from "./fund-return-utils.js";
+} from "./fund-return-utils.js?v=0.6.4";
 
 const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
 const BENCHMARKS = {
