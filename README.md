@@ -4,12 +4,18 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.4
+- **Toolbox:** 0.6.5
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.6.5
+
+- Bank-CSV-Import akzeptiert Datumswerte jetzt sowohl als `TT.MM.JJJJ` als auch als `JJJJ-MM-TT`.
+- Damit werden insbesondere Originaldateien im Depot-Umsatz-Format mit ISO-Datum wie `2024-10-14` ohne vorheriges Öffnen/Speichern in Excel importiert.
+- Die Datumswerte werden intern weiterhin einheitlich als `JJJJ-MM-TT` verarbeitet; echte ungültige Kalenderdaten bleiben Fehler.
 
 ## Funktionsumfang
 
