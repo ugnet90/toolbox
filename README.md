@@ -4,12 +4,17 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.6
+- **Toolbox:** 0.6.7
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.6.7
+
+- JSON-Export robuster gemacht: Wenn `showSaveFilePicker()` vom Browser oder Plattformkontext nicht erlaubt wird, fällt der Export automatisch auf den normalen Browser-Download zurück.
+- Ein bewusst abgebrochener Speichern-Dialog (`AbortError`) bleibt weiterhin ein Abbruch und startet keinen unerwünschten Download.
 
 ## Änderungen in 0.6.6
 
