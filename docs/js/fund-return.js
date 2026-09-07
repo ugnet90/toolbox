@@ -92,6 +92,7 @@ const csvImportDialogTitle = document.querySelector("[data-csv-import-dialog-tit
 const csvImportDialogQuestion = document.querySelector("[data-csv-import-dialog-question]");
 const csvImportDialogYes = document.querySelector("[data-csv-import-dialog-yes]");
 const csvImportDialogNo = document.querySelector("[data-csv-import-dialog-no]");
+const entryImportStatus = document.querySelector("[data-entry-import-status]");
 const dataStatusNode = document.querySelector("[data-fund-data-status]");
 const savingsPlanSummary = document.querySelector("[data-savings-plan-summary]");
 const savingsPlanList = document.querySelector("[data-savings-plan-list]");
@@ -638,6 +639,13 @@ function showDataStatus(message) {
   if (!dataStatusNode) return;
   dataStatusNode.textContent = message;
   dataStatusNode.hidden = false;
+}
+
+function showEntryImportStatus(message = "", { error = false } = {}) {
+  if (!entryImportStatus) return;
+  entryImportStatus.textContent = message;
+  entryImportStatus.hidden = !message;
+  entryImportStatus.classList.toggle("form-message--error", Boolean(error));
 }
 
 function selectedBenchmarkKinds() {
@@ -2239,6 +2247,7 @@ csvImportDialogNo?.addEventListener("click", async () => {
 });
 
 csvImportButton?.addEventListener("click", () => {
+  showEntryImportStatus("");
   beginCsvImportSession();
   csvImportAwaitingAdditionalFile = false;
   csvImportFileInput?.click();
@@ -2258,13 +2267,17 @@ csvImportFileInput?.addEventListener("change", async () => {
   beginCsvImportSession();
   csvImportAwaitingAdditionalFile = false;
   clearCalculation();
+  showEntryImportStatus(`CSV „${file.name}“ wird eingelesen …`);
   try {
     const parsed = await importBankTransactionsCsv(file);
+    showEntryImportStatus("");
     rememberCsvImportDate(parsed.earliestTransactionDate);
     finishCsvImportSession();
   } catch (error) {
     endCsvImportSession();
-    showError(error.message || "CSV-Daten konnten nicht importiert werden.");
+    const message = error?.message || "CSV-Daten konnten nicht importiert werden.";
+    showEntryImportStatus(message, { error: true });
+    showError(message);
   }
 });
 
@@ -2953,6 +2966,7 @@ resetButton?.addEventListener("click", () => {
 });
 
 manualStartButton?.addEventListener("click", () => {
+  showEntryImportStatus("");
   showWorkspace({ manual: true });
   if (importSummary) importSummary.hidden = true;
   const purchaseText = enhancedDateInputs.get(purchaseDate);
