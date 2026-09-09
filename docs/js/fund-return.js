@@ -1,4 +1,4 @@
-import { SITE_VERSION } from "./site-map.js?v=0.6.11";
+import { SITE_VERSION } from "./site-map.js?v=0.6.12";
 import {
   applyKestExemption,
   calculateXirr,
@@ -20,7 +20,7 @@ import {
   securityHoldingPeriods,
   summarizeCashflows,
   summarizeCsvPurchaseFees
-} from "./fund-return-utils.js?v=0.6.11";
+} from "./fund-return-utils.js?v=0.6.12";
 
 const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
 const BENCHMARKS = {
@@ -65,6 +65,7 @@ const resultsNode = document.querySelector("[data-fund-results]");
 const detailsNode = document.querySelector("[data-fund-details]");
 const cashflowBody = document.querySelector("[data-cashflow-body]");
 const cashflowTableWrap = document.querySelector("[data-cashflow-table-wrap]");
+const cashflowSortHeaders = [...document.querySelectorAll("[data-cashflow-sort]")];
 const cashflowList = document.querySelector("[data-cashflow-list]");
 const cashflowSummary = document.querySelector("[data-cashflow-summary]");
 const ignoredKestDetail = document.querySelector("[data-ignored-kest-detail]");
@@ -226,6 +227,8 @@ const typeLabels = {
 
 const defaultNegativeTypes = new Set(["contribution", "tax", "fee"]);
 let cashflows = [];
+let cashflowSort = { key: "date", direction: "asc" };
+const cashflowSortCollator = new Intl.Collator("de-AT", { sensitivity: "base", numeric: true });
 let nextCashflowId = 1;
 let calculationRevision = 0;
 let lastCoreCalculation = null;
@@ -1080,10 +1083,51 @@ function renderCsvPurchaseFeeSummary() {
   }
 }
 
+function cashflowSortValue(flow, key) {
+  if (key === "type") return typeLabels[flow?.type] || String(flow?.type || "");
+  if (key === "amount" || key === "quantity") {
+    const value = Number(flow?.[key]);
+    return Number.isFinite(value) ? value : null;
+  }
+  return String(flow?.[key] ?? "").trim();
+}
+
+function compareCashflows(a, b) {
+  const { key, direction } = cashflowSort;
+  const av = cashflowSortValue(a, key);
+  const bv = cashflowSortValue(b, key);
+  const aEmpty = av === null || av === "";
+  const bEmpty = bv === null || bv === "";
+  if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
+
+  let result = 0;
+  if (!aEmpty && (key === "amount" || key === "quantity")) result = av - bv;
+  else if (!aEmpty) result = cashflowSortCollator.compare(String(av), String(bv));
+
+  if (result !== 0) return direction === "desc" ? -result : result;
+  return Number(a?.id || 0) - Number(b?.id || 0);
+}
+
+function updateCashflowSortHeaders() {
+  for (const header of cashflowSortHeaders) {
+    const active = header.dataset.cashflowSort === cashflowSort.key;
+    header.setAttribute("aria-sort", active ? (cashflowSort.direction === "asc" ? "ascending" : "descending") : "none");
+    const indicator = header.querySelector("[data-cashflow-sort-indicator]");
+    if (indicator) indicator.textContent = active ? (cashflowSort.direction === "asc" ? "↑" : "↓") : "↕";
+  }
+}
+
+function activateCashflowSort(key) {
+  if (!key) return;
+  if (cashflowSort.key === key) cashflowSort.direction = cashflowSort.direction === "asc" ? "desc" : "asc";
+  else cashflowSort = { key, direction: "asc" };
+  renderCashflows();
+}
+
 function renderCashflows() {
   if (!cashflowBody || !cashflowTableWrap) return;
   cashflowBody.innerHTML = "";
-  const ordered = [...cashflows].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
+  const ordered = [...cashflows].sort(compareCashflows);
 
   for (const flow of ordered) {
     const row = document.createElement("tr");
@@ -1105,6 +1149,7 @@ function renderCashflows() {
     cashflowList.hidden = cashflows.length === 0;
     if (cashflowSummary) cashflowSummary.textContent = cashflows.length === 1 ? "1 Zahlungsstrom anzeigen" : `${cashflows.length} Zahlungsströme anzeigen`;
   }
+  updateCashflowSortHeaders();
   enhanceDateInputs(cashflowBody);
   renderCsvPurchaseFeeSummary();
   updateWorkflowSummaries();
@@ -2207,6 +2252,19 @@ function handleFormMutation(event) {
 form?.addEventListener("input", handleFormMutation);
 form?.addEventListener("change", handleFormMutation);
 
+cashflowTableWrap?.addEventListener("click", (event) => {
+  const header = event.target.closest("[data-cashflow-sort]");
+  if (!header) return;
+  activateCashflowSort(header.dataset.cashflowSort);
+});
+
+cashflowTableWrap?.addEventListener("keydown", (event) => {
+  const header = event.target.closest("[data-cashflow-sort]");
+  if (!header || !["Enter", " "].includes(event.key)) return;
+  event.preventDefault();
+  activateCashflowSort(header.dataset.cashflowSort);
+});
+
 cashflowBody?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-delete-cashflow]");
   if (!button) return;
@@ -2266,6 +2324,7 @@ cashflowBody?.addEventListener("change", (event) => {
       flow.purchaseFeePercent = null;
       renderCsvPurchaseFeeSummary();
     }
+    if (cashflowSort.key === field) renderCashflows();
     clearCalculation();
   } catch (error) {
     showError(error.message || "Zahlungsstrom konnte nicht geändert werden.");
