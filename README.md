@@ -4,12 +4,18 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.8
+- **Toolbox:** 0.6.9
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.6.9
+
+- Build-Fehler aus 0.6.8 behoben: Die Depotkennung für die CSV-Duplikaterkennung ist jetzt reine interne Import-Metadaten und kein enumerierbares Feld des Zahlungsstromobjekts.
+- Bestehende Parser-Tests mit exaktem Objektvergleich bleiben dadurch kompatibel.
+- Die Depotkennung bleibt während der laufenden Sitzung für die Abgrenzung ansonsten identischer Buchungen verschiedener Depots erhalten, wird aber weiterhin weder angezeigt noch in JSON exportiert.
 
 ## Änderungen in 0.6.8
 
