@@ -425,7 +425,7 @@ export function parseBankTransactionsCsv(text) {
       purchaseFeePercent = referenceValue > 0 ? (purchaseFeePerUnit / referenceValue) * 100 : null;
     }
 
-    cashflows.push({
+    const cashflow = {
       date: isoDate,
       type,
       amount,
@@ -441,9 +441,16 @@ export function parseBankTransactionsCsv(text) {
       cashflowCurrency: cashflowCurrency.slice(0, 12),
       purchaseFeePerUnit,
       purchaseFeeTotal,
-      purchaseFeePercent,
-      sourceDepot
-    });
+      purchaseFeePercent
+    };
+    if (sourceDepot) {
+      Object.defineProperty(cashflow, "sourceDepot", {
+        value: sourceDepot,
+        enumerable: false,
+        configurable: true
+      });
+    }
+    cashflows.push(cashflow);
   }
 
   if (!cashflows.length && skippedZeroAmounts === 0) throw new Error("Die CSV-Datei enthält keine importierbaren Buchungen.");

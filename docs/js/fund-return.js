@@ -1,4 +1,4 @@
-import { SITE_VERSION } from "./site-map.js?v=0.6.8";
+import { SITE_VERSION } from "./site-map.js?v=0.6.9";
 import {
   applyKestExemption,
   calculateXirr,
@@ -20,7 +20,7 @@ import {
   securityHoldingPeriods,
   summarizeCashflows,
   summarizeCsvPurchaseFees
-} from "./fund-return-utils.js?v=0.6.8";
+} from "./fund-return-utils.js?v=0.6.9";
 
 const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
 const BENCHMARKS = {
@@ -835,7 +835,15 @@ async function importBankTransactionsCsv(file) {
   }
 
   for (const flow of uniqueFlows) {
-    cashflows.push({ ...flow, id: nextCashflowId++ });
+    const importedFlow = { ...flow, id: nextCashflowId++ };
+    if (flow.sourceDepot) {
+      Object.defineProperty(importedFlow, "sourceDepot", {
+        value: flow.sourceDepot,
+        enumerable: false,
+        configurable: true
+      });
+    }
+    cashflows.push(importedFlow);
   }
   if (uniqueFlows.length) {
     renderCashflows();
