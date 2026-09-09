@@ -44,7 +44,7 @@
 <button class="link-button" data-import-fund="" type="button">Gespeicherte JSON-Daten importieren</button>
 </div>
 <p aria-live="polite" class="form-message" data-entry-import-status="" hidden></p>
-</section><input accept="application/json,.json" data-import-fund-file="" hidden="" type="file"/><input accept=".csv,text/csv" data-import-bank-csv-file="" hidden="" type="file"/><input accept=".csv,text/csv" data-import-price-file="" hidden="" type="file"/><div class="fund-workspace" data-fund-workspace="" hidden=""><section class="fund-import-summary" data-import-summary="" hidden="">
+</section><input accept="application/json,.json" data-import-fund-file="" hidden="" type="file"/><input accept=".csv,text/csv" data-import-bank-csv-file="" hidden="" type="file"/><input accept=".csv,text/csv" data-import-price-file="" hidden="" type="file"/><input accept=".csv,text/csv" data-import-portfolio-snapshot-file="" hidden="" type="file"/><div class="fund-workspace" data-fund-workspace="" hidden=""><section class="fund-import-summary" data-import-summary="" hidden="">
 <div class="fund-import-summary__main">
 <span aria-hidden="true" class="fund-import-summary__icon">✓</span>
 <div><strong data-import-summary-title="">Importiert</strong><span data-import-summary-text=""></span></div>
@@ -82,6 +82,11 @@
 <summary><span><strong>Kursversorgung</strong><small data-price-source-summary="">Noch nicht geprüft</small></span></summary>
 <div class="fund-price-sources__body">
 <p class="field__hint">Für jede ISIN wird zuerst eine automatische Kursquelle geprüft. Ist keine verfügbar, kannst du eine historische Kursdatei lokal importieren. Stücknotierte Wertpapiere werden mit Stück × Kurs bewertet; bei Einheit EUR wird die Menge als Nominale interpretiert und mit Nominale × Prozentkurs / 100 bewertet. Benötigt werden mindestens eine Datumsspalte und eine Kurs-/Preis-Spalte; ISIN und Währung sind optional. Importierte Kursdaten bleiben ausschließlich im Browser (IndexedDB).</p>
+<div style="display:flex;gap:.65rem;align-items:center;flex-wrap:wrap;margin:.75rem 0 1rem;">
+<button class="secondary-button" data-import-portfolio-snapshot="" type="button">Bestands-/Kurs-CSV importieren</button>
+<button class="link-button" data-use-portfolio-snapshot-value="" hidden="" type="button">Bankbewertung als Depotwert übernehmen</button>
+<span class="field__hint" data-portfolio-snapshot-status="" hidden=""></span>
+</div>
 <div class="fund-price-source-list" data-price-source-list=""></div>
 </div>
 </details>
@@ -405,6 +410,6 @@
 <section aria-hidden="true" class="fund-print-report" data-print-report=""></section>
 <footer class="site-footer">Toolbox</footer>
 <script src="js/navigation.js" type="module"></script>
-<script src="js/fund-return.js?v=0.6.12" type="module"></script>
+<script src="js/fund-return.js?v=0.6.13" type="module"></script>
 </body>
 </html>
