@@ -4,12 +4,22 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.10
+- **Toolbox:** 0.6.11
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.6.11
+
+- Historische Depotbewertung auf allgemeine Wertpapierlogik erweitert: Stücknotierte Wertpapiere werden mit `Menge × Kurs` bewertet; bei `Einheit = EUR` wird die Menge als Nominale interpretiert und mit `Nominale × Prozentkurs / 100` bewertet.
+- Damit können neben Fonds/ETFs/Aktien auch nominal notierte Anleihen aus der CSV-Buchungshistorie verarbeitet werden. Beispieltest: `8.000 EUR` Nominale bleibt 8.000 und wird nicht als 8 interpretiert.
+- CSV-Geschäftsarten `Ertrag`, `Dividende`, `Kupon` und `Ausschüttung` werden als positive Wertpapiererträge ohne Bestandsänderung erkannt. `Ausschüttungsgleich`/KESt/Steuer bleibt Steuer-Cashflow.
+- Kaufspesenableitung aus `Rechenwert × Menge` wird nur noch für stücknotierte Wertpapiere durchgeführt; bei Anleihen würde diese Fonds-/Stücklogik fachlich falsche Ergebnisse liefern.
+- Kursversorgung und historische Positionsdarstellung verwenden fachlich allgemeine Wertpapierbegriffe. Union Investment bleibt automatische Spezialquelle; andere Wertpapiere werden weiterhin über lokale Kursdateien versorgt.
+- Lokale Kursdateien können für nominal notierte Wertpapiere Prozentkurse enthalten. Die Kursversorgungsanzeige kennzeichnet pro ISIN, ob ein Stückkurs oder ein Prozentkurs erwartet wird.
+- IndexedDB-Kurscache wurde auf den allgemeinen Store `securities` umgestellt; ältere lokale Kurscache-Einträge werden bewusst nicht übernommen.
 
 ## Änderungen in 0.6.10
 
@@ -84,7 +94,7 @@ Der Rechner bildet ein Depot als datierte Zahlungsströme aus Sicht des Anlegers
 
 - Startinvestition,
 - Zuzahlungen und Sparraten,
-- Ausschüttungen,
+- Erträge, Ausschüttungen und Dividenden,
 - KESt-/Steuerbelastungen,
 - Depot- und sonstige Gebühren,
 - Entnahmen,
@@ -112,7 +122,7 @@ Nullbuchungen werden nicht als Zahlungsstrom übernommen, können aber für die 
 
 Zusätzlich wird das Depot-Umsatz-Format mit `Stichtag`, `Depot`, `Titel`, `ISIN`, `Menge`, `Mengeneinheit`, `Ausführungskurs`, `Ausführungskurseinheit`, `Abrechnungsbetrag`, `Abrechnungsbetrag-einheit` und `Geschäftsart` erkannt. Die Spalte `Depot` wird aus Datenschutzgründen bewusst nicht in den Rechnerzustand übernommen.
 
-#### Buchungsgenaue Fondskaufspesen aus CSV
+#### Buchungsgenaue Wertpapierkaufspesen aus CSV
 
 Für Kaufbuchungen mit `Stichtag`, `Rechenwert`, `Menge` und `Abrechnungsbetrag` werden die tatsächlichen Kaufspesen bzw. die Preisabweichung buchungsgenau abgeleitet:
 
@@ -122,13 +132,13 @@ Für Kaufbuchungen mit `Stichtag`, `Rechenwert`, `Menge` und `Abrechnungsbetrag`
 
 `Differenz gesamt = |Abrechnungsbetrag| - Rechenwert × |Menge|`
 
-Die Toolbox fasst diese Werte je Fonds zusammen und zeigt Rechenwert gesamt, Anlegeraufwand, Differenz/Spesen und den gewichteten durchschnittlichen Prozentsatz an. CSV-Abrechnungsbeträge bleiben als tatsächliche Anleger-Cashflows unverändert.
+Die Toolbox fasst diese Werte je Wertpapier zusammen und zeigt Rechenwert gesamt, Anlegeraufwand, Differenz/Spesen und den gewichteten durchschnittlichen Prozentsatz an. CSV-Abrechnungsbeträge bleiben als tatsächliche Anleger-Cashflows unverändert.
 
 Für manuell angelegte Start-/Einmalanlagen und manuell erzeugte Sparraten bleiben separate Kaufspesen-Einstellungen verfügbar.
 
 #### Historische Depotwertentwicklung
 
-Für Wertpapierbuchungen mit ISIN und Menge kann die historische Depotentwicklung aus einer Kursquelle je ISIN rekonstruiert werden. Union-Investment-Fonds werden weiterhin automatisch über den Worker versorgt; für andere Wertpapiere kann eine historische Kursdatei lokal importiert werden.
+Für Wertpapierbuchungen mit ISIN und Menge kann die historische Depotentwicklung aus einer Kursquelle je ISIN rekonstruiert werden. Union-Investment-Wertpapiere werden weiterhin automatisch über den Worker versorgt; für andere Wertpapiere kann eine historische Kursdatei lokal importiert werden. Stücknotierte Positionen verwenden Stückkurse; bei Einheit `EUR` wird die Menge als Nominale behandelt und ein Prozentkurs erwartet.
 
 Darstellbar sind per Checkbox unter anderem:
 
@@ -136,7 +146,7 @@ Darstellbar sind per Checkbox unter anderem:
 - kumulierte Nettoinvestitionen,
 - Gewinn / Verlust,
 - historische Depotrendite,
-- Positionsrenditen einzelner Fonds,
+- Positionsrenditen einzelner Wertpapiere,
 - ausgewählte Benchmark-Wertentwicklungen,
 - ausgewählte Benchmark-Renditen.
 
@@ -152,10 +162,10 @@ Die historische Depotbewertung ist nicht mehr auf Union-Fonds beschränkt. Für 
 
 Kursquellen:
 
-- **Union Investment:** automatischer Abruf über den bestehenden Worker,
+- **Union Investment:** automatischer Abruf über den bestehenden Worker (Stück-/Rücknahmepreise),
 - **andere Wertpapiere:** lokaler Import einer historischen CSV-Kursdatei.
 
-Der Kursdatei-Import akzeptiert mindestens eine Datums- und eine Kurs-/Preis-Spalte. Unterstützt werden u. a. `Datum`, `Date`, `Stichtag` sowie `Kurs`, `Preis`, `Rücknahmepreis`, `NAV`, `Close`, `Schlusskurs` oder `Rechenwert`. Eine `ISIN`- und `Währung`-Spalte ist optional. Importierte Kursdaten werden ausschließlich in IndexedDB gespeichert und nicht an den Worker oder GitHub übertragen. Weitere Dateien können später zur Ergänzung fehlender Zeiträume eingelesen werden.
+Der Kursdatei-Import akzeptiert mindestens eine Datums- und eine Kurs-/Preis-Spalte. Für Anleihen mit Einheit `EUR` wird der Kurswert als Prozentkurs interpretiert (z. B. `98,50` = 98,50 % der Nominale). Unterstützt werden u. a. `Datum`, `Date`, `Stichtag` sowie `Kurs`, `Preis`, `Rücknahmepreis`, `NAV`, `Close`, `Schlusskurs` oder `Rechenwert`. Eine `ISIN`- und `Währung`-Spalte ist optional. Importierte Kursdaten werden ausschließlich in IndexedDB gespeichert und nicht an den Worker oder GitHub übertragen. Weitere Dateien können später zur Ergänzung fehlender Zeiträume eingelesen werden.
 
 Die Toolbox gibt keine scheinbar vollständige Teilbewertung aus: Fehlt für auch nur eine gehaltene Position die Kursquelle oder der notwendige Zeitraum, wird die historische Depotbewertung abgebrochen und die fehlende ISIN in **Kursversorgung** ausgewiesen. Derzeit wird die gemeinsame Depotbewertung in EUR durchgeführt; explizit als andere Währung gekennzeichnete Kursreihen werden bis zur späteren FX-Anbindung nicht stillschweigend zusammengerechnet.
 
