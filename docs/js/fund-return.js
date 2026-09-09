@@ -1,4 +1,4 @@
-import { SITE_VERSION } from "./site-map.js?v=0.6.7";
+import { SITE_VERSION } from "./site-map.js?v=0.6.8";
 import {
   applyKestExemption,
   calculateXirr,
@@ -11,6 +11,7 @@ import {
   missingDateRanges,
   buildDepotHistory,
   buildBenchmarkHistory,
+  cashflowDuplicateKey,
   normalizeFundReturnData,
   parseBankTransactionsCsv,
   parseHistoricalPriceCsv,
@@ -19,7 +20,7 @@ import {
   securityHoldingPeriods,
   summarizeCashflows,
   summarizeCsvPurchaseFees
-} from "./fund-return-utils.js?v=0.6.7";
+} from "./fund-return-utils.js?v=0.6.8";
 
 const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
 const BENCHMARKS = {
@@ -545,7 +546,8 @@ function renderImportSummary(stats = lastCsvImportStats) {
   if (importSummaryText) {
     const parts = [];
     if (stats.files) parts.push(`${stats.files} CSV`);
-    parts.push(`${stats.bookings || cashflows.length} Buchungen`);
+    parts.push(`${stats.bookings ?? cashflows.length} Buchungen`);
+    if (stats.duplicates) parts.push(`${stats.duplicates} Duplikate ignoriert`);
     if (stats.funds) parts.push(`${stats.funds} Fonds`);
     if (stats.firstDate) parts.push(formatCompactDateRange(stats.firstDate, stats.lastDate));
     importSummaryText.textContent = parts.join(" · ");
@@ -553,7 +555,8 @@ function renderImportSummary(stats = lastCsvImportStats) {
   if (importSummaryDetails) {
     const coverage = portfolioValuationCoverage();
     const details = [
-      ["Buchungen", String(stats.bookings || cashflows.length)],
+      ["Buchungen", String(stats.bookings ?? cashflows.length)],
+      ["Duplikate ignoriert", String(stats.duplicates || 0)],
       ["Wertpapiere", `${coverage.isins.length} ISIN`],
       ["Kauf/Verkauf", coverage.total ? `${coverage.complete}/${coverage.total} vollständig` : "keine Stückbewegungen"],
       ["Nullbuchungen", String(stats.skippedZeroAmounts || 0)]
@@ -780,7 +783,7 @@ function applyImportedFundData(data) {
   clearCalculation();
   showWorkspace();
   const orderedDates = cashflows.map((flow) => flow.date).filter(Boolean).sort();
-  lastCsvImportStats = { kind: "json", bookings: cashflows.length, funds: portfolioValuationCoverage().isins.length, firstDate: orderedDates[0] || normalized.inputs.purchaseDate, lastDate: orderedDates.at(-1) || normalized.inputs.endDate, skippedZeroAmounts: 0 };
+  lastCsvImportStats = { kind: "json", bookings: cashflows.length, duplicates: 0, funds: portfolioValuationCoverage().isins.length, firstDate: orderedDates[0] || normalized.inputs.purchaseDate, lastDate: orderedDates.at(-1) || normalized.inputs.endDate, skippedZeroAmounts: 0 };
   renderImportSummary();
   updateWorkflowSummaries();
   const flowLabel = cashflows.length === 1 ? "1 zusätzlicher Zahlungsstrom" : `${cashflows.length} zusätzliche Zahlungsströme`;
@@ -801,22 +804,61 @@ async function importBankTransactionsCsv(file) {
   const text = decodeCsvBuffer(await file.arrayBuffer());
   const parsed = parseBankTransactionsCsv(text);
   const hadExisting = cashflows.length > 0;
+  const knownByBaseKey = new Map();
+  const registerKnownFlow = (flow) => {
+    const baseKey = cashflowDuplicateKey(flow);
+    const scopedKey = cashflowDuplicateKey(flow, { includeSourceDepot: true });
+    if (!knownByBaseKey.has(baseKey)) knownByBaseKey.set(baseKey, { hasUnknownDepot: false, scopedKeys: new Set() });
+    const entry = knownByBaseKey.get(baseKey);
+    if (scopedKey === baseKey) entry.hasUnknownDepot = true;
+    else entry.scopedKeys.add(scopedKey);
+  };
+  const isKnownFlow = (flow) => {
+    const baseKey = cashflowDuplicateKey(flow);
+    const entry = knownByBaseKey.get(baseKey);
+    if (!entry) return false;
+    const scopedKey = cashflowDuplicateKey(flow, { includeSourceDepot: true });
+    if (scopedKey === baseKey) return true;
+    return entry.hasUnknownDepot || entry.scopedKeys.has(scopedKey);
+  };
+  cashflows.forEach(registerKnownFlow);
 
+  const uniqueFlows = [];
+  let duplicateCashflows = 0;
   for (const flow of parsed.cashflows) {
+    if (isKnownFlow(flow)) {
+      duplicateCashflows += 1;
+      continue;
+    }
+    registerKnownFlow(flow);
+    uniqueFlows.push(flow);
+  }
+
+  for (const flow of uniqueFlows) {
     cashflows.push({ ...flow, id: nextCashflowId++ });
   }
-  renderCashflows();
-  clearCalculation();
+  if (uniqueFlows.length) {
+    renderCashflows();
+    clearCalculation();
+  }
 
-  const count = parsed.cashflows.length;
+  parsed.importedCashflows = uniqueFlows.length;
+  parsed.duplicateCashflows = duplicateCashflows;
+  const uniqueDates = uniqueFlows.map((flow) => flow.date).filter(Boolean).sort();
+  parsed.importedEarliestTransactionDate = uniqueDates[0] || (uniqueFlows.length === 0 && parsed.skippedZeroAmounts > 0 ? parsed.earliestTransactionDate : null);
+
+  const count = uniqueFlows.length;
   const label = count === 1 ? "1 Buchung" : `${count} Buchungen`;
+  const duplicateNote = duplicateCashflows > 0
+    ? ` ${duplicateCashflows} Duplikat${duplicateCashflows === 1 ? "" : "e"} wurde${duplicateCashflows === 1 ? "" : "n"} ignoriert.`
+    : "";
   const skipped = parsed.skippedZeroAmounts > 0 ? ` ${parsed.skippedZeroAmounts} Nullbuchung(en) wurden übersprungen.` : "";
-  showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped}`);
+  showDataStatus(`${label} aus CSV importiert${hadExisting && count > 0 ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${duplicateNote}${skipped}`);
   if (parsed.sourceFormat === "depot-turnover") {
     showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} Format „Depot-Umsatz“ erkannt.`);
   }
   if (parsed.ignoredDepotColumn) {
-    appendWarning("Die CSV-Spalte „Depot“ wird aus Datenschutzgründen bewusst ignoriert. Depotnummern/-kennungen werden weder in den Rechnerzustand noch in JSON-Exporte übernommen.");
+    appendWarning("Die CSV-Spalte „Depot“ wird ausschließlich zur Abgrenzung von Duplikaten während der laufenden Sitzung verwendet. Die Depotkennung wird nicht angezeigt und nicht in JSON-Exporte übernommen.");
   }
   if (parsed.unknownBusinessTypes > 0) {
     appendWarning(`${parsed.unknownBusinessTypes} unbekannte Geschäftsart(en) wurden als „Sonstiger Cashflow“ übernommen; Originaltext steht in der Notiz.`);
@@ -829,8 +871,11 @@ async function importBankTransactionsCsv(file) {
   }
   if (!parsed.hasIsinColumn || !parsed.hasQuantityColumn) {
     appendWarning("Für die historische Depotwert-Grafik werden zusätzlich die CSV-Spalten „ISIN“ und „Menge“ benötigt.");
-  } else if (parsed.securityIsins.length) {
-    showDataStatus(`${label} aus CSV importiert${hadExisting ? " und zu den bestehenden Zahlungsströmen hinzugefügt" : ""}.${skipped} ${parsed.securityIsins.length} Wertpapier-ISIN(s) mit Stückbewegungen erkannt.`);
+  } else {
+    const importedSecurityIsins = [...new Set(uniqueFlows.map((flow) => flow.isin).filter(Boolean))];
+    if (importedSecurityIsins.length) {
+      showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} ${importedSecurityIsins.length} Wertpapier-ISIN(s) mit neuen Stückbewegungen erkannt.`);
+    }
   }
   if (parsed.normalizedQuantitySigns > 0) {
     appendWarning(`${parsed.normalizedQuantitySigns} Mengenangabe(n) wurden für Kauf/Verkauf auf das passende Vorzeichen normalisiert.`);
@@ -846,16 +891,17 @@ async function importBankTransactionsCsv(file) {
       appendWarning("Für die buchungsgenaue Ermittlung der Fondskaufspesen werden zusätzlich die CSV-Spalten „Stichtag“ und „Rechenwert“ benötigt.");
     }
   } else {
-    const feeRows = parsed.cashflows.filter((flow) => Number.isFinite(Number(flow.purchaseFeeTotal)));
+    const feeRows = uniqueFlows.filter((flow) => Number.isFinite(Number(flow.purchaseFeeTotal)));
     if (feeRows.length) showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} Kaufspesen wurden für ${feeRows.length} Kaufbuchung(en) aus Abrechnungsbetrag, Menge und Rechenwert ermittelt.`);
   }
   if (csvImportSessionStats) {
     csvImportSessionStats.files += 1;
-    csvImportSessionStats.bookings += parsed.cashflows.length;
+    csvImportSessionStats.bookings += uniqueFlows.length;
+    csvImportSessionStats.duplicates += duplicateCashflows;
     csvImportSessionStats.skippedZeroAmounts += parsed.skippedZeroAmounts || 0;
-    parsed.securityIsins.forEach((isin) => csvImportSessionStats.funds.add(isin));
-    const dates = parsed.cashflows.map((flow) => flow.date).filter(Boolean).sort();
-    const first = parsed.earliestTransactionDate || dates[0];
+    uniqueFlows.map((flow) => flow.isin).filter(Boolean).forEach((isin) => csvImportSessionStats.funds.add(isin));
+    const dates = uniqueFlows.map((flow) => flow.date).filter(Boolean).sort();
+    const first = parsed.importedEarliestTransactionDate || dates[0];
     const last = dates.at(-1) || first;
     if (first && (!csvImportSessionStats.firstDate || first < csvImportSessionStats.firstDate)) csvImportSessionStats.firstDate = first;
     if (last && (!csvImportSessionStats.lastDate || last > csvImportSessionStats.lastDate)) csvImportSessionStats.lastDate = last;
@@ -869,7 +915,7 @@ function beginCsvImportSession() {
   if (!csvImportSessionActive) {
     csvImportSessionActive = true;
     csvImportSessionEarliestDate = null;
-    csvImportSessionStats = { kind: "csv", files: 0, bookings: 0, skippedZeroAmounts: 0, funds: new Set(), firstDate: null, lastDate: null };
+    csvImportSessionStats = { kind: "csv", files: 0, bookings: 0, duplicates: 0, skippedZeroAmounts: 0, funds: new Set(), firstDate: null, lastDate: null };
   }
 }
 
@@ -910,6 +956,7 @@ function endCsvImportSession() {
       kind: "csv",
       files: csvImportSessionStats.files,
       bookings: csvImportSessionStats.bookings,
+      duplicates: csvImportSessionStats.duplicates,
       skippedZeroAmounts: csvImportSessionStats.skippedZeroAmounts,
       funds: csvImportSessionStats.funds.size,
       firstDate: csvImportSessionStats.firstDate || csvImportSessionEarliestDate,
@@ -2247,6 +2294,12 @@ csvImportDialogYes?.addEventListener("click", async () => {
 
 csvImportDialogNo?.addEventListener("click", async () => {
   if (csvImportDialogStep === "more") {
+    if (csvImportSessionStats && csvImportSessionStats.bookings === 0 && csvImportSessionStats.duplicates > 0 && cashflows.length > 0) {
+      const duplicates = csvImportSessionStats.duplicates;
+      showDataStatus(`CSV-Import abgeschlossen. Keine neuen Buchungen; ${duplicates} Duplikat${duplicates === 1 ? "" : "e"} wurde${duplicates === 1 ? "" : "n"} ignoriert.`);
+      endCsvImportSession();
+      return;
+    }
     openCsvImportQuestion("start");
     return;
   }
@@ -2277,12 +2330,11 @@ csvImportFileInput?.addEventListener("change", async () => {
   if (!file) return;
   beginCsvImportSession();
   csvImportAwaitingAdditionalFile = false;
-  clearCalculation();
   showEntryImportStatus(`CSV „${file.name}“ wird eingelesen …`);
   try {
     const parsed = await importBankTransactionsCsv(file);
     showEntryImportStatus("");
-    rememberCsvImportDate(parsed.earliestTransactionDate);
+    rememberCsvImportDate(parsed.importedEarliestTransactionDate);
     finishCsvImportSession();
   } catch (error) {
     endCsvImportSession();

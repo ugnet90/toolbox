@@ -234,6 +234,42 @@ function normalizeCsvHeader(value) {
   return String(value ?? "").replace(/\u00A0/g, " ").trim().toLocaleLowerCase("de-AT");
 }
 
+function normalizeDuplicateText(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeDuplicateNumber(value) {
+  if (value === null || value === undefined || value === "") return "";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return normalizeDuplicateText(value);
+  return String(Object.is(number, -0) ? 0 : number);
+}
+
+export function cashflowDuplicateKey(flow, { includeSourceDepot = false } = {}) {
+  const parts = [
+    normalizeDuplicateText(flow?.date),
+    normalizeDuplicateText(flow?.type),
+    normalizeDuplicateNumber(flow?.amount),
+    normalizeDuplicateText(flow?.title),
+    normalizeDuplicateText(flow?.note),
+    normalizeDuplicateText(flow?.isin).toUpperCase(),
+    normalizeDuplicateNumber(flow?.quantity),
+    normalizeDuplicateText(flow?.unit),
+    normalizeDuplicateText(flow?.valuationDate),
+    normalizeDuplicateNumber(flow?.referenceValue),
+    normalizeDuplicateNumber(flow?.executionPrice),
+    normalizeDuplicateText(flow?.executionPriceCurrency).toUpperCase(),
+    normalizeDuplicateText(flow?.cashflowCurrency).toUpperCase()
+  ];
+  if (includeSourceDepot && normalizeDuplicateText(flow?.sourceDepot)) {
+    parts.push(normalizeDuplicateText(flow.sourceDepot));
+  }
+  return JSON.stringify(parts);
+}
+
 function csvDateToIso(value, lineNumber, label = "Abrechnungsdatum") {
   const raw = String(value ?? "").trim();
 
@@ -295,9 +331,10 @@ export function parseBankTransactionsCsv(text) {
   const cashflowCurrencyIndex = header.indexOf("abrechnungsbetrag-einheit") >= 0
     ? header.indexOf("abrechnungsbetrag-einheit")
     : header.indexOf("währung");
-  // Eine ggf. vorhandene Spalte „Depot“ wird absichtlich nicht ausgelesen.
-  // Depotnummern/-kennungen gehören weder in den Rechnerzustand noch in JSON-Exporte.
-  const ignoredDepotColumn = header.includes("depot");
+  const depotIndex = header.indexOf("depot");
+  // Die Depotkennung wird nur transient zur sicheren Duplikatabgrenzung verwendet.
+  // Sie wird weder angezeigt noch in den JSON-Rechnerzustand exportiert.
+  const ignoredDepotColumn = depotIndex >= 0;
 
   const cashflows = [];
   let unknownBusinessTypes = 0;
@@ -324,6 +361,7 @@ export function parseBankTransactionsCsv(text) {
     const rawExecutionPrice = executionPriceIndex >= 0 ? String(row[executionPriceIndex] ?? "").trim() : "";
     const executionPriceCurrency = executionPriceCurrencyIndex >= 0 ? String(row[executionPriceCurrencyIndex] ?? "").trim().toUpperCase() : "";
     const cashflowCurrency = cashflowCurrencyIndex >= 0 ? String(row[cashflowCurrencyIndex] ?? "").trim().toUpperCase() : "";
+    const sourceDepot = depotIndex >= 0 ? String(row[depotIndex] ?? "").trim() : "";
 
     if (!rawAmount && !businessType && !rawDate && !title && !isin && !rawQuantity && !rawValuationDate && !rawReferenceValue && !rawExecutionPrice) continue;
     if (!rawAmount || !rawDate) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag oder ${transactionDateLabel} fehlt.`);
@@ -403,7 +441,8 @@ export function parseBankTransactionsCsv(text) {
       cashflowCurrency: cashflowCurrency.slice(0, 12),
       purchaseFeePerUnit,
       purchaseFeeTotal,
-      purchaseFeePercent
+      purchaseFeePercent,
+      sourceDepot
     });
   }
 
