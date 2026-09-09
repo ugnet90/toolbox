@@ -11,13 +11,17 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Wait for upload burst
+        if: github.event_name == 'push'
+        run: sleep 60
+
       - name: Checkout
         uses: actions/checkout@v6
 
