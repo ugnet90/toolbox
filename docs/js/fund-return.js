@@ -1,4 +1,4 @@
-import { SITE_VERSION } from "./site-map.js?v=0.6.12";
+import { SITE_VERSION } from "./site-map.js?v=0.6.13";
 import {
   applyKestExemption,
   calculateXirr,
@@ -15,12 +15,13 @@ import {
   normalizeFundReturnData,
   parseBankTransactionsCsv,
   parseHistoricalPriceCsv,
+  parsePortfolioSnapshotCsv,
   parseGermanNumber,
   simulateHistoricalRateBenchmark,
   securityHoldingPeriods,
   summarizeCashflows,
   summarizeCsvPurchaseFees
-} from "./fund-return-utils.js?v=0.6.12";
+} from "./fund-return-utils.js?v=0.6.13";
 
 const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
 const BENCHMARKS = {
@@ -134,6 +135,10 @@ const priceSources = document.querySelector("[data-price-sources]");
 const priceSourceSummary = document.querySelector("[data-price-source-summary]");
 const priceSourceList = document.querySelector("[data-price-source-list]");
 const priceImportFileInput = document.querySelector("[data-import-price-file]");
+const portfolioSnapshotImportButton = document.querySelector("[data-import-portfolio-snapshot]");
+const portfolioSnapshotFileInput = document.querySelector("[data-import-portfolio-snapshot-file]");
+const portfolioSnapshotStatus = document.querySelector("[data-portfolio-snapshot-status]");
+const usePortfolioSnapshotValueButton = document.querySelector("[data-use-portfolio-snapshot-value]");
 const resultTabs = [...document.querySelectorAll("[data-result-tab]")];
 const resultPanels = [...document.querySelectorAll("[data-result-panel]")];
 const overviewInvested = document.querySelector("[data-overview-invested]");
@@ -244,6 +249,7 @@ let lastCsvImportStats = null;
 const memoryPriceCache = new Map();
 const priceSourceRuntime = new Map();
 let pendingPriceImportIsin = null;
+let lastPortfolioSnapshot = null;
 let priceSourceRenderRevision = 0;
 const PREFERENCES_KEY = "toolbox.depotreturn.preferences.v1";
 
@@ -536,6 +542,10 @@ function updateWorkflowSummaries() {
   updateSettingsSummary();
   updateCashflowSummary();
   updateAutoValuationAvailability();
+  if (lastPortfolioSnapshot) {
+    lastPortfolioSnapshot.comparison = comparePortfolioSnapshot(lastPortfolioSnapshot);
+    renderPortfolioSnapshotStatus();
+  }
   renderPriceSources().catch(() => {});
 }
 
@@ -1371,6 +1381,155 @@ async function importHistoricalPriceFile(file, isin) {
   clearCalculation();
 }
 
+
+function transactionQuantityAt(isin, date) {
+  const wantedIsin = String(isin || "").trim().toUpperCase();
+  return cashflows.reduce((sum, flow) => {
+    if (String(flow?.isin || "").trim().toUpperCase() !== wantedIsin) return sum;
+    if (!["contribution", "withdrawal"].includes(flow?.type)) return sum;
+    if (String(flow?.date || "") > date) return sum;
+    const quantity = Number(flow?.quantity);
+    return Number.isFinite(quantity) ? sum + quantity : sum;
+  }, 0);
+}
+
+function comparePortfolioSnapshot(parsed) {
+  const positions = parsed?.positions || [];
+  const positionIsins = new Set(positions.map((position) => position.isin));
+  let matched = 0;
+  const quantityMismatches = [];
+  const notInTransactions = [];
+
+  for (const position of positions) {
+    const transactionQuantity = transactionQuantityAt(position.isin, position.date);
+    const tolerance = position.valuationType === "percent_of_nominal" ? 0.01 : 0.000001;
+    if (Math.abs(transactionQuantity) < tolerance && Math.abs(position.quantity) >= tolerance) {
+      notInTransactions.push(position.isin);
+    } else if (Math.abs(transactionQuantity - position.quantity) <= tolerance) {
+      matched += 1;
+    } else {
+      quantityMismatches.push({
+        isin: position.isin,
+        snapshotQuantity: position.quantity,
+        transactionQuantity,
+        unit: position.unit
+      });
+    }
+  }
+
+  const transactionIsinsAtSnapshot = new Set();
+  for (const flow of cashflows) {
+    const isin = String(flow?.isin || "").trim().toUpperCase();
+    if (!/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) continue;
+    if (!["contribution", "withdrawal"].includes(flow?.type)) continue;
+    if (String(flow?.date || "") > parsed.lastDate) continue;
+    if (Math.abs(transactionQuantityAt(isin, parsed.lastDate)) > 0.000001) transactionIsinsAtSnapshot.add(isin);
+  }
+  const missingInSnapshot = [...transactionIsinsAtSnapshot].filter((isin) => !positionIsins.has(isin)).sort();
+  return { matched, quantityMismatches, notInTransactions: [...new Set(notInTransactions)].sort(), missingInSnapshot };
+}
+
+function renderPortfolioSnapshotStatus() {
+  if (!portfolioSnapshotStatus || !usePortfolioSnapshotValueButton) return;
+  const snapshot = lastPortfolioSnapshot;
+  if (!snapshot) {
+    portfolioSnapshotStatus.hidden = true;
+    portfolioSnapshotStatus.textContent = "";
+    usePortfolioSnapshotValueButton.hidden = true;
+    return;
+  }
+
+  const parts = [`${snapshot.positionCount} Position(en)`];
+  if (snapshot.unitPriceCount) parts.push(`${snapshot.unitPriceCount} Stückposition(en)`);
+  if (snapshot.nominalCount) parts.push(`${snapshot.nominalCount} Nominalposition(en)`);
+  if (snapshot.currencies.length === 1 && snapshot.currencies[0] === "EUR" && Number.isFinite(snapshot.totalMarketValue)) {
+    parts.push(`Kurswert ${currency.format(snapshot.totalMarketValue)}`);
+  }
+  const dateText = snapshot.firstDate === snapshot.lastDate
+    ? `Kursstand ${formatReportDate(snapshot.lastDate)}`
+    : `Kursstände ${formatReportDate(snapshot.firstDate)} – ${formatReportDate(snapshot.lastDate)}`;
+  parts.push(dateText);
+
+  const comparison = snapshot.comparison;
+  if (comparison) {
+    if (comparison.matched) parts.push(`${comparison.matched} Bestand/Bestände mit Buchungen abgeglichen`);
+    if (comparison.quantityMismatches.length) parts.push(`${comparison.quantityMismatches.length} Mengenabweichung(en)`);
+    if (comparison.notInTransactions.length) parts.push(`${comparison.notInTransactions.length} Position(en) ohne passenden Buchungsbestand`);
+    if (comparison.missingInSnapshot.length) parts.push(`${comparison.missingInSnapshot.length} Buchungsposition(en) fehlen in der Bestands-CSV`);
+  }
+  if (snapshot.marketValueMismatchCount) parts.push(`${snapshot.marketValueMismatchCount} Kurswertabweichung(en)`);
+
+  portfolioSnapshotStatus.textContent = parts.join(" · ");
+  portfolioSnapshotStatus.hidden = false;
+  usePortfolioSnapshotValueButton.hidden = !(
+    snapshot.currencies.length === 1 &&
+    snapshot.currencies[0] === "EUR" &&
+    Number.isFinite(snapshot.totalMarketValue)
+  );
+}
+
+async function importPortfolioSnapshotFile(file) {
+  if (!file) return null;
+  if (file.size > 12_000_000) throw new Error("Die Bestands-/Kurs-CSV ist zu groß.");
+  const text = decodeCsvBuffer(await file.arrayBuffer());
+  const parsed = parsePortfolioSnapshotCsv(text);
+  const importedAt = new Date().toISOString();
+
+  for (const position of parsed.positions) {
+    const existing = await getPriceCacheRecord(position.isin) || { isin: position.isin, prices: {}, coveredRanges: [] };
+    const prices = { ...(existing.prices || {}), [position.date]: position.price };
+    const snapshotQuotes = { ...(existing.snapshotQuotes || {}) };
+    snapshotQuotes[position.date] = {
+      date: position.date,
+      price: position.price,
+      priceUnit: position.priceUnit,
+      quantity: position.quantity,
+      unit: position.unit,
+      marketValue: position.marketValue,
+      currency: position.currency,
+      priceCurrency: position.priceCurrency,
+      title: position.title,
+      sourceFilename: file.name || "Bestands-Kurs.csv"
+    };
+    const snapshotDates = Object.keys(snapshotQuotes).sort();
+    const provider = existing.provider || "snapshot";
+    const record = {
+      ...existing,
+      isin: position.isin,
+      provider,
+      prices,
+      snapshotQuotes,
+      latestSnapshotDate: snapshotDates.at(-1) || position.date,
+      snapshotSourceFilename: file.name || "Bestands-Kurs.csv",
+      snapshotImportedAt: importedAt,
+      updatedAt: importedAt,
+      currency: existing.currency || (position.valuationType === "unit_price" ? (position.priceCurrency || String(position.priceUnit || "EUR").toUpperCase()) : String(position.unit || "EUR").toUpperCase())
+    };
+    if (provider === "snapshot") {
+      record.sourceLabel = "Bestands-/Kurs-CSV";
+      record.sourceFilename = file.name || "Bestands-Kurs.csv";
+    }
+    await putPriceCacheRecord(record);
+    priceSourceRuntime.delete(position.isin);
+  }
+
+  lastPortfolioSnapshot = {
+    ...parsed,
+    filename: file.name || "Bestands-Kurs.csv",
+    importedAt,
+    comparison: comparePortfolioSnapshot(parsed)
+  };
+  renderPortfolioSnapshotStatus();
+  await renderPriceSources();
+  clearCalculation();
+  renderPortfolioSnapshotStatus();
+  const range = parsed.firstDate === parsed.lastDate
+    ? formatReportDate(parsed.lastDate)
+    : `${formatReportDate(parsed.firstDate)} – ${formatReportDate(parsed.lastDate)}`;
+  showDataStatus(`Bestands-/Kurs-CSV „${lastPortfolioSnapshot.filename}“ importiert: ${parsed.positionCount} Position(en), Kursstand ${range}. Die Kurse wurden lokal gespeichert; bestehende Fondsberechnungen und automatische Kursquellen bleiben unverändert.`);
+  return lastPortfolioSnapshot;
+}
+
 async function renderPriceSources() {
   if (!priceSources || !priceSourceList || !priceSourceSummary) return;
   const revision = ++priceSourceRenderRevision;
@@ -1384,20 +1543,29 @@ async function renderPriceSources() {
   const rows = [];
   let automatic = 0;
   let local = 0;
+  let snapshotCount = 0;
   let open = 0;
   for (const security of securities) {
     const record = await getPriceCacheRecord(security.isin);
     if (revision !== priceSourceRenderRevision) return;
     const runtime = priceSourceRuntime.get(security.isin);
+    const snapshotDates = Object.keys(record?.snapshotQuotes || {}).sort();
+    const snapshotDate = snapshotDates.at(-1) || "";
+    const snapshotNote = snapshotDate ? ` · Bankbewertung ${formatReportDate(snapshotDate)}` : "";
+    if (snapshotDate) snapshotCount += 1;
     let status = "Automatische Quelle wird bei der Bewertung geprüft";
     let tone = "pending";
-    if (record?.provider === "union") { status = "Union Investment · automatisch"; tone = "ok"; automatic += 1; }
+    if (record?.provider === "union") { status = `Union Investment · automatisch${snapshotNote}`; tone = "ok"; automatic += 1; }
     else if (record?.provider === "manual") {
       const missing = manualPriceCoverageMissing(record, security.ranges);
-      if (missing.length) { status = `Lokale Kursdatei · ${missing.length} Zeitraum/Zeiträume fehlen`; tone = "warning"; open += 1; }
-      else { status = `Lokale Kursdatei · ${record.sourceFilename || "importiert"}`; tone = "ok"; local += 1; }
-    } else if (runtime?.status === "missing") { status = "Keine automatische Quelle · Kursdatei erforderlich"; tone = "warning"; open += 1; }
-    else if (runtime?.status === "union") { status = "Union Investment · automatisch"; tone = "ok"; automatic += 1; }
+      if (missing.length) { status = `Lokale Kursdatei · ${missing.length} Zeitraum/Zeiträume fehlen${snapshotNote}`; tone = "warning"; open += 1; }
+      else { status = `Lokale Kursdatei · ${record.sourceFilename || "importiert"}${snapshotNote}`; tone = "ok"; local += 1; }
+    } else if (record?.provider === "snapshot") {
+      status = `Bankbewertung ${snapshotDate ? formatReportDate(snapshotDate) : "vorhanden"} · historische Kursquelle noch offen`;
+      tone = "warning";
+      open += 1;
+    } else if (runtime?.status === "missing") { status = `Keine automatische Quelle · Kursdatei erforderlich${snapshotNote}`; tone = "warning"; open += 1; }
+    else if (runtime?.status === "union") { status = `Union Investment · automatisch${snapshotNote}`; tone = "ok"; automatic += 1; }
     else { open += 1; }
 
     const requiredText = security.ranges.length === 1
@@ -1417,7 +1585,8 @@ async function renderPriceSources() {
   const parts = [];
   if (automatic) parts.push(`${automatic} automatisch`);
   if (local) parts.push(`${local} lokal`);
-  if (open) parts.push(`${open} offen`);
+  if (snapshotCount) parts.push(`${snapshotCount} Bankbewertung(en)`);
+  if (open) parts.push(`${open} historisch offen`);
   priceSourceSummary.textContent = parts.join(" · ") || `${securities.length} Wertpapier(e)`;
 }
 
@@ -3102,6 +3271,42 @@ useHistoryEndValueButton?.addEventListener("click", async () => {
 });
 
 
+
+portfolioSnapshotImportButton?.addEventListener("click", () => {
+  if (!portfolioSnapshotFileInput) return;
+  portfolioSnapshotFileInput.value = "";
+  portfolioSnapshotFileInput.click();
+});
+
+portfolioSnapshotFileInput?.addEventListener("change", async () => {
+  const file = portfolioSnapshotFileInput.files?.[0];
+  portfolioSnapshotFileInput.value = "";
+  if (!file) return;
+  try {
+    await importPortfolioSnapshotFile(file);
+  } catch (error) {
+    showError(error.message || "Bestands-/Kurs-CSV konnte nicht importiert werden.");
+  }
+});
+
+usePortfolioSnapshotValueButton?.addEventListener("click", () => {
+  const snapshot = lastPortfolioSnapshot;
+  if (!snapshot || !Number.isFinite(snapshot.totalMarketValue)) return;
+  if (snapshot.currencies.length !== 1 || snapshot.currencies[0] !== "EUR") {
+    showError("Der Depotwert aus der Bestands-/Kurs-CSV kann nur bei einheitlicher Berichtswährung EUR übernommen werden.");
+    return;
+  }
+  clearCalculation();
+  if (endDate) endDate.value = snapshot.lastDate;
+  if (endValue) endValue.value = formatGermanNumber(snapshot.totalMarketValue);
+  syncEnhancedDateInputs();
+  updateWorkflowSummaries();
+  const olderPriceNote = snapshot.firstDate !== snapshot.lastDate
+    ? ` Einzelne Wertpapierkurse reichen bis ${formatReportDate(snapshot.firstDate)} zurück.`
+    : "";
+  showDataStatus(`Bankbewertung ${currency.format(snapshot.totalMarketValue)} als Depotwert übernommen; Bewertungsdatum auf ${formatReportDate(snapshot.lastDate)} gesetzt.${olderPriceNote}`);
+});
+
 priceSourceList?.addEventListener("click", async (event) => {
   const importButtonFor = event.target.closest?.("[data-import-price-for]");
   if (importButtonFor) {
@@ -3155,6 +3360,8 @@ resetButton?.addEventListener("click", () => {
   lastCsvImportStats = null;
   priceSourceRuntime.clear();
   pendingPriceImportIsin = null;
+  lastPortfolioSnapshot = null;
+  renderPortfolioSnapshotStatus();
   if (importSummary) importSummary.hidden = true;
   if (fundWorkspace) fundWorkspace.hidden = true;
   if (fundEntryChoice) fundEntryChoice.hidden = false;

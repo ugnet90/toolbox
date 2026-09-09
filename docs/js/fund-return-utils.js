@@ -662,6 +662,129 @@ export function parseHistoricalPriceCsv(text, { expectedIsin = "" } = {}) {
   };
 }
 
+
+export function parsePortfolioSnapshotCsv(text) {
+  const source = String(text ?? "").replace(/^\uFEFF/, "");
+  const firstLine = source.split(/\r?\n/).find((line) => line.trim()) || "";
+  const delimiter = firstLine.includes(";") ? ";" : firstLine.includes("\t") ? "\t" : ",";
+  const rows = parseDelimitedCsv(source, delimiter).filter((row) =>
+    row.some((cell) => String(cell ?? "").trim() !== "")
+  );
+  if (rows.length < 2) throw new Error("Die Bestands-/Kurs-CSV enthält keine Positionsdaten.");
+
+  const header = rows[0].map(normalizePriceCsvHeader);
+  const findColumn = (candidates) => candidates
+    .map((name) => header.indexOf(name))
+    .find((index) => index >= 0) ?? -1;
+  const findUnitAfter = (startIndex, stopIndex = header.length) => {
+    for (let index = startIndex + 1; index < stopIndex; index += 1) {
+      if (header[index] === "einheit") return index;
+    }
+    return -1;
+  };
+
+  const isinIndex = findColumn(["isin"]);
+  const titleIndex = findColumn(["titel", "bezeichnung"]);
+  const quantityIndex = findColumn(["menge"]);
+  const priceDateIndex = findColumn(["kursdatum", "bewertungsdatum", "stichtag"]);
+  const priceIndex = findColumn(["aktueller kurs", "kurs", "preis"]);
+  const entryPriceIndex = findColumn(["einstandskurs"]);
+  const marketValueIndex = findColumn(["kurswert berichtswhg", "kurswert berichtswahrung", "kurswert berichtswaehrung", "kurswert"]);
+  const reportCurrencyIndex = findColumn(["berichtswahrung", "berichtswaehrung", "wahrung", "waehrung"]);
+  const exchangeIndex = findColumn(["borse", "boerse"]);
+
+  const missing = [];
+  if (isinIndex < 0) missing.push("ISIN");
+  if (quantityIndex < 0) missing.push("Menge");
+  if (priceDateIndex < 0) missing.push("Kursdatum");
+  if (priceIndex < 0) missing.push("aktueller Kurs");
+  if (missing.length) throw new Error(`Bestands-/Kurs-CSV: Spalte(n) fehlen: ${missing.join(", ")}.`);
+
+  // Die Bankdatei verwendet den Spaltennamen „Einheit“ mehrfach. Deshalb
+  // werden die beiden relevanten Einheiten positionsbezogen ermittelt:
+  // Menge -> Einheit sowie aktueller Kurs -> Einheit.
+  const quantityUnitIndex = findUnitAfter(quantityIndex, priceIndex);
+  const priceUnitIndex = findUnitAfter(priceIndex, entryPriceIndex >= 0 ? entryPriceIndex : header.length);
+  if (quantityUnitIndex < 0) throw new Error("Bestands-/Kurs-CSV: Einheit zur Menge wurde nicht gefunden.");
+  if (priceUnitIndex < 0) throw new Error("Bestands-/Kurs-CSV: Einheit zum aktuellen Kurs wurde nicht gefunden.");
+
+  const positions = [];
+  let skippedRows = 0;
+  let marketValueMismatchCount = 0;
+
+  for (let index = 1; index < rows.length; index += 1) {
+    const row = rows[index];
+    const lineNumber = index + 1;
+    const isin = String(row[isinIndex] ?? "").trim().toUpperCase();
+    if (!isin) { skippedRows += 1; continue; }
+    if (!/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) {
+      throw new Error(`Bestands-/Kurs-CSV Zeile ${lineNumber}: ISIN ist ungültig.`);
+    }
+
+    const quantity = parseGermanNumber(row[quantityIndex]);
+    const price = parseGermanNumber(row[priceIndex]);
+    if (!Number.isFinite(quantity)) throw new Error(`Bestands-/Kurs-CSV Zeile ${lineNumber}: Menge ist ungültig.`);
+    if (!Number.isFinite(price) || price <= 0) throw new Error(`Bestands-/Kurs-CSV Zeile ${lineNumber}: aktueller Kurs ist ungültig.`);
+
+    const date = flexiblePriceDateToIso(row[priceDateIndex], lineNumber);
+    const unit = String(row[quantityUnitIndex] ?? "").trim();
+    const priceUnit = String(row[priceUnitIndex] ?? "").trim();
+    const normalizedPriceUnit = priceUnit.normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase("de-AT");
+    const valuationType = normalizedPriceUnit === "%" || normalizedPriceUnit === "prozent"
+      ? "percent_of_nominal"
+      : securityValuationTypeFromUnit(unit);
+    const title = titleIndex >= 0 ? String(row[titleIndex] ?? "").trim() : "";
+    const exchange = exchangeIndex >= 0 ? String(row[exchangeIndex] ?? "").trim() : "";
+    const currency = reportCurrencyIndex >= 0 ? String(row[reportCurrencyIndex] ?? "").trim().toUpperCase() : "";
+    const priceCurrency = valuationType === "unit_price" ? priceUnit.toUpperCase() : "";
+    const marketValue = marketValueIndex >= 0 ? parseGermanNumber(row[marketValueIndex]) : NaN;
+    const calculatedMarketValue = valuationType === "percent_of_nominal"
+      ? quantity * price / 100
+      : quantity * price;
+    if (Number.isFinite(marketValue) && Math.abs(marketValue - calculatedMarketValue) > Math.max(0.05, Math.abs(marketValue) * 0.00001)) {
+      marketValueMismatchCount += 1;
+    }
+
+    positions.push({
+      isin,
+      title,
+      exchange,
+      quantity,
+      unit,
+      date,
+      price,
+      priceUnit,
+      priceCurrency,
+      valuationType,
+      marketValue: Number.isFinite(marketValue) ? marketValue : calculatedMarketValue,
+      currency: currency || (valuationType === "unit_price" ? priceCurrency : String(unit || "EUR").toUpperCase()),
+      lineNumber
+    });
+  }
+
+  if (!positions.length) throw new Error("Die Bestands-/Kurs-CSV enthält keine gültigen Wertpapierpositionen.");
+  positions.sort((a, b) => a.isin.localeCompare(b.isin));
+  const dates = positions.map((position) => position.date).sort();
+  const currencies = [...new Set(positions.map((position) => position.currency).filter(Boolean))].sort();
+  const allMarketValuesFinite = positions.every((position) => Number.isFinite(position.marketValue));
+  const totalMarketValue = allMarketValuesFinite
+    ? positions.reduce((sum, position) => sum + position.marketValue, 0)
+    : null;
+
+  return {
+    positions,
+    positionCount: positions.length,
+    firstDate: dates[0],
+    lastDate: dates.at(-1),
+    currencies,
+    totalMarketValue,
+    marketValueMismatchCount,
+    skippedRows,
+    unitPriceCount: positions.filter((position) => position.valuationType === "unit_price").length,
+    nominalCount: positions.filter((position) => position.valuationType === "percent_of_nominal").length
+  };
+}
+
 export function securityHoldingPeriods(cashflows, endDate) {
   parseIsoDate(endDate);
   const groups = new Map();
