@@ -137,6 +137,10 @@ export function normalizeFundReturnData(payload) {
     const purchaseFeePerUnit = optionalNumber(flow.purchaseFeePerUnit, `Kaufspesen je Anteil in Zahlungsstrom ${index + 1}`);
     const purchaseFeeTotal = optionalNumber(flow.purchaseFeeTotal, `Kaufspesen gesamt in Zahlungsstrom ${index + 1}`);
     const purchaseFeePercent = optionalNumber(flow.purchaseFeePercent, `Kaufspesen-Prozentsatz in Zahlungsstrom ${index + 1}`);
+    const sourceSettlementNumber = String(flow.sourceSettlementNumber ?? "").trim();
+    const sourceExecutionNumber = String(flow.sourceExecutionNumber ?? "").trim();
+    if (sourceSettlementNumber.length > 80) throw new Error(`Abrechnungsnummer in Zahlungsstrom ${index + 1} ist zu lang.`);
+    if (sourceExecutionNumber.length > 80) throw new Error(`Ausführungsnummer in Zahlungsstrom ${index + 1} ist zu lang.`);
     if (title.length > 120) throw new Error(`Titel in Zahlungsstrom ${index + 1} ist zu lang.`);
     if (note.length > 120) throw new Error(`Notiz in Zahlungsstrom ${index + 1} ist zu lang.`);
     if (isin && !/^[A-Z]{2}[A-Z0-9]{10}$/.test(isin)) throw new Error(`ISIN in Zahlungsstrom ${index + 1} ist ungültig.`);
@@ -144,7 +148,13 @@ export function normalizeFundReturnData(payload) {
     if (executionPrice !== null && executionPrice <= 0) throw new Error(`Ausführungskurs in Zahlungsstrom ${index + 1} muss größer als 0 sein.`);
     if (executionPriceCurrency.length > 12) throw new Error(`Ausführungskurs-Währung in Zahlungsstrom ${index + 1} ist zu lang.`);
     if (cashflowCurrency.length > 12) throw new Error(`Abrechnungsbetrag-Währung in Zahlungsstrom ${index + 1} ist zu lang.`);
-    cashflows.push({ date: String(flow.date), type, amount, title, note, isin, quantity, unit, valuationDate, referenceValue, executionPrice, executionPriceCurrency, cashflowCurrency, purchaseFeePerUnit, purchaseFeeTotal, purchaseFeePercent });
+    const normalizedFlow = { date: String(flow.date), type, amount, title, note, isin, quantity, unit, valuationDate, referenceValue, executionPrice, executionPriceCurrency, cashflowCurrency, purchaseFeePerUnit, purchaseFeeTotal, purchaseFeePercent };
+    // Abrechnungs-/Ausführungsnummern sind technische Quellreferenzen für die
+    // Duplikatkontrolle. Sie werden nur gespeichert, wenn sie tatsächlich
+    // vorhanden sind. Die Depotkennung bleibt weiterhin bewusst außen vor.
+    if (sourceSettlementNumber) normalizedFlow.sourceSettlementNumber = sourceSettlementNumber;
+    if (sourceExecutionNumber) normalizedFlow.sourceExecutionNumber = sourceExecutionNumber;
+    cashflows.push(normalizedFlow);
   });
 
   return {
@@ -293,8 +303,11 @@ function csvDateToIso(value, lineNumber, label = "Abrechnungsdatum") {
 function mapCsvBusinessType(value) {
   const raw = String(value ?? "").trim();
   const normalized = raw.toLocaleLowerCase("de-AT");
-  if (normalized.includes("kauf")) return "contribution";
+  // Wichtig: „Verkauf“ enthält die Zeichenfolge „kauf“. Daher muss Verkauf
+  // zwingend vor Kauf geprüft werden, sonst werden Verkaufserlöse als Käufe
+  // klassifiziert und anschließend fälschlich negativ normalisiert.
   if (normalized.includes("verkauf")) return "withdrawal";
+  if (normalized.includes("kauf")) return "contribution";
   if (normalized.includes("ausschütt") || normalized.includes("ausschuett")) return "distribution";
   if (normalized.includes("kest") || normalized.includes("steuer") || normalized.includes("ausschüttungsgleich") || normalized.includes("ausschuettungsgleich")) return "tax";
   if (normalized.includes("gebühr") || normalized.includes("gebuehr") || normalized.includes("spesen")) return "fee";
@@ -332,13 +345,16 @@ export function parseBankTransactionsCsv(text) {
     ? header.indexOf("abrechnungsbetrag-einheit")
     : header.indexOf("währung");
   const depotIndex = header.indexOf("depot");
-  // Die Depotkennung wird nur transient zur sicheren Duplikatabgrenzung verwendet.
-  // Sie wird weder angezeigt noch in den JSON-Rechnerzustand exportiert.
+  const settlementNumberIndex = header.indexOf("abrechnungsnummer");
+  const executionNumberIndex = header.indexOf("ausführungsnummer");
+  // Depot- und Buchungskennungen werden nur transient zur sicheren
+  // Duplikatabgrenzung verwendet. Sie werden weder angezeigt noch exportiert.
   const ignoredDepotColumn = depotIndex >= 0;
 
   const cashflows = [];
   let unknownBusinessTypes = 0;
   let normalizedOutflowSigns = 0;
+  let normalizedInflowSigns = 0;
   let normalizedQuantitySigns = 0;
   let skippedZeroAmounts = 0;
   let earliestTransactionDate = null;
@@ -362,6 +378,8 @@ export function parseBankTransactionsCsv(text) {
     const executionPriceCurrency = executionPriceCurrencyIndex >= 0 ? String(row[executionPriceCurrencyIndex] ?? "").trim().toUpperCase() : "";
     const cashflowCurrency = cashflowCurrencyIndex >= 0 ? String(row[cashflowCurrencyIndex] ?? "").trim().toUpperCase() : "";
     const sourceDepot = depotIndex >= 0 ? String(row[depotIndex] ?? "").trim() : "";
+    const sourceSettlementNumber = settlementNumberIndex >= 0 ? String(row[settlementNumberIndex] ?? "").trim() : "";
+    const sourceExecutionNumber = executionNumberIndex >= 0 ? String(row[executionNumberIndex] ?? "").trim() : "";
 
     if (!rawAmount && !businessType && !rawDate && !title && !isin && !rawQuantity && !rawValuationDate && !rawReferenceValue && !rawExecutionPrice) continue;
     if (!rawAmount || !rawDate) throw new Error(`CSV-Zeile ${lineNumber}: Abrechnungsbetrag oder ${transactionDateLabel} fehlt.`);
@@ -384,6 +402,10 @@ export function parseBankTransactionsCsv(text) {
     if (["contribution", "tax", "fee"].includes(type) && amount > 0) {
       amount = -amount;
       normalizedOutflowSigns += 1;
+    } else if (type === "withdrawal" && amount < 0) {
+      // Wertpapierverkäufe/Entnahmen sind aus Anlegersicht Zuflüsse.
+      amount = Math.abs(amount);
+      normalizedInflowSigns += 1;
     }
 
     let quantity = null;
@@ -443,9 +465,15 @@ export function parseBankTransactionsCsv(text) {
       purchaseFeeTotal,
       purchaseFeePercent
     };
-    if (sourceDepot) {
-      Object.defineProperty(cashflow, "sourceDepot", {
-        value: sourceDepot,
+    const hiddenSourceMetadata = {
+      sourceDepot,
+      sourceSettlementNumber,
+      sourceExecutionNumber
+    };
+    for (const [property, value] of Object.entries(hiddenSourceMetadata)) {
+      if (!value) continue;
+      Object.defineProperty(cashflow, property, {
+        value,
         enumerable: false,
         configurable: true
       });
@@ -462,6 +490,7 @@ export function parseBankTransactionsCsv(text) {
     ignoredDepotColumn,
     unknownBusinessTypes,
     normalizedOutflowSigns,
+    normalizedInflowSigns,
     normalizedQuantitySigns,
     skippedZeroAmounts,
     earliestTransactionDate,
@@ -474,6 +503,8 @@ export function parseBankTransactionsCsv(text) {
     hasExecutionPriceColumn: executionPriceIndex >= 0,
     hasExecutionPriceCurrencyColumn: executionPriceCurrencyIndex >= 0,
     hasCashflowCurrencyColumn: cashflowCurrencyIndex >= 0,
+    hasSettlementNumberColumn: settlementNumberIndex >= 0,
+    hasExecutionNumberColumn: executionNumberIndex >= 0,
     cashflowCurrencies: [...cashflowCurrencies].sort(),
     securityIsins: [...securityIsins].sort()
   };
@@ -672,47 +703,85 @@ function median(values) {
   return ordered.length % 2 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2;
 }
 
-export function detectRecurringSavingsPlans(cashflows, tolerancePercent = 1.1) {
+export function detectRecurringSavingsPlans(cashflows, tolerancePercent = 1.1, asOfDate = "") {
   const groups = new Map();
+  let latestSourceDate = "";
   for (const flow of cashflows ?? []) {
+    const flowDate = String(flow?.date ?? "");
+    try {
+      parseIsoDate(flowDate);
+      if (!latestSourceDate || flowDate > latestSourceDate) latestSourceDate = flowDate;
+    } catch {
+      continue;
+    }
     if (flow?.type !== "contribution") continue;
     const title = String(flow?.title ?? "").trim();
     const amount = Math.abs(Number(flow?.amount));
     if (!title || !Number.isFinite(amount) || amount <= 0) continue;
-    try { parseIsoDate(flow.date); } catch { continue; }
+    const note = String(flow?.note ?? "").toLocaleLowerCase("de-AT");
+    const explicitRecurring = note.includes("dauerauftrag") || note.includes("sparplan") || note.includes("sparrate");
     const key = title.toLocaleLowerCase("de-AT");
     if (!groups.has(key)) groups.set(key, { title, flows: [] });
-    groups.get(key).flows.push({ date: String(flow.date), amount });
+    groups.get(key).flows.push({ date: flowDate, amount, explicitRecurring });
   }
+
+  let referenceDate = String(asOfDate || latestSourceDate || "");
+  try { parseIsoDate(referenceDate); } catch { referenceDate = latestSourceDate; }
 
   const plans = [];
   for (const group of groups.values()) {
-    const flows = group.flows.sort((a, b) => a.date.localeCompare(b.date));
-    if (flows.length < 3) continue;
+    const allFlows = group.flows.sort((a, b) => a.date.localeCompare(b.date));
+    const explicitFlows = allFlows.filter((flow) => flow.explicitRecurring);
 
-    const consecutiveGaps = [];
-    for (let i = 1; i < flows.length; i += 1) {
-      consecutiveGaps.push(monthSerial(flows[i].date) - monthSerial(flows[i - 1].date));
-    }
-    const monthlyShare = consecutiveGaps.filter((gap) => gap === 1).length / Math.max(consecutiveGaps.length, 1);
-    if (monthlyShare < 0.75) continue;
+    // „Kauf aus Dauerauftrag“/„Sparplan“ ist bereits ein direkter Nachweis.
+    // Ohne solchen Hinweis bleibt die bisherige statistische Erkennung erhalten.
+    const flows = explicitFlows.length ? explicitFlows : allFlows;
+    if (!explicitFlows.length && flows.length < 3) continue;
+    if (!flows.length) continue;
 
     const amounts = flows.map((flow) => flow.amount);
     const center = median(amounts);
     const nominal = center >= 20 ? Math.round(center) : Math.round(center * 10) / 10;
     if (nominal <= 0) continue;
     const deviations = amounts.map((amount) => Math.abs(amount - nominal) / nominal * 100);
-    const withinTolerance = deviations.filter((value) => value <= tolerancePercent).length / deviations.length;
-    if (withinTolerance < 0.8) continue;
+
+    if (!explicitFlows.length) {
+      const consecutiveGaps = [];
+      for (let i = 1; i < flows.length; i += 1) {
+        consecutiveGaps.push(monthSerial(flows[i].date) - monthSerial(flows[i - 1].date));
+      }
+      const monthlyShare = consecutiveGaps.filter((gap) => gap === 1).length / Math.max(consecutiveGaps.length, 1);
+      if (monthlyShare < 0.75) continue;
+      const withinTolerance = deviations.filter((value) => value <= tolerancePercent).length / deviations.length;
+      if (withinTolerance < 0.8) continue;
+    }
+
+    const firstDate = flows[0].date;
+    const lastDate = flows[flows.length - 1].date;
+    const observedGaps = [];
+    for (let i = 1; i < flows.length; i += 1) {
+      observedGaps.push(monthSerial(flows[i].date) - monthSerial(flows[i - 1].date));
+    }
+    const observedMonthlyShare = observedGaps.length
+      ? observedGaps.filter((gap) => gap === 1).length / observedGaps.length
+      : 0;
+    const cadence = observedGaps.length && observedMonthlyShare >= 0.75 ? "monthly" : "recurring";
+    let status = "unknown";
+    if (referenceDate) {
+      const monthGap = monthSerial(referenceDate) - monthSerial(lastDate);
+      status = monthGap >= 2 ? "ended" : "active";
+    }
 
     plans.push({
       title: group.title,
       nominalAmount: nominal,
-      firstDate: flows[0].date,
-      lastDate: flows[flows.length - 1].date,
+      firstDate,
+      lastDate,
       count: flows.length,
       maxDeviationPercent: Math.max(...deviations),
-      cadence: "monthly"
+      cadence,
+      detectedBy: explicitFlows.length ? "business-type" : "pattern",
+      status
     });
   }
 

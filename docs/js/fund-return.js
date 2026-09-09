@@ -1,4 +1,4 @@
-import { SITE_VERSION } from "./site-map.js?v=0.6.9";
+import { SITE_VERSION } from "./site-map.js?v=0.6.10";
 import {
   applyKestExemption,
   calculateXirr,
@@ -20,7 +20,7 @@ import {
   securityHoldingPeriods,
   summarizeCashflows,
   summarizeCsvPurchaseFees
-} from "./fund-return-utils.js?v=0.6.9";
+} from "./fund-return-utils.js?v=0.6.10";
 
 const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
 const BENCHMARKS = {
@@ -682,18 +682,25 @@ function currentFundData() {
       benchmarkKinds: selectedBenchmarkKinds(),
       kestExemption: kestExemption?.value
     },
-    cashflows: cashflows.map(({ date, type, amount, title, note, isin, quantity, unit, valuationDate, referenceValue, executionPrice, executionPriceCurrency, cashflowCurrency, purchaseFeePerUnit, purchaseFeeTotal, purchaseFeePercent }) => ({
-      date, type, amount, title: title || "", note: note || "", isin: isin || "",
-      quantity: optionalFiniteNumber(quantity), unit: unit || "",
-      valuationDate: valuationDate || "",
-      referenceValue: optionalFiniteNumber(referenceValue),
-      executionPrice: optionalFiniteNumber(executionPrice),
-      executionPriceCurrency: executionPriceCurrency || "",
-      cashflowCurrency: cashflowCurrency || "",
-      purchaseFeePerUnit: optionalFiniteNumber(purchaseFeePerUnit),
-      purchaseFeeTotal: optionalFiniteNumber(purchaseFeeTotal),
-      purchaseFeePercent: optionalFiniteNumber(purchaseFeePercent)
-    }))
+    cashflows: cashflows.map((flow) => {
+      const exportedFlow = {
+        date: flow.date, type: flow.type, amount: flow.amount, title: flow.title || "", note: flow.note || "", isin: flow.isin || "",
+        quantity: optionalFiniteNumber(flow.quantity), unit: flow.unit || "",
+        valuationDate: flow.valuationDate || "",
+        referenceValue: optionalFiniteNumber(flow.referenceValue),
+        executionPrice: optionalFiniteNumber(flow.executionPrice),
+        executionPriceCurrency: flow.executionPriceCurrency || "",
+        cashflowCurrency: flow.cashflowCurrency || "",
+        purchaseFeePerUnit: optionalFiniteNumber(flow.purchaseFeePerUnit),
+        purchaseFeeTotal: optionalFiniteNumber(flow.purchaseFeeTotal),
+        purchaseFeePercent: optionalFiniteNumber(flow.purchaseFeePercent)
+      };
+      const settlement = String(flow.sourceSettlementNumber || "").trim();
+      const execution = String(flow.sourceExecutionNumber || "").trim();
+      if (settlement) exportedFlow.sourceSettlementNumber = settlement;
+      if (execution) exportedFlow.sourceExecutionNumber = execution;
+      return exportedFlow;
+    })
   });
 }
 
@@ -799,21 +806,46 @@ function decodeCsvBuffer(buffer) {
   }
 }
 
+function sourceTransactionReferenceKey(flow) {
+  const settlement = String(flow?.sourceSettlementNumber || "").trim();
+  const execution = String(flow?.sourceExecutionNumber || "").trim();
+  if (!settlement && !execution) return "";
+  const depot = String(flow?.sourceDepot || "").trim();
+  return JSON.stringify([depot, settlement, execution]);
+}
+
+function copyHiddenCsvSourceMetadata(source, target) {
+  for (const property of ["sourceDepot", "sourceSettlementNumber", "sourceExecutionNumber"]) {
+    const value = String(source?.[property] || "").trim();
+    if (!value) continue;
+    Object.defineProperty(target, property, {
+      value,
+      enumerable: false,
+      configurable: true
+    });
+  }
+}
+
 async function importBankTransactionsCsv(file) {
   if (file.size > 5_000_000) throw new Error("Die CSV-Datei ist zu groß.");
   const text = decodeCsvBuffer(await file.arrayBuffer());
   const parsed = parseBankTransactionsCsv(text);
   const hadExisting = cashflows.length > 0;
   const knownByBaseKey = new Map();
-  const registerKnownFlow = (flow) => {
+  const knownWithoutSourceReference = new Set();
+  const knownSourceReferences = new Set();
+
+  const registerContentKey = (flow) => {
     const baseKey = cashflowDuplicateKey(flow);
     const scopedKey = cashflowDuplicateKey(flow, { includeSourceDepot: true });
     if (!knownByBaseKey.has(baseKey)) knownByBaseKey.set(baseKey, { hasUnknownDepot: false, scopedKeys: new Set() });
     const entry = knownByBaseKey.get(baseKey);
     if (scopedKey === baseKey) entry.hasUnknownDepot = true;
     else entry.scopedKeys.add(scopedKey);
+    return { baseKey, scopedKey };
   };
-  const isKnownFlow = (flow) => {
+
+  const contentIsKnown = (flow) => {
     const baseKey = cashflowDuplicateKey(flow);
     const entry = knownByBaseKey.get(baseKey);
     if (!entry) return false;
@@ -821,6 +853,28 @@ async function importBankTransactionsCsv(file) {
     if (scopedKey === baseKey) return true;
     return entry.hasUnknownDepot || entry.scopedKeys.has(scopedKey);
   };
+
+  const registerKnownFlow = (flow) => {
+    const { baseKey, scopedKey } = registerContentKey(flow);
+    const sourceKey = sourceTransactionReferenceKey(flow);
+    if (sourceKey) knownSourceReferences.add(sourceKey);
+    else knownWithoutSourceReference.add(scopedKey || baseKey);
+  };
+
+  const isKnownFlow = (flow) => {
+    const sourceKey = sourceTransactionReferenceKey(flow);
+    if (sourceKey) {
+      if (knownSourceReferences.has(sourceKey)) return true;
+      // Fallback nur gegen ältere/manuelle Buchungen ohne Quellnummer. Zwei
+      // verschiedene Abrechnungsnummern dürfen trotz identischer Beträge nicht
+      // vorschnell zusammengelegt werden.
+      const scopedContentKey = cashflowDuplicateKey(flow, { includeSourceDepot: true });
+      const baseContentKey = cashflowDuplicateKey(flow);
+      return knownWithoutSourceReference.has(scopedContentKey) || knownWithoutSourceReference.has(baseContentKey);
+    }
+    return contentIsKnown(flow);
+  };
+
   cashflows.forEach(registerKnownFlow);
 
   const uniqueFlows = [];
@@ -836,13 +890,7 @@ async function importBankTransactionsCsv(file) {
 
   for (const flow of uniqueFlows) {
     const importedFlow = { ...flow, id: nextCashflowId++ };
-    if (flow.sourceDepot) {
-      Object.defineProperty(importedFlow, "sourceDepot", {
-        value: flow.sourceDepot,
-        enumerable: false,
-        configurable: true
-      });
-    }
+    copyHiddenCsvSourceMetadata(flow, importedFlow);
     cashflows.push(importedFlow);
   }
   if (uniqueFlows.length) {
@@ -873,6 +921,12 @@ async function importBankTransactionsCsv(file) {
   }
   if (parsed.normalizedOutflowSigns > 0) {
     appendWarning(`${parsed.normalizedOutflowSigns} als Belastung erkannte positive Buchungsbeträge wurden automatisch mit negativem Vorzeichen übernommen.`);
+  }
+  if (parsed.normalizedInflowSigns > 0) {
+    appendWarning(`${parsed.normalizedInflowSigns} als Verkauf/Entnahme erkannte negative Buchungsbeträge wurden automatisch als positive Zuflüsse übernommen.`);
+  }
+  if (parsed.hasSettlementNumberColumn) {
+    showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} Abrechnungsnummern werden zur sicheren Duplikatkontrolle verwendet.`);
   }
   if (!parsed.hasTitleColumn) {
     appendWarning("Die CSV-Datei enthält keine Spalte „Titel“. Eine fondsbezogene Sparplan-Erkennung ist daher für diese Buchungen nicht möglich.");
@@ -1792,9 +1846,9 @@ function renderCoreResults(calc, xirrResult) {
   calc.baseMethodText = nodes.method?.textContent || "";
 }
 
-function renderSavingsPlanSummary(sourceCashflows) {
+function renderSavingsPlanSummary(sourceCashflows, asOfDate = "") {
   if (!savingsPlanSummary || !savingsPlanList) return;
-  const plans = detectRecurringSavingsPlans(sourceCashflows);
+  const plans = detectRecurringSavingsPlans(sourceCashflows, 1.1, asOfDate);
   savingsPlanList.innerHTML = "";
   if (!plans.length) {
     savingsPlanSummary.hidden = true;
@@ -1802,7 +1856,9 @@ function renderSavingsPlanSummary(sourceCashflows) {
   }
   for (const plan of plans) {
     const item = document.createElement("li");
-    item.textContent = `Fondssparvertrag ${plan.title}: monatlich ca. ${currency.format(plan.nominalAmount)} (${formatReportDate(plan.firstDate)} – ${formatReportDate(plan.lastDate)}), ${plan.count} Buchungen.`;
+    const statusText = plan.status === "ended" ? ", beendet" : plan.status === "active" ? ", laufend" : "";
+    const rateText = plan.cadence === "monthly" ? "monatlich ca." : "Rate ca.";
+    item.textContent = `Fondssparvertrag ${plan.title}: ${rateText} ${currency.format(plan.nominalAmount)} (${formatReportDate(plan.firstDate)} – ${formatReportDate(plan.lastDate)}), ${plan.count} Buchungen${statusText}.`;
     savingsPlanList.append(item);
   }
   savingsPlanSummary.hidden = false;
@@ -3078,7 +3134,7 @@ benchmarkCheckboxes.forEach((box) => {
     if (warningNode) { warningNode.hidden = true; warningNode.textContent = ""; }
     const { calc, xirrResult } = lastCoreCalculation;
     renderCoreResults(calc, xirrResult);
-    renderSavingsPlanSummary(calc.enteredIntermediate);
+    renderSavingsPlanSummary(calc.enteredIntermediate, calc.finishDate);
     lastBenchmarkResults = await refreshBenchmarks(calc, xirrResult, runRevision);
     if (runRevision === calculationRevision) enrichDepotHistoryWithBenchmarks(calc, lastBenchmarkResults);
     if (runRevision === calculationRevision && printButton) printButton.hidden = false;
@@ -3096,7 +3152,7 @@ form?.addEventListener("submit", async (event) => {
     const calc = buildCalculation();
     const xirrResult = calculateXirr(calc.investorFlows);
     renderCoreResults(calc, xirrResult);
-    renderSavingsPlanSummary(calc.enteredIntermediate);
+    renderSavingsPlanSummary(calc.enteredIntermediate, calc.finishDate);
     lastCoreCalculation = { calc, xirrResult };
     selectResultTab("overview");
 
