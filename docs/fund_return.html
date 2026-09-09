@@ -157,10 +157,10 @@
 </colgroup>
 <thead>
 <tr>
-<th>Datum</th>
-<th>Art</th>
-<th class="cashflow-table__amount">Betrag</th>
-<th>Titel</th><th>ISIN</th><th>Menge / Nominale</th><th>Notiz</th>
+<th aria-sort="ascending" data-cashflow-sort="date" role="button" tabindex="0" title="Nach Datum sortieren" style="cursor:pointer;user-select:none;">Datum <span aria-hidden="true" data-cashflow-sort-indicator>↑</span></th>
+<th aria-sort="none" data-cashflow-sort="type" role="button" tabindex="0" title="Nach Art sortieren" style="cursor:pointer;user-select:none;">Art <span aria-hidden="true" data-cashflow-sort-indicator>↕</span></th>
+<th aria-sort="none" class="cashflow-table__amount" data-cashflow-sort="amount" role="button" tabindex="0" title="Nach Betrag sortieren" style="cursor:pointer;user-select:none;">Betrag <span aria-hidden="true" data-cashflow-sort-indicator>↕</span></th>
+<th aria-sort="none" data-cashflow-sort="title" role="button" tabindex="0" title="Nach Titel sortieren" style="cursor:pointer;user-select:none;">Titel <span aria-hidden="true" data-cashflow-sort-indicator>↕</span></th><th aria-sort="none" data-cashflow-sort="isin" role="button" tabindex="0" title="Nach ISIN sortieren" style="cursor:pointer;user-select:none;">ISIN <span aria-hidden="true" data-cashflow-sort-indicator>↕</span></th><th aria-sort="none" data-cashflow-sort="quantity" role="button" tabindex="0" title="Nach Menge oder Nominale sortieren" style="cursor:pointer;user-select:none;">Menge / Nominale <span aria-hidden="true" data-cashflow-sort-indicator>↕</span></th><th aria-sort="none" data-cashflow-sort="note" role="button" tabindex="0" title="Nach Notiz sortieren" style="cursor:pointer;user-select:none;">Notiz <span aria-hidden="true" data-cashflow-sort-indicator>↕</span></th>
 <th><span class="sr-only">Aktion</span></th>
 </tr>
 </thead>
@@ -405,6 +405,6 @@
 <section aria-hidden="true" class="fund-print-report" data-print-report=""></section>
 <footer class="site-footer">Toolbox</footer>
 <script src="js/navigation.js" type="module"></script>
-<script src="js/fund-return.js?v=0.6.11" type="module"></script>
+<script src="js/fund-return.js?v=0.6.12" type="module"></script>
 </body>
 </html>
