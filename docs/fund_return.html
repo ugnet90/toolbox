@@ -74,14 +74,14 @@
 <label for="endValue">End-/Verkaufswert</label>
 <input autocomplete="off" id="endValue" inputmode="decimal" name="endValue" placeholder="z. B. 72.500,00" required="" type="text"/>
 <button class="secondary-button fund-history-end-button" data-use-history-end-value="" type="button">Depotwert aus historischen Kursen ermitteln</button>
-<span class="field__hint">Bei Verkauf möglichst den tatsächlich verbleibenden Nettoerlös verwenden. Bei importierten Kauf-/Verkaufsbuchungen mit ISIN und Menge kann der Depotwert bereits vor der Renditeberechnung aus den hinterlegten historischen Kursquellen ermittelt und hier eingesetzt werden.</span>
+<span class="field__hint">Bei Verkauf möglichst den tatsächlich verbleibenden Nettoerlös verwenden. Bei importierten Kauf-/Verkaufsbuchungen mit ISIN und Menge bzw. Nominale kann der Depotwert bereits vor der Renditeberechnung aus den hinterlegten historischen Kursquellen ermittelt und hier eingesetzt werden.</span>
 </div>
 </div></div>
 <p class="fund-auto-valuation" data-auto-valuation-status="" hidden=""></p>
 <details class="fund-price-sources" data-price-sources="" hidden="">
 <summary><span><strong>Kursversorgung</strong><small data-price-source-summary="">Noch nicht geprüft</small></span></summary>
 <div class="fund-price-sources__body">
-<p class="field__hint">Für jede ISIN wird zuerst eine automatische Kursquelle geprüft. Ist keine verfügbar, kannst du eine historische Kursdatei lokal importieren. Benötigt werden mindestens eine Datumsspalte und eine Kurs-/Preis-Spalte; ISIN und Währung sind optional. Importierte Kursdaten bleiben ausschließlich im Browser (IndexedDB).</p>
+<p class="field__hint">Für jede ISIN wird zuerst eine automatische Kursquelle geprüft. Ist keine verfügbar, kannst du eine historische Kursdatei lokal importieren. Stücknotierte Wertpapiere werden mit Stück × Kurs bewertet; bei Einheit EUR wird die Menge als Nominale interpretiert und mit Nominale × Prozentkurs / 100 bewertet. Benötigt werden mindestens eine Datumsspalte und eine Kurs-/Preis-Spalte; ISIN und Währung sind optional. Importierte Kursdaten bleiben ausschließlich im Browser (IndexedDB).</p>
 <div class="fund-price-source-list" data-price-source-list=""></div>
 </div>
 </details>
@@ -111,7 +111,7 @@
 <div class="section-heading-row">
 <div>
 <h3 id="cashflow-heading">Weitere Zahlungsströme</h3>
-<p>Ausschüttungen dürfen ausdrücklich auch negativ erfasst werden, z. B. wenn eine Steuerbelastung den Nettozufluss übersteigt.</p>
+<p>Erträge/Ausschüttungen dürfen ausdrücklich auch negativ erfasst werden, z. B. wenn eine Steuerbelastung den Nettozufluss übersteigt.</p>
 </div>
 </div>
 <div class="cashflow-entry">
@@ -123,7 +123,7 @@
 <label for="cashflowType">Art</label>
 <select id="cashflowType">
 <option value="contribution">Zuzahlung / Sparrate</option>
-<option value="distribution">Ausschüttung</option>
+<option value="income">Ertrag / Ausschüttung</option>
 <option value="tax">KESt / Steuer auf ausschüttungsgleichen Ertrag</option>
 <option value="fee">Depot-/sonstige Gebühr</option>
 <option value="withdrawal">Entnahme</option>
@@ -134,7 +134,7 @@
 <label for="cashflowAmount">Betrag</label>
 <input autocomplete="off" id="cashflowAmount" inputmode="decimal" placeholder="z. B. 200,00 oder -35,00" type="text"/>
 </div>
-<div class="field cashflow-entry__title"><label for="cashflowTitle">Titel <span class="label-optional">(optional)</span></label><input id="cashflowTitle" maxlength="120" placeholder="z. B. Fonds XY" type="text"/></div>
+<div class="field cashflow-entry__title"><label for="cashflowTitle">Titel <span class="label-optional">(optional)</span></label><input id="cashflowTitle" maxlength="120" placeholder="z. B. Wertpapier XY" type="text"/></div>
 <div class="field cashflow-entry__isin"><label for="cashflowIsin">ISIN <span class="label-optional">(optional)</span></label><input autocapitalize="characters" id="cashflowIsin" maxlength="12" placeholder="z. B. DE0008491051" type="text"/></div>
 <div class="field cashflow-entry__quantity"><label for="cashflowQuantity">Menge <span class="label-optional">(optional)</span></label><input id="cashflowQuantity" inputmode="decimal" placeholder="z. B. 0,467" type="text"/></div>
 <div class="field cashflow-entry__note">
@@ -160,7 +160,7 @@
 <th>Datum</th>
 <th>Art</th>
 <th class="cashflow-table__amount">Betrag</th>
-<th>Titel</th><th>ISIN</th><th>Menge</th><th>Notiz</th>
+<th>Titel</th><th>ISIN</th><th>Menge / Nominale</th><th>Notiz</th>
 <th><span class="sr-only">Aktion</span></th>
 </tr>
 </thead>
@@ -174,7 +174,7 @@
 <select id="recurringType">
 <option value="contribution">Zuzahlung / Sparrate</option>
 <option value="fee">Depot-/sonstige Gebühr</option>
-<option value="distribution">Ausschüttung</option>
+<option value="income">Ertrag / Ausschüttung</option>
 <option value="tax">KESt / Steuer auf agE</option>
 <option value="other">Sonstiger Cashflow</option>
 </select>
@@ -215,7 +215,7 @@
 <label for="recurringLast">Letzte Zahlung</label>
 <input id="recurringLast" type="date"/>
 </div>
-<div class="field recurring-grid__title"><label for="recurringTitle">Titel <span class="label-optional">(optional)</span></label><input id="recurringTitle" maxlength="120" placeholder="z. B. Fonds XY" type="text"/></div><div class="field recurring-grid__note">
+<div class="field recurring-grid__title"><label for="recurringTitle">Titel <span class="label-optional">(optional)</span></label><input id="recurringTitle" maxlength="120" placeholder="z. B. Wertpapier XY" type="text"/></div><div class="field recurring-grid__note">
 <label for="recurringNote">Notiz</label>
 <input id="recurringNote" maxlength="80" placeholder="optional" type="text"/>
 </div>
@@ -223,10 +223,10 @@
 <button class="secondary-button" data-add-recurring="" type="button">Zahlungen erzeugen</button>
 </details>
 </section><section class="csv-fee-summary" data-csv-purchase-fee-summary="" hidden="">
-<h3>Aus CSV ermittelte Fondskaufspesen</h3>
+<h3>Aus CSV ermittelte Wertpapierkaufspesen</h3>
 <p>Für Kaufbuchungen mit <strong>Stichtag</strong>, <strong>Rechenwert</strong>, <strong>Menge</strong> und <strong>Abrechnungsbetrag</strong>. Die Differenz zwischen tatsächlichem Anlegeraufwand und Rechenwert × Menge wird buchungsgenau als Kaufspesen-/Preisabweichung ausgewiesen.</p>
 <div class="csv-fee-summary__table-wrap"><table class="csv-fee-summary__table">
-<thead><tr><th>Fonds</th><th>Käufe</th><th>Rechenwert gesamt</th><th>Anlegeraufwand</th><th>Differenz / Spesen</th><th>Ø in %</th></tr></thead>
+<thead><tr><th>Wertpapier</th><th>Käufe</th><th>Rechenwert gesamt</th><th>Anlegeraufwand</th><th>Differenz / Spesen</th><th>Ø in %</th></tr></thead>
 <tbody data-csv-purchase-fee-list=""></tbody>
 </table></div>
 </section></div>
@@ -238,7 +238,7 @@
 <option selected="" value="no">Nein</option>
 <option value="yes">Ja – liegt wirksam vor</option>
 </select>
-<span class="field__hint">Bei „Ja“ werden KESt-Cashflows auf Fondsebene ignoriert und die historischen Zinsbenchmarks ohne KESt-Abzug gerechnet. Die Option betrifft nur den KESt-Abzug, nicht Körperschaftsteuer oder sonstige Steuern.</span>
+<span class="field__hint">Bei „Ja“ werden KESt-Cashflows auf Wertpapierebene ignoriert und die historischen Zinsbenchmarks ohne KESt-Abzug gerechnet. Die Option betrifft nur den KESt-Abzug, nicht Körperschaftsteuer oder sonstige Steuern.</span>
 </div><div class="field">
 <label for="purchaseFee">Kaufspesen Start-/Einmalanlage</label>
 <div class="input-suffix">
@@ -364,7 +364,7 @@
 <a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR3MD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 3-Monats-Euribor, Monatsdurchschnitt</a>
 <a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR6MD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 6-Monats-Euribor, Monatsdurchschnitt</a><a href="https://data.ecb.europa.eu/data/datasets/FM/FM.M.U2.EUR.RT.MM.EURIBOR1YD_.HSTA" rel="noopener noreferrer" target="_blank">ECB: 12-Monats-Euribor, Monatsdurchschnitt</a><a href="https://data.ecb.europa.eu/help/api/data" rel="noopener noreferrer" target="_blank">ECB Data Portal API</a>
 </div>
-</details><aside class="fund-general-note"><strong>Hinweis:</strong> Die historische Depotwert-Grafik ist eine Bewertungsdarstellung aus Stückbewegungen und den je ISIN hinterlegten historischen Kursquellen. Die zusätzlich dargestellten historischen Renditen sind geldgewichtete XIRR-Rechnungen auf Basis der erfassten Anleger-Cashflows und der jeweils berechneten Depot-/Fonds-Werte; sie bilden keine österreichische Fondsbesteuerung vollständig nach. Ausschüttungen, Steuern, Gebühren und sonstige Belastungen werden grundsätzlich über die tatsächlich angefallenen Cashflows erfasst. Liegt eine wirksame KESt-Befreiungserklärung vor, werden nur als „KESt / Steuer auf ausschüttungsgleichen Ertrag“ erfasste Cashflows aus der Depotrendite entfernt; bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Befreiung vom KESt-Abzug bedeutet außerdem nicht automatisch Steuerfreiheit auf Körperschaftsebene. Historische Zinsbenchmarks werden als fiktive Sparprodukte behandelt und unterliegen ohne Befreiungserklärung 25 % KESt auf positive Zinsen.</aside></div>
+</details><aside class="fund-general-note"><strong>Hinweis:</strong> Die historische Depotwert-Grafik ist eine Bewertungsdarstellung aus Bestandsbewegungen und den je ISIN hinterlegten historischen Kursquellen. Die zusätzlich dargestellten historischen Renditen sind geldgewichtete XIRR-Rechnungen auf Basis der erfassten Anleger-Cashflows und der jeweils berechneten Depot-/Wertpapier-Werte; sie bilden keine österreichische Wertpapierbesteuerung vollständig nach. Ausschüttungen, Steuern, Gebühren und sonstige Belastungen werden grundsätzlich über die tatsächlich angefallenen Cashflows erfasst. Liegt eine wirksame KESt-Befreiungserklärung vor, werden nur als „KESt / Steuer auf ausschüttungsgleichen Ertrag“ erfasste Cashflows aus der Depotrendite entfernt; bereits netto zusammengefasste Ausschüttungen können nicht automatisch in Ausschüttung und KESt zerlegt werden. Die Befreiung vom KESt-Abzug bedeutet außerdem nicht automatisch Steuerfreiheit auf Körperschaftsebene. Historische Zinsbenchmarks werden als fiktive Sparprodukte behandelt und unterliegen ohne Befreiungserklärung 25 % KESt auf positive Zinsen.</aside></div>
 </section></div>
 </section>
 </main>
@@ -405,6 +405,6 @@
 <section aria-hidden="true" class="fund-print-report" data-print-report=""></section>
 <footer class="site-footer">Toolbox</footer>
 <script src="js/navigation.js" type="module"></script>
-<script src="js/fund-return.js?v=0.6.10" type="module"></script>
+<script src="js/fund-return.js?v=0.6.11" type="module"></script>
 </body>
 </html>
