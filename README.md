@@ -4,12 +4,20 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.7
+- **Toolbox:** 0.6.8
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.6.8
+
+- CSV-Mehrfachimport dedupliziert Buchungen jetzt einzeln statt Dateien nur anzuhängen. Dadurch werden sowohl eine komplett doppelt importierte CSV als auch einzelne Überschneidungen zwischen verschiedenen CSV-Zeiträumen ignoriert.
+- Die Duplikaterkennung verwendet einen normalisierten Buchungsschlüssel aus den verfügbaren Transaktionsmerkmalen (u. a. Datum, Geschäftsart, Betrag, Titel, ISIN, Menge sowie Bewertungs-/Kursdaten), nicht nur Datum und Betrag.
+- Falls die CSV eine Depotkennung enthält, wird sie nur während der laufenden Sitzung zur Abgrenzung ansonsten identischer Buchungen verschiedener Depots verwendet; sie wird weiterhin nicht angezeigt oder in JSON exportiert.
+- Importstatus und Importübersicht weisen die Anzahl ignorierter Duplikate separat aus.
+- Ein reiner Duplikatimport verändert die Zahlungsströme nicht und verwirft deshalb auch keine bereits berechneten Ergebnisse.
 
 ## Änderungen in 0.6.7
 
@@ -19,7 +27,7 @@ Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die To
 ## Änderungen in 0.6.6
 
 - JSON-Export korrigiert: optionale numerische CSV-Metadaten wie Ausführungskurs, Rechenwert, Menge und berechnete Kaufspesen bleiben bei fehlendem Wert `null` und werden nicht mehr fälschlich zu `0`.
-- Die sichtbare Bezeichnung „Bank-CSV“ wurde konsequent auf „CSV“ verkürzt.
+- Die sichtbare CSV-Bezeichnung wurde konsequent auf „CSV“ vereinheitlicht.
 
 ## Änderungen in 0.6.5
 
