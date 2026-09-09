@@ -4,12 +4,23 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.12
+- **Toolbox:** 0.6.13
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.6.13
+
+- Neuer optionaler Import **„Bestands-/Kurs-CSV importieren“** in der Kursversorgung. Das Format kann den vollständigen Depotbestand mit ISIN, Menge/Nominale, Kursdatum, aktuellem Kurs und Kurswert enthalten.
+- Mehrfach vorkommende Spaltenüberschrift `Einheit` wird positionsbezogen ausgewertet: die Einheit direkt zur `Menge` und die Einheit direkt zum `aktuellen Kurs` werden getrennt erkannt.
+- Stücknotierte Positionen (`Menge = Stk`, Kurs z. B. in `EUR`) und nominal notierte Anleihen (`Menge = EUR`, Kurs in `%`) werden automatisch unterschieden.
+- Jeder importierte Bank-Bewertungskurs wird lokal je ISIN und Kursdatum im bestehenden IndexedDB-Kurscache ergänzt. Vorhandene automatische Union-Investment-Quellen oder historische lokale Kursdateien werden dadurch nicht ersetzt.
+- Die Bestands-CSV wird zusätzlich mit dem aus den importierten Kauf-/Verkaufsbuchungen errechneten Bestand abgeglichen. Mengenabweichungen, fehlende Buchungspositionen und Positionen ohne passenden Buchungsbestand werden sichtbar zusammengefasst.
+- Bei einheitlicher Berichtswährung EUR kann der in der Bestands-CSV enthaltene Gesamt-Kurswert per Klick als End-/Depotwert übernommen werden; als Bewertungsdatum wird der jüngste enthaltene Kursstand verwendet.
+- Einzelne Bestandskurse gelten nicht automatisch als vollständige historische Kursabdeckung. Für eine komplette historische Depotkurve bleibt je ISIN weiterhin eine ausreichende historische Kursquelle erforderlich.
+- **Reine Fondsdepots funktionieren unverändert wie bisher.** Der neue Bestands-/Kurs-CSV-Import ist optional und führt weder neue Pflichtfelder noch einen anderen Berechnungsweg für bestehende Fondsberechnungen ein.
 
 ## Änderungen in 0.6.12
 
