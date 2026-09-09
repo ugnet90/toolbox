@@ -4,12 +4,19 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.11
+- **Toolbox:** 0.6.12
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.6.12
+
+- Zahlungsstromtabelle ist über die Spaltenköpfe sortierbar. Unterstützt werden `Datum`, `Art`, `Betrag`, `Titel`, `ISIN`, `Menge / Nominale` und `Notiz`.
+- Erster Klick auf eine andere Spalte sortiert aufsteigend; erneuter Klick auf dieselbe Spalte wechselt auf absteigend. Pfeile im Spaltenkopf zeigen die aktuelle Sortierrichtung.
+- Die Sortierung betrifft ausschließlich die Darstellung und verändert weder Cashflow-Daten noch JSON-Export oder Berechnungslogik.
+- Tastaturbedienung über `Enter` bzw. Leertaste auf den fokussierbaren Spaltenköpfen ist ebenfalls möglich.
 
 ## Änderungen in 0.6.11
 
