@@ -1,4 +1,4 @@
-import { SITE_VERSION } from "./site-map.js?v=0.6.10";
+import { SITE_VERSION } from "./site-map.js?v=0.6.11";
 import {
   applyKestExemption,
   calculateXirr,
@@ -20,7 +20,7 @@ import {
   securityHoldingPeriods,
   summarizeCashflows,
   summarizeCsvPurchaseFees
-} from "./fund-return-utils.js?v=0.6.10";
+} from "./fund-return-utils.js?v=0.6.11";
 
 const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
 const BENCHMARKS = {
@@ -216,6 +216,7 @@ const percent = new Intl.NumberFormat("de-AT", {
 
 const typeLabels = {
   contribution: "Zuzahlung / Sparrate",
+  income: "Ertrag / Ausschüttung",
   distribution: "Ausschüttung",
   tax: "KESt / Steuer auf agE",
   fee: "Depot-/sonstige Gebühr",
@@ -548,7 +549,7 @@ function renderImportSummary(stats = lastCsvImportStats) {
     if (stats.files) parts.push(`${stats.files} CSV`);
     parts.push(`${stats.bookings ?? cashflows.length} Buchungen`);
     if (stats.duplicates) parts.push(`${stats.duplicates} Duplikate ignoriert`);
-    if (stats.funds) parts.push(`${stats.funds} Fonds`);
+    if (stats.securities) parts.push(`${stats.securities} Wertpapiere`);
     if (stats.firstDate) parts.push(formatCompactDateRange(stats.firstDate, stats.lastDate));
     importSummaryText.textContent = parts.join(" · ");
   }
@@ -558,7 +559,7 @@ function renderImportSummary(stats = lastCsvImportStats) {
       ["Buchungen", String(stats.bookings ?? cashflows.length)],
       ["Duplikate ignoriert", String(stats.duplicates || 0)],
       ["Wertpapiere", `${coverage.isins.length} ISIN`],
-      ["Kauf/Verkauf", coverage.total ? `${coverage.complete}/${coverage.total} vollständig` : "keine Stückbewegungen"],
+      ["Kauf/Verkauf", coverage.total ? `${coverage.complete}/${coverage.total} vollständig` : "keine Bestandsbewegungen"],
       ["Nullbuchungen", String(stats.skippedZeroAmounts || 0)]
     ];
     importSummaryDetails.innerHTML = details.map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
@@ -790,7 +791,7 @@ function applyImportedFundData(data) {
   clearCalculation();
   showWorkspace();
   const orderedDates = cashflows.map((flow) => flow.date).filter(Boolean).sort();
-  lastCsvImportStats = { kind: "json", bookings: cashflows.length, duplicates: 0, funds: portfolioValuationCoverage().isins.length, firstDate: orderedDates[0] || normalized.inputs.purchaseDate, lastDate: orderedDates.at(-1) || normalized.inputs.endDate, skippedZeroAmounts: 0 };
+  lastCsvImportStats = { kind: "json", bookings: cashflows.length, duplicates: 0, securities: portfolioValuationCoverage().isins.length, firstDate: orderedDates[0] || normalized.inputs.purchaseDate, lastDate: orderedDates.at(-1) || normalized.inputs.endDate, skippedZeroAmounts: 0 };
   renderImportSummary();
   updateWorkflowSummaries();
   const flowLabel = cashflows.length === 1 ? "1 zusätzlicher Zahlungsstrom" : `${cashflows.length} zusätzliche Zahlungsströme`;
@@ -929,14 +930,17 @@ async function importBankTransactionsCsv(file) {
     showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} Abrechnungsnummern werden zur sicheren Duplikatkontrolle verwendet.`);
   }
   if (!parsed.hasTitleColumn) {
-    appendWarning("Die CSV-Datei enthält keine Spalte „Titel“. Eine fondsbezogene Sparplan-Erkennung ist daher für diese Buchungen nicht möglich.");
+    appendWarning("Die CSV-Datei enthält keine Spalte „Titel“. Eine wertpapierbezogene Sparplan-Erkennung ist daher für diese Buchungen nicht möglich.");
   }
   if (!parsed.hasIsinColumn || !parsed.hasQuantityColumn) {
     appendWarning("Für die historische Depotwert-Grafik werden zusätzlich die CSV-Spalten „ISIN“ und „Menge“ benötigt.");
   } else {
     const importedSecurityIsins = [...new Set(uniqueFlows.map((flow) => flow.isin).filter(Boolean))];
     if (importedSecurityIsins.length) {
-      showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} ${importedSecurityIsins.length} Wertpapier-ISIN(s) mit neuen Stückbewegungen erkannt.`);
+      showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} ${importedSecurityIsins.length} Wertpapier-ISIN(s) mit neuen Bestandsbewegungen erkannt.`);
+      if ((parsed.nominalSecurityIsins || []).length) {
+        showDataStatus(`${dataStatusNode?.textContent || "CSV importiert."} ${(parsed.nominalSecurityIsins || []).length} nominal notierte Wertpapierposition(en) erkannt; Einheit EUR wird als Nominale mit Prozentkurs bewertet.`);
+      }
     }
   }
   if (parsed.normalizedQuantitySigns > 0) {
@@ -948,9 +952,9 @@ async function importBankTransactionsCsv(file) {
   }
   if (!parsed.hasValuationDateColumn || !parsed.hasReferenceValueColumn) {
     if (parsed.hasExecutionPriceColumn && parsed.hasValuationDateColumn) {
-      appendWarning("Der Ausführungskurs wurde übernommen. Ohne separaten Rechenwert lassen sich Ausgabeaufschlag bzw. Fondskaufspesen aus dieser CSV allein nicht eindeutig vom Ausführungskurs trennen.");
+      appendWarning("Der Ausführungskurs wurde übernommen. Ohne separaten Rechenwert lassen sich Ausgabeaufschlag bzw. Wertpapierkaufspesen aus dieser CSV allein nicht eindeutig vom Ausführungskurs trennen.");
     } else {
-      appendWarning("Für die buchungsgenaue Ermittlung der Fondskaufspesen werden zusätzlich die CSV-Spalten „Stichtag“ und „Rechenwert“ benötigt.");
+      appendWarning("Für die buchungsgenaue Ermittlung der Wertpapierkaufspesen werden zusätzlich die CSV-Spalten „Stichtag“ und „Rechenwert“ benötigt.");
     }
   } else {
     const feeRows = uniqueFlows.filter((flow) => Number.isFinite(Number(flow.purchaseFeeTotal)));
@@ -961,7 +965,7 @@ async function importBankTransactionsCsv(file) {
     csvImportSessionStats.bookings += uniqueFlows.length;
     csvImportSessionStats.duplicates += duplicateCashflows;
     csvImportSessionStats.skippedZeroAmounts += parsed.skippedZeroAmounts || 0;
-    uniqueFlows.map((flow) => flow.isin).filter(Boolean).forEach((isin) => csvImportSessionStats.funds.add(isin));
+    uniqueFlows.map((flow) => flow.isin).filter(Boolean).forEach((isin) => csvImportSessionStats.securities.add(isin));
     const dates = uniqueFlows.map((flow) => flow.date).filter(Boolean).sort();
     const first = parsed.importedEarliestTransactionDate || dates[0];
     const last = dates.at(-1) || first;
@@ -977,7 +981,7 @@ function beginCsvImportSession() {
   if (!csvImportSessionActive) {
     csvImportSessionActive = true;
     csvImportSessionEarliestDate = null;
-    csvImportSessionStats = { kind: "csv", files: 0, bookings: 0, duplicates: 0, skippedZeroAmounts: 0, funds: new Set(), firstDate: null, lastDate: null };
+    csvImportSessionStats = { kind: "csv", files: 0, bookings: 0, duplicates: 0, skippedZeroAmounts: 0, securities: new Set(), firstDate: null, lastDate: null };
   }
 }
 
@@ -1020,7 +1024,7 @@ function endCsvImportSession() {
       bookings: csvImportSessionStats.bookings,
       duplicates: csvImportSessionStats.duplicates,
       skippedZeroAmounts: csvImportSessionStats.skippedZeroAmounts,
-      funds: csvImportSessionStats.funds.size,
+      securities: csvImportSessionStats.securities.size,
       firstDate: csvImportSessionStats.firstDate || csvImportSessionEarliestDate,
       lastDate: csvImportSessionStats.lastDate || csvImportSessionEarliestDate
     };
@@ -1090,7 +1094,7 @@ function renderCashflows() {
       <td><input class="table-input table-input--amount" type="text" inputmode="decimal" value="${formatGermanNumber(flow.amount)}" data-flow-field="amount" aria-label="Betrag"></td>
       <td><input class="table-input" type="text" maxlength="120" value="${escapeHtml(flow.title || "")}" data-flow-field="title" aria-label="Titel"></td>
       <td><input class="table-input table-input--isin" type="text" maxlength="12" value="${escapeHtml(flow.isin || "")}" data-flow-field="isin" aria-label="ISIN"></td>
-      <td><input class="table-input table-input--quantity" type="text" inputmode="decimal" value="${flow.quantity === null || flow.quantity === undefined ? "" : formatGermanNumber(flow.quantity, 6).replace(/0+$/, "").replace(/,$/, "")}" data-flow-field="quantity" aria-label="Menge"></td>
+      <td><input class="table-input table-input--quantity" type="text" inputmode="decimal" value="${flow.quantity === null || flow.quantity === undefined ? "" : formatGermanNumber(flow.quantity, 6).replace(/0+$/, "").replace(/,$/, "")}" data-flow-field="quantity" aria-label="Menge / Nominale${flow.unit ? ` (${escapeHtml(flow.unit)})` : ""}" title="${flow.unit ? escapeHtml(flow.unit) : "Menge"}">${flow.unit ? `<small>${escapeHtml(flow.unit)}</small>` : ""}</td>
       <td><input class="table-input" type="text" maxlength="120" value="${escapeHtml(flow.note || "")}" data-flow-field="note" aria-label="Notiz"></td>
       <td><button class="icon-button" type="button" data-delete-cashflow="${flow.id}" aria-label="Zahlung löschen">×</button></td>
     `;
@@ -1115,7 +1119,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function addCashflow({ date, type, amount, title = "", isin = "", quantity = "", note = "" }) {
+function addCashflow({ date, type, amount, title = "", isin = "", quantity = "", unit = "Stk", note = "" }) {
   if (!date) throw new Error("Bitte ein Datum für den Zahlungsstrom eingeben.");
   const signedAmount = normalizeSignedAmount(amount, type);
   const normalizedIsin = String(isin || "").trim().toUpperCase();
@@ -1125,7 +1129,7 @@ function addCashflow({ date, type, amount, title = "", isin = "", quantity = "",
   if (normalizedQuantity === 0) normalizedQuantity = null;
   if (normalizedQuantity !== null && type === "contribution") normalizedQuantity = Math.abs(normalizedQuantity);
   if (normalizedQuantity !== null && type === "withdrawal") normalizedQuantity = -Math.abs(normalizedQuantity);
-  cashflows.push({ id: nextCashflowId++, date, type, amount: signedAmount, title: title.trim(), note: note.trim(), isin: normalizedIsin, quantity: normalizedQuantity, unit: normalizedQuantity === null ? "" : "Stk" });
+  cashflows.push({ id: nextCashflowId++, date, type, amount: signedAmount, title: title.trim(), note: note.trim(), isin: normalizedIsin, quantity: normalizedQuantity, unit: normalizedQuantity === null ? "" : String(unit || "Stk").trim() });
   renderCashflows();
   clearCalculation();
 }
@@ -1136,8 +1140,8 @@ function monthFromDate(iso) {
 
 
 const PRICE_DB_NAME = "toolbox-depot-price-cache";
-const PRICE_DB_VERSION = 1;
-const PRICE_STORE = "funds";
+const PRICE_DB_VERSION = 2;
+const PRICE_STORE = "securities";
 const LOCAL_PRICE_REFRESH_MS = 20 * 60 * 60 * 1000;
 
 function openPriceDb() {
@@ -1228,16 +1232,16 @@ async function ensureUnionPriceRange(isin, start, end) {
     record.currency = payload.fund?.currency || record.currency || "EUR";
     record.provider = "union";
     record.sourceLabel = "Union Investment";
-    record.priceType = "redemption_price";
+    record.priceType = "price";
     record.sourceCreationDate = payload.creation_date || record.sourceCreationDate;
     record.updatedAt = new Date().toISOString();
     record.coveredRanges = mergeDateRanges([...(record.coveredRanges || []), range]);
   }
   record.provider = "union";
   record.sourceLabel = "Union Investment";
-  record.priceType = "redemption_price";
+  record.priceType = "price";
   await putPriceCacheRecord(record);
-  const observations = Object.entries(record.prices || {}).map(([date, redemption_price]) => ({ date, redemption_price }))
+  const observations = Object.entries(record.prices || {}).map(([date, price]) => ({ date, price }))
     .filter((item) => item.date <= end)
     .sort((a, b) => a.date.localeCompare(b.date));
   return { currency: record.currency || "EUR", observations, updatedAt: record.updatedAt };
@@ -1266,7 +1270,7 @@ async function ensureManualPriceRanges(isin, ranges, record) {
   }
   const end = ranges.map((range) => range.end).sort().at(-1);
   const observations = Object.entries(record.prices || {})
-    .map(([date, redemption_price]) => ({ date, redemption_price }))
+    .map(([date, price]) => ({ date, price }))
     .filter((item) => item.date <= end)
     .sort((a, b) => a.date.localeCompare(b.date));
   return { currency: record.currency || "EUR", observations, updatedAt: record.updatedAt, provider: "manual" };
@@ -1301,14 +1305,14 @@ async function importHistoricalPriceFile(file, isin) {
   const parsed = parseHistoricalPriceCsv(text, { expectedIsin: isin });
   const existing = await getPriceCacheRecord(isin) || { isin, prices: {}, coveredRanges: [] };
   const prices = { ...(existing.prices || {}) };
-  for (const observation of parsed.observations) prices[observation.date] = observation.redemption_price;
+  for (const observation of parsed.observations) prices[observation.date] = Number(observation.price ?? observation.redemption_price);
   const record = {
     ...existing,
     isin,
     provider: "manual",
     sourceLabel: "Lokale Kursdatei",
     sourceFilename: file.name || "Kursdatei.csv",
-    priceType: "valuation_price",
+    priceType: "price",
     currency: parsed.currency || existing.currency || "EUR",
     prices,
     coveredRanges: mergeDateRanges([...(existing.coveredRanges || []), { start: parsed.firstDate, end: parsed.lastDate }]),
@@ -1356,7 +1360,7 @@ async function renderPriceSources() {
       : `${security.ranges.length} Haltezeiträume`;
     rows.push(`
       <div class="fund-price-source-row fund-price-source-row--${tone}">
-        <div class="fund-price-source-row__identity"><strong>${escapeHtml(security.title || security.isin)}</strong><small>${escapeHtml(security.isin)} · benötigt ${escapeHtml(requiredText)}</small></div>
+        <div class="fund-price-source-row__identity"><strong>${escapeHtml(security.title || security.isin)}</strong><small>${escapeHtml(security.isin)} · ${escapeHtml(security.valuationType === "percent_of_nominal" ? `${security.unit || "EUR"} Nominale · Prozentkurs` : `${security.unit || "Stk"} · Stückkurs`)} · benötigt ${escapeHtml(requiredText)}</small></div>
         <div class="fund-price-source-row__status">${escapeHtml(status)}</div>
         <div class="fund-price-source-row__actions">
           ${record?.provider === "union" ? "" : `<button class="secondary-button" type="button" data-import-price-for="${escapeHtml(security.isin)}">${record?.provider === "manual" ? "Kursdatei ergänzen" : "Kursdatei importieren"}</button>`}
@@ -1445,14 +1449,14 @@ function historySeriesDefinitions(history) {
     }
   ];
 
-  (history.funds || []).forEach((fund, index) => {
+  ((history.securities || history.funds) || []).forEach((security, index) => {
     returnSeries.push({
-      key: `return:fund:${fund.isin}`,
-      label: `${fund.title && fund.title !== fund.isin ? fund.title : fund.isin} · Positionsrendite`,
-      detail: fund.isin,
+      key: `return:security:${security.isin}`,
+      label: `${security.title && security.title !== security.isin ? security.title : security.isin} · Positionsrendite`,
+      detail: security.isin,
       color: historyFundColor(index),
       defaultSelected: false,
-      points: (history.points || []).map((point) => ({ date: point.date, value: point.fundReturns?.[fund.isin] }))
+      points: (history.points || []).map((point) => ({ date: point.date, value: (point.securityReturns || point.fundReturns)?.[security.isin] }))
     });
   });
 
@@ -1622,7 +1626,7 @@ function renderDepotHistoryCharts(history) {
     formatter: (value) => chartCurrency.format(value)
   });
   const returnRendered = renderHistoryLineChart(depotReturnChart, returnSeries, {
-    ariaLabel: "Historische Depot- und Fondsrenditen",
+    ariaLabel: "Historische Depot- und Positionsrenditen",
     formatter: (value) => `${chartPercent.format(value * 100)} %`
   });
   if (historyValueBlock) historyValueBlock.hidden = !valueRendered;
@@ -1649,7 +1653,7 @@ function buildHistoryContext() {
 
   const securityFlows = securityFlowsForHistory();
   if (!securityFlows.length) {
-    throw new Error("Für die Depotwertermittlung werden Kauf-/Verkaufsbuchungen mit ISIN und Menge benötigt.");
+    throw new Error("Für die Depotwertermittlung werden Kauf-/Verkaufsbuchungen mit ISIN und Menge bzw. Nominale benötigt.");
   }
   const earliestSecurityDate = securityFlows.map((flow) => flow.date).sort()[0];
   const startDate = purchaseDate?.value || earliestSecurityDate;
@@ -1707,7 +1711,11 @@ async function refreshDepotHistory(calc) {
     throw new Error(`Historische Depotbewertung noch nicht vollständig. ${missing.join(" ")}`);
   }
   const pricePairs = settled.map((item) => item.value);
-  const nonEur = pricePairs.filter(([, series]) => String(series?.currency || "EUR").toUpperCase() !== "EUR");
+  const periodByIsin = Object.fromEntries(periods.map((item) => [item.isin, item]));
+  const nonEur = pricePairs.filter(([isin, series]) =>
+    periodByIsin[isin]?.valuationType !== "percent_of_nominal" &&
+    String(series?.currency || "EUR").toUpperCase() !== "EUR"
+  );
   if (nonEur.length) {
     throw new Error(`Historische Depotbewertung derzeit nur in EUR möglich. Für ${nonEur.map(([isin, series]) => `${isin} (${series.currency})`).join(", ")} wird noch eine Währungsumrechnung benötigt.`);
   }
@@ -1833,7 +1841,7 @@ function renderCoreResults(calc, xirrResult) {
   const kestMethodText = calc.isKestExempt
     ? " Eine wirksame KESt-Befreiungserklärung wurde angesetzt; als KESt/Steuer auf agE kategorisierte Cashflows werden in der Depotrendite nicht berücksichtigt. Dies bildet nur den KESt-Abzug ab, nicht Körperschaftsteuer oder andere Steuern."
     : " Eine KESt-Befreiungserklärung wurde nicht angesetzt; erfasste Steuer-Cashflows wirken daher wie eingegeben auf die Depotrendite.";
-  setText(nodes.method, `Die Depotrendite wird als datumsgenaue XIRR aus allen berücksichtigten Anleger-Cashflows berechnet. Der Start-Cashflow entspricht dem tatsächlichen Kundenaufwand; Kaufspesen beeinflussen daher die Rendite, ohne dass eine vollständige Fondsbesteuerung modelliert wird.${kestMethodText}${multipleRootText}`);
+  setText(nodes.method, `Die Depotrendite wird als datumsgenaue XIRR aus allen berücksichtigten Anleger-Cashflows berechnet. Der Start-Cashflow entspricht dem tatsächlichen Kundenaufwand; Kaufspesen beeinflussen daher die Rendite, ohne dass eine vollständige Wertpapierbesteuerung modelliert wird.${kestMethodText}${multipleRootText}`);
   if (calc.isKestExempt && calc.ignoredKestCashflows.length > 0) {
     appendWarning(`Hinweis: ${calc.ignoredKestCashflows.length} als KESt/Steuer auf agE erfasste Cashflow(s) werden wegen der aktivierten KESt-Befreiung nicht berücksichtigt.`);
   }
@@ -1858,7 +1866,7 @@ function renderSavingsPlanSummary(sourceCashflows, asOfDate = "") {
     const item = document.createElement("li");
     const statusText = plan.status === "ended" ? ", beendet" : plan.status === "active" ? ", laufend" : "";
     const rateText = plan.cadence === "monthly" ? "monatlich ca." : "Rate ca.";
-    item.textContent = `Fondssparvertrag ${plan.title}: ${rateText} ${currency.format(plan.nominalAmount)} (${formatReportDate(plan.firstDate)} – ${formatReportDate(plan.lastDate)}), ${plan.count} Buchungen${statusText}.`;
+    item.textContent = `Wertpapiersparplan ${plan.title}: ${rateText} ${currency.format(plan.nominalAmount)} (${formatReportDate(plan.firstDate)} – ${formatReportDate(plan.lastDate)}), ${plan.count} Buchungen${statusText}.`;
     savingsPlanList.append(item);
   }
   savingsPlanSummary.hidden = false;
@@ -2830,7 +2838,7 @@ async function createPdfBytes({ includeCashflows = false, includeHistoryCharts =
   const recurringPurchases = sumAbs(recurringContributionFlows);
   const otherPurchases = sumAbs(otherContributionFlows);
   const allPurchases = recurringPurchases + otherPurchases;
-  const distributionsAndWithdrawals = sumPositive(relevantFlows.filter((flow) => ["distribution", "withdrawal"].includes(flow.type)));
+  const distributionsAndWithdrawals = sumPositive(relevantFlows.filter((flow) => ["income", "distribution", "withdrawal"].includes(flow.type)));
   const feesAndTaxes = sumAbs(relevantFlows.filter((flow) => ["fee", "tax"].includes(flow.type) && Number(flow.amount) < 0));
   const otherNet = relevantFlows.filter((flow) => flow.type === "other").reduce((sum, flow) => sum + (Number(flow.amount) || 0), 0);
   const preTerminalNetOutflow = -(
@@ -2858,7 +2866,7 @@ async function createPdfBytes({ includeCashflows = false, includeHistoryCharts =
     details.push([`davon Einmal-/übrige Käufe (${otherContributionFlows.length})`, currency.format(otherPurchases)]);
   }
   if (distributionsAndWithdrawals > 0) {
-    details.push(["Ausschüttungen/Entnahmen", currency.format(distributionsAndWithdrawals)]);
+    details.push(["Erträge/Ausschüttungen/Entnahmen", currency.format(distributionsAndWithdrawals)]);
   }
   if (feesAndTaxes > 0) {
     details.push(["Gebühren/Steuern", currency.format(feesAndTaxes)]);
