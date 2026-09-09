@@ -4,12 +4,20 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.9
+- **Toolbox:** 0.6.10
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.6.10
+
+- Klassifizierung von Wertpapierverkäufen korrigiert: `Verkauf` wird jetzt vor `Kauf` geprüft; positive Verkaufserlöse bleiben positive Anlegerzuflüsse, Verkaufsmengen werden weiterhin negativ geführt.
+- Ursprüngliches CSV-Format nutzt `Abrechnungsnummer` und optional `Ausführungsnummer` als interne Buchungsreferenzen für eine robustere Duplikatkontrolle. Unterschiedliche Abrechnungsnummern werden nicht allein wegen identischer Beträge/ISIN/Mengen zusammengelegt.
+- Abrechnungs-/Ausführungsnummern werden nicht in der Zahlungsstromtabelle angezeigt, aber als technische Buchungsreferenzen im JSON-Export mitgespeichert. Dadurch bleibt die sichere Duplikatkontrolle auch nach einem späteren Datenimport erhalten. Die Depotnummer wird weiterhin nicht exportiert.
+- Sparplan-Erkennung wertet `Kauf aus Dauerauftrag`, `Sparplan` und `Sparrate` als direkten Hinweis aus. Dadurch werden auch historische, bereits beendete Sparpläne erkannt und als `beendet` gekennzeichnet. Die bisherige Mustererkennung bleibt als Fallback erhalten.
+- Zahlungsstromtabelle neu gewichtet: mehr Breite für `Titel`, weniger für `Betrag`, `ISIN` und `Menge`.
 
 ## Änderungen in 0.6.9
 
@@ -285,6 +293,10 @@ Für die Toolbox gilt:
 5. Der Änderungsverlauf steht ausschließlich im folgenden Changelog.
 
 ## Changelog
+
+### 0.6.10
+
+- Verkauf/Kauf-Klassifizierung korrigiert, CSV-Buchungsnummern in die Duplikatlogik aufgenommen und für spätere Wiederimporte im JSON erhalten, historische Sparplan-Erkennung erweitert und Zahlungsstromtabelle neu gewichtet.
 
 ### 0.6.4
 
