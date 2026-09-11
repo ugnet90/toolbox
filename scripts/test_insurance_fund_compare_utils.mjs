@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 
 const modulePath = path.resolve("docs/js/insurance-fund-compare-utils.js");
 const moduleSource = await fs.readFile(modulePath, "utf8");
@@ -22,7 +21,8 @@ function base(overrides = {}) {
     insuranceTaxPercent: 4,
     insuranceEntryCostPercent: 5,
     insuranceEntryCostYears: 5,
-    insuranceAdminPercent: 0.2,
+    insuranceAdminPremiumPercent: 0,
+    insuranceAdminAssetPercent: 0.3,
     insuranceRiskAnnual: 0,
     age50Plus: false,
     personalTaxPercent: 0,
@@ -47,7 +47,8 @@ assert.equal(effectiveIssueLoadPercent(3, 50), 1.5);
     insuranceMinimumAmount: 0,
     insuranceTaxPercent: 0,
     insuranceEntryCostPercent: 0,
-    insuranceAdminPercent: 0,
+    insuranceAdminPremiumPercent: 0,
+    insuranceAdminAssetPercent: 0,
     issueLoadPercent: 0,
     issueLoadDiscountPercent: 0,
     depotFeePercent: 0,
@@ -65,6 +66,20 @@ assert.equal(effectiveIssueLoadPercent(3, 50), 1.5);
   assert.ok(Math.abs(result.insurance.entryCostPerYear - expectedNetPremium * 0.01) < 0.01, "5 % Abschlusskosten müssen auf 5 Jahre verteilt sein.");
   assert.equal(result.insurance.earlyExit, true);
   assert.ok(result.insurance.additionalInsuranceTax > 0, "Vor 15 Jahren muss die zusätzliche VSt modelliert werden.");
+}
+
+{
+  const expectedNetPremium = 100000 / 1.04;
+  const result = simulateInsuranceFundComparison(base({
+    years: 1,
+    insuranceEntryCostPercent: 0,
+    insuranceAdminPremiumPercent: 0.15,
+    insuranceAdminAssetPercent: 0.10
+  }));
+  assert.ok(Math.abs(result.insurance.adminPremiumCostPerYear - expectedNetPremium * 0.0015) < 0.01, "0,15 % der Netto-Einmalprämie muss als jährliche Verwaltungskomponente wirken.");
+  assert.ok(result.insurance.adminPremiumCosts > 0);
+  assert.ok(result.insurance.adminAssetCosts > 0);
+  assert.ok(Math.abs(result.insurance.adminCosts - (result.insurance.adminPremiumCosts + result.insurance.adminAssetCosts)) < 0.01);
 }
 
 {
@@ -101,20 +116,38 @@ assert.equal(effectiveIssueLoadPercent(3, 50), 1.5);
 
 {
   const inputs = base({ product: "ergo_investment", fundName: "Testfonds", fundIsin: "DE0008491051" });
-  const payload = createInsuranceFundCompareData({ inputs, toolboxVersion: "0.7.1", exportedAt: "2026-09-11T00:00:00Z" });
+  const payload = createInsuranceFundCompareData({ inputs, toolboxVersion: "0.7.2", exportedAt: "2026-09-11T00:00:00Z" });
   const normalized = normalizeInsuranceFundCompareData(payload);
+  assert.equal(payload.schema_version, 3);
   assert.equal(normalized.inputs.product, "ergo_investment");
   assert.equal(normalized.inputs.fundIsin, "DE0008491051");
 }
 
 {
-  const legacy = {
+  const legacyV1 = {
     format: "toolbox-insurance-fund-compare",
     schema_version: 1,
-    inputs: base({ fundCostPercent: 1 })
+    inputs: { ...base({ insuranceAdminPremiumPercent: undefined, insuranceAdminAssetPercent: undefined }), insuranceAdminPercent: 0.2, fundCostPercent: 1 }
   };
-  const normalized = normalizeInsuranceFundCompareData(legacy);
+  delete legacyV1.inputs.insuranceAdminPremiumPercent;
+  delete legacyV1.inputs.insuranceAdminAssetPercent;
+  const normalized = normalizeInsuranceFundCompareData(legacyV1);
   assert.equal(normalized.inputs.fundCostPercent, undefined);
+  assert.equal(normalized.inputs.insuranceAdminPremiumPercent, 0);
+  assert.equal(normalized.inputs.insuranceAdminAssetPercent, 0.2);
+  assert.equal(normalized.inputs.insuranceAdminPercent, undefined);
+}
+
+{
+  const legacyV2 = {
+    format: "toolbox-insurance-fund-compare",
+    schema_version: 2,
+    inputs: { ...base({ insuranceAdminPremiumPercent: undefined, insuranceAdminAssetPercent: undefined }), insuranceAdminPercent: 0.3 }
+  };
+  delete legacyV2.inputs.insuranceAdminPremiumPercent;
+  delete legacyV2.inputs.insuranceAdminAssetPercent;
+  const normalized = normalizeInsuranceFundCompareData(legacyV2);
+  assert.equal(normalized.inputs.insuranceAdminAssetPercent, 0.3);
 }
 
 {
@@ -125,8 +158,8 @@ assert.equal(effectiveIssueLoadPercent(3, 50), 1.5);
 {
   const result = simulateInsuranceFundComparison(base({
     amount: 10000, insuranceMinimumAmount: 0, insuranceTaxPercent: 0, insuranceEntryCostPercent: 0,
-    insuranceAdminPercent: 0, issueLoadPercent: 0, issueLoadDiscountPercent: 0, depotFeePercent: 0,
-    capitalGainsTaxPercent: 0, years: 1, grossReturnPercent: 6
+    insuranceAdminPremiumPercent: 0, insuranceAdminAssetPercent: 0, issueLoadPercent: 0,
+    issueLoadDiscountPercent: 0, depotFeePercent: 0, capitalGainsTaxPercent: 0, years: 1, grossReturnPercent: 6
   }));
   assert.ok(Math.abs(result.insurance.endValue - 10600) < 0.01, "6 % Fondsrendite müssen ohne zusätzlichen Fondskostenabzug als 6 % wirken.");
   assert.ok(!("fundCosts" in result.insurance));
