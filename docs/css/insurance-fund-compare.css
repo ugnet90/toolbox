@@ -664,3 +664,99 @@
   cursor: default;
   opacity: .9;
 }
+
+/* v0.7.6: Fondsname bleibt frei eintippbar; der eigene Dropdown-Button öffnet
+   unabhängig vom aktuellen Text immer die vollständige ERGO-Fondspalette. */
+.ifc-fund-picker {
+  position: relative;
+}
+
+.ifc-fund-picker__control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: stretch;
+}
+
+.ifc-fund-picker__control #fundName {
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+#fundName::-webkit-calendar-picker-indicator {
+  display: none !important;
+}
+
+.ifc-fund-picker__toggle {
+  display: grid;
+  place-items: center;
+  min-width: 42px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-left: 0;
+  border-radius: 0 var(--radius-small) var(--radius-small) 0;
+  background: var(--surface-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.ifc-fund-picker__toggle:hover:not(:disabled),
+.ifc-fund-picker__toggle:focus-visible {
+  background: var(--surface);
+}
+
+.ifc-fund-picker__toggle:disabled {
+  cursor: default;
+  opacity: .5;
+}
+
+.ifc-fund-menu {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: min(360px, 55vh);
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .16);
+}
+
+.ifc-fund-menu[hidden] {
+  display: none !important;
+}
+
+.ifc-fund-menu__option {
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ifc-fund-menu__option:hover,
+.ifc-fund-menu__option:focus-visible,
+.ifc-fund-menu__option[aria-selected="true"] {
+  background: var(--surface-soft);
+}
+
+.ifc-fund-menu__name {
+  font-weight: 650;
+}
+
+.ifc-fund-menu__isin {
+  color: var(--text-muted);
+  font-size: .82rem;
+  letter-spacing: .02em;
+}
