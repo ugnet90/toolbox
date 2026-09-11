@@ -5,9 +5,9 @@ import {
   normalizeInsuranceFundCompareData,
   suggestReturnScenarios,
   insuranceTaxPercentForTerm
-} from "./insurance-fund-compare-utils.js?v=0.7.5";
+} from "./insurance-fund-compare-utils.js?v=0.7.6";
 
-const TOOLBOX_VERSION = "0.7.5";
+const TOOLBOX_VERSION = "0.7.6";
 const DEPOT_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:depot-costs:v2";
 const LEGACY_DEPOT_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:depot-costs:v1";
 const INSURANCE_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:insurance-costs:v2";
@@ -374,6 +374,58 @@ function populateFundDatalists() {
   }));
 }
 
+function closeFundMenu({ returnFocus = false } = {}) {
+  const menu = document.querySelector("[data-fund-menu]");
+  const toggle = document.querySelector("[data-fund-menu-toggle]");
+  if (!menu || !toggle) return;
+  menu.hidden = true;
+  toggle.setAttribute("aria-expanded", "false");
+  el("fundName")?.setAttribute("aria-expanded", "false");
+  if (returnFocus) toggle.focus();
+}
+
+function populateFundMenu() {
+  const menu = document.querySelector("[data-fund-menu]");
+  const toggle = document.querySelector("[data-fund-menu-toggle]");
+  if (!menu || !toggle) return;
+
+  const currentIsin = el("fundIsin")?.value.trim().toUpperCase() || "";
+  const sorted = [...fundProfiles].sort((a, b) => a.name.localeCompare(b.name, "de-AT", { sensitivity: "base" }));
+  menu.replaceChildren(...sorted.map((profile) => {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "ifc-fund-menu__option";
+    option.dataset.fundIsin = profile.isin;
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", String(profile.isin === currentIsin));
+    option.innerHTML = `<span class="ifc-fund-menu__name"></span><span class="ifc-fund-menu__isin"></span>`;
+    option.querySelector(".ifc-fund-menu__name").textContent = profile.name;
+    option.querySelector(".ifc-fund-menu__isin").textContent = profile.isin;
+    return option;
+  }));
+  toggle.disabled = sorted.length === 0;
+}
+
+function openFundMenu() {
+  const menu = document.querySelector("[data-fund-menu]");
+  const toggle = document.querySelector("[data-fund-menu-toggle]");
+  if (!menu || !toggle || toggle.disabled) return;
+  populateFundMenu();
+  menu.hidden = false;
+  toggle.setAttribute("aria-expanded", "true");
+  el("fundName")?.setAttribute("aria-expanded", "true");
+  const selected = menu.querySelector('[aria-selected="true"]');
+  const first = selected || menu.querySelector(".ifc-fund-menu__option");
+  first?.scrollIntoView({ block: "nearest" });
+}
+
+function toggleFundMenu() {
+  const menu = document.querySelector("[data-fund-menu]");
+  if (!menu) return;
+  if (menu.hidden) openFundMenu();
+  else closeFundMenu();
+}
+
 function paletteAgeDays(checkedAt) {
   const timestamp = Date.parse(`${checkedAt || ""}T00:00:00Z`);
   if (!Number.isFinite(timestamp)) return null;
@@ -410,10 +462,12 @@ async function loadFundPalette() {
     fundProfiles = payload.funds.map(normalizeFundProfile).filter((item) => item.name && /^[A-Z]{2}[A-Z0-9]{10}$/.test(item.isin));
     fundPaletteSource = payload.source || null;
     populateFundDatalists();
+    populateFundMenu();
     renderFundPaletteStatus();
   } catch (error) {
     fundProfiles = [];
     fundPaletteSource = null;
+    populateFundMenu();
     renderFundPaletteStatus(error instanceof Error ? error.message : String(error));
   }
 }
@@ -1001,8 +1055,49 @@ async function handleFundReferenceInput(changedField) {
   updateOekbLink();
 }
 
-el("fundName").addEventListener("input", () => { handleFundReferenceInput("name"); });
-el("fundIsin").addEventListener("input", () => { handleFundReferenceInput("isin"); });
+document.querySelector("[data-fund-menu-toggle]")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  toggleFundMenu();
+});
+
+document.querySelector("[data-fund-menu]")?.addEventListener("mousedown", (event) => {
+  // Beim Klick auf eine Option den Blur-Handler des Textfelds nicht vorher auslösen.
+  event.preventDefault();
+});
+
+document.querySelector("[data-fund-menu]")?.addEventListener("click", async (event) => {
+  const option = event.target.closest("[data-fund-isin]");
+  if (!option) return;
+  const profile = fundProfiles.find((item) => item.isin === String(option.dataset.fundIsin || "").toUpperCase());
+  if (!profile) return;
+  closeFundMenu();
+  invalidateResults();
+  await applyFundProfile({ forceHistorical: true, profile, preferredField: "name" });
+});
+
+document.addEventListener("click", (event) => {
+  const picker = document.querySelector("[data-fund-picker]");
+  const menu = document.querySelector("[data-fund-menu]");
+  if (!picker || !menu || menu.hidden || picker.contains(event.target)) return;
+  closeFundMenu();
+});
+
+document.addEventListener("keydown", (event) => {
+  const menu = document.querySelector("[data-fund-menu]");
+  if (event.key === "Escape" && menu && !menu.hidden) {
+    event.preventDefault();
+    closeFundMenu({ returnFocus: true });
+  }
+});
+
+el("fundName").addEventListener("input", () => {
+  closeFundMenu();
+  handleFundReferenceInput("name");
+});
+el("fundIsin").addEventListener("input", () => {
+  closeFundMenu();
+  handleFundReferenceInput("isin");
+});
 
 [el("fundName"), el("fundIsin")].forEach((input) => {
   input.addEventListener("change", () => { applyFundProfile({ forceHistorical: true, preferredField: input.id === "fundName" ? "name" : "isin" }); });
