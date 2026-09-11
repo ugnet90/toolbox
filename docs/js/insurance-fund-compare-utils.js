@@ -1,5 +1,5 @@
 export const INSURANCE_FUND_COMPARE_FORMAT = "toolbox-insurance-fund-compare";
-export const INSURANCE_FUND_COMPARE_SCHEMA_VERSION = 1;
+export const INSURANCE_FUND_COMPARE_SCHEMA_VERSION = 2;
 
 const EPS = 1e-9;
 
@@ -25,14 +25,16 @@ export function annualEffectiveReturn(initialAmount, endValue, years) {
   return Math.pow(end / initial, 1 / term) - 1;
 }
 
-function applyFundYear(balance, grossReturnRate, fundCostRate) {
-  const opening = balance;
-  const grossGain = opening * grossReturnRate;
-  let afterReturn = opening + grossGain;
-  if (afterReturn < 0) afterReturn = 0;
-  const fundCost = afterReturn * fundCostRate;
-  const closing = Math.max(0, afterReturn - fundCost);
-  return { opening, grossGain, fundCost, closing };
+export function suggestReturnScenarios(historicalPercent) {
+  const historical = finite(historicalPercent, "Historische Rendite", { min: -100, max: 100 });
+  const integer = Number.isInteger(historical);
+  const lowerTop = integer ? historical - 1 : Math.floor(historical);
+  const upperBottom = integer ? historical + 1 : Math.ceil(historical);
+  return [lowerTop - 1, lowerTop, historical, upperBottom, upperBottom + 1];
+}
+
+function applyFundYear(balance, fundReturnRate) {
+  return Math.max(0, balance * (1 + fundReturnRate));
 }
 
 function qualifyingMinimumYears(age50Plus) {
@@ -42,8 +44,8 @@ function qualifyingMinimumYears(age50Plus) {
 function normalizeInputs(raw = {}) {
   const amount = finite(raw.amount, "Anlagebetrag", { min: 0.01 });
   const years = finite(raw.years, "Laufzeit", { min: 1, max: 60, integer: true });
-  const grossReturnPercent = finite(raw.grossReturnPercent, "Fondsrendite", { min: -100, max: 100 });
-  const fundCostPercent = finite(raw.fundCostPercent, "Fondskosten", { min: 0, max: 20 });
+  // Die eingegebene Fondsrendite ist bereits NACH den auf Fondsebene anfallenden Kosten.
+  const fundReturnPercent = finite(raw.grossReturnPercent, "Fondsrendite", { min: -100, max: 100 });
 
   const insuranceTaxPercent = finite(raw.insuranceTaxPercent, "Versicherungssteuer", { min: 0, max: 30 });
   const insuranceEntryCostPercent = finite(raw.insuranceEntryCostPercent, "Abschlusskosten", { min: 0, max: 50 });
@@ -66,14 +68,13 @@ function normalizeInputs(raw = {}) {
     : 0;
 
   if (insuranceMinimumAmount > 0 && amount + EPS < insuranceMinimumAmount) {
-    throw new Error(`Für das gewählte Versicherungsprodukt beträgt die Mindest-Einmalprämie ${insuranceMinimumAmount.toLocaleString("de-AT")} €.`);
+    throw new Error(`Für das gewählte Versicherungsprodukt beträgt die Mindest-Einmalprämie ${insuranceMinimumAmount.toLocaleString("de-AT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €.`);
   }
 
   return {
     amount,
     years,
-    grossReturnRate: grossReturnPercent / 100,
-    fundCostRate: fundCostPercent / 100,
+    fundReturnRate: fundReturnPercent / 100,
     insuranceTaxRate: insuranceTaxPercent / 100,
     insuranceEntryCostRate: insuranceEntryCostPercent / 100,
     insuranceEntryCostYears,
@@ -97,12 +98,7 @@ function insuranceExitTaxes(balance, year, n) {
   if (year >= minYears || n.insuranceTaxRate >= 0.11 - EPS) {
     return { additionalInsuranceTax: 0, incomeTax: 0, minimumYears: minYears, earlyExit: false };
   }
-
-  // Bei einem Einmalerlag, der zunächst mit 4 % VSt belastet wurde, wird bei frühem
-  // Rückkauf grundsätzlich eine zusätzliche VSt von 7 % des Versicherungsentgelts fällig.
-  const additionalInsuranceTax = n.insuranceTaxRate > EPS
-    ? n.insuranceNetPremium * 0.07
-    : 0;
+  const additionalInsuranceTax = n.insuranceTaxRate > EPS ? n.insuranceNetPremium * 0.07 : 0;
   const taxableDifference = Math.max(0, balance - n.amount);
   const incomeTax = taxableDifference * n.personalTaxRate;
   return { additionalInsuranceTax, incomeTax, minimumYears: minYears, earlyExit: true };
@@ -118,6 +114,25 @@ function directLiquidation(balance, taxBasis, annualTaxes, n) {
     totalTax: annualTaxes + saleTax,
     netValue: Math.max(0, balance - saleTax)
   };
+}
+
+function calculateBreakEven(history) {
+  for (let index = 0; index < history.length; index += 1) {
+    const current = history[index];
+    const currentDiff = current.insuranceNetValue - current.directNetValue;
+    if (currentDiff <= 0.005) continue;
+    if (index === 0) return { firstYear: current.year, approxYear: current.year };
+    const previous = history[index - 1];
+    const previousDiff = previous.insuranceNetValue - previous.directNetValue;
+    if (previousDiff >= -0.005) return { firstYear: current.year, approxYear: current.year };
+    const span = currentDiff - previousDiff;
+    const fraction = span > EPS ? (-previousDiff / span) : 1;
+    return {
+      firstYear: current.year,
+      approxYear: previous.year + Math.min(1, Math.max(0, fraction))
+    };
+  }
+  return { firstYear: null, approxYear: null };
 }
 
 export function simulateInsuranceFundComparison(rawInputs) {
@@ -137,11 +152,9 @@ export function simulateInsuranceFundComparison(rawInputs) {
   let directBalance = directInitialInvestment;
   let directTaxBasis = directInitialInvestment;
 
-  let insuranceFundCosts = 0;
   let insuranceAdminCosts = 0;
   let insuranceRiskCosts = 0;
   let insuranceEntryCostsCharged = 0;
-  let directFundCosts = 0;
   let directDepotCosts = 0;
   let directAnnualTaxes = 0;
   let cumulativeTaxedIncome = 0;
@@ -149,9 +162,7 @@ export function simulateInsuranceFundComparison(rawInputs) {
   const history = [];
 
   for (let year = 1; year <= n.years; year += 1) {
-    const entryCost = year <= n.insuranceEntryCostYears
-      ? Math.min(entryCostPerYear, insuranceBalance)
-      : 0;
+    const entryCost = year <= n.insuranceEntryCostYears ? Math.min(entryCostPerYear, insuranceBalance) : 0;
     insuranceBalance -= entryCost;
     insuranceEntryCostsCharged += entryCost;
 
@@ -159,18 +170,14 @@ export function simulateInsuranceFundComparison(rawInputs) {
     insuranceBalance -= riskCost;
     insuranceRiskCosts += riskCost;
 
-    const insuranceFund = applyFundYear(insuranceBalance, n.grossReturnRate, n.fundCostRate);
-    insuranceBalance = insuranceFund.closing;
-    insuranceFundCosts += insuranceFund.fundCost;
+    insuranceBalance = applyFundYear(insuranceBalance, n.fundReturnRate);
 
     const adminCost = Math.min(insuranceBalance * n.insuranceAdminRate, insuranceBalance);
     insuranceBalance -= adminCost;
     insuranceAdminCosts += adminCost;
 
     const directOpening = directBalance;
-    const directFund = applyFundYear(directBalance, n.grossReturnRate, n.fundCostRate);
-    directBalance = directFund.closing;
-    directFundCosts += directFund.fundCost;
+    directBalance = applyFundYear(directBalance, n.fundReturnRate);
 
     const depotPercentCost = Math.min(directBalance * n.depotFeeRate, directBalance);
     directBalance -= depotPercentCost;
@@ -206,8 +213,9 @@ export function simulateInsuranceFundComparison(rawInputs) {
   const insuranceEndValue = Math.max(0, insuranceBalance - finalInsuranceExit.additionalInsuranceTax - finalInsuranceExit.incomeTax);
   const finalDirect = directLiquidation(directBalance, directTaxBasis, directAnnualTaxes, n);
   const directEndValue = finalDirect.netValue;
-
-  const breakEven = history.find((point) => point.insuranceNetValue > point.directNetValue + 0.005)?.year ?? null;
+  const breakEven = calculateBreakEven(history);
+  const insuranceTotalCosts = insuranceEntryCostsCharged + insuranceAdminCosts + insuranceRiskCosts;
+  const directTotalCosts = issueLoadCost + directDepotCosts;
 
   return {
     inputs: {
@@ -222,9 +230,9 @@ export function simulateInsuranceFundComparison(rawInputs) {
       totalEntryCost,
       entryCostCharged: insuranceEntryCostsCharged,
       entryCostPerYear,
-      fundCosts: insuranceFundCosts,
       adminCosts: insuranceAdminCosts,
       riskCosts: insuranceRiskCosts,
+      totalCosts: insuranceTotalCosts,
       grossValue: insuranceBalance,
       additionalInsuranceTax: finalInsuranceExit.additionalInsuranceTax,
       incomeTax: finalInsuranceExit.incomeTax,
@@ -236,8 +244,8 @@ export function simulateInsuranceFundComparison(rawInputs) {
     direct: {
       initialInvestment: directInitialInvestment,
       issueLoadCost,
-      fundCosts: directFundCosts,
       depotCosts: directDepotCosts,
+      totalCosts: directTotalCosts,
       annualTaxes: directAnnualTaxes,
       saleTax: finalDirect.saleTax,
       totalTaxes: finalDirect.totalTax,
@@ -251,7 +259,8 @@ export function simulateInsuranceFundComparison(rawInputs) {
       difference: insuranceEndValue - directEndValue,
       differencePercentOfInvestment: ((insuranceEndValue - directEndValue) / n.amount) * 100,
       winner: Math.abs(insuranceEndValue - directEndValue) < 0.005 ? "equal" : (insuranceEndValue > directEndValue ? "insurance" : "direct"),
-      breakEvenYear: breakEven
+      breakEvenYear: breakEven.firstYear,
+      breakEvenYearApprox: breakEven.approxYear
     },
     history
   };
@@ -259,23 +268,27 @@ export function simulateInsuranceFundComparison(rawInputs) {
 
 export function createInsuranceFundCompareData({ inputs, toolboxVersion = "", exportedAt = "" }) {
   if (!inputs || typeof inputs !== "object" || Array.isArray(inputs)) throw new Error("Eingabedaten fehlen.");
-  // Validieren, ohne das Rechenergebnis mitzuspeichern.
   simulateInsuranceFundComparison(inputs);
+  const cleanedInputs = { ...inputs };
+  delete cleanedInputs.fundCostPercent;
   return {
     format: INSURANCE_FUND_COMPARE_FORMAT,
     schema_version: INSURANCE_FUND_COMPARE_SCHEMA_VERSION,
     toolbox_version: String(toolboxVersion || ""),
     exported_at: String(exportedAt || ""),
-    inputs: { ...inputs }
+    inputs: cleanedInputs
   };
 }
 
 export function normalizeInsuranceFundCompareData(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Die Datei enthält keine gültigen Vergleichsdaten.");
-  if (payload.format !== INSURANCE_FUND_COMPARE_FORMAT || Number(payload.schema_version) !== INSURANCE_FUND_COMPARE_SCHEMA_VERSION) {
+  const schema = Number(payload.schema_version);
+  if (payload.format !== INSURANCE_FUND_COMPARE_FORMAT || ![1, INSURANCE_FUND_COMPARE_SCHEMA_VERSION].includes(schema)) {
     throw new Error("Die Datei ist keine unterstützte Versicherungs-/Fondsvergleich-Datei.");
   }
   if (!payload.inputs || typeof payload.inputs !== "object" || Array.isArray(payload.inputs)) throw new Error("Die Importdatei enthält keine Eingabedaten.");
-  simulateInsuranceFundComparison(payload.inputs);
-  return { inputs: { ...payload.inputs } };
+  const inputs = { ...payload.inputs };
+  delete inputs.fundCostPercent;
+  simulateInsuranceFundComparison(inputs);
+  return { inputs };
 }
