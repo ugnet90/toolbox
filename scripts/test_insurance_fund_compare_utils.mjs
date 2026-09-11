@@ -10,7 +10,8 @@ const {
   simulateInsuranceFundComparison,
   createInsuranceFundCompareData,
   normalizeInsuranceFundCompareData,
-  suggestReturnScenarios
+  suggestReturnScenarios,
+  insuranceTaxPercentForTerm
 } = await import(moduleUrl);
 
 function base(overrides = {}) {
@@ -40,6 +41,15 @@ function base(overrides = {}) {
 
 assert.equal(effectiveIssueLoadPercent(3, 100), 0);
 assert.equal(effectiveIssueLoadPercent(3, 50), 1.5);
+
+{
+  assert.equal(insuranceTaxPercentForTerm(15, false), 4);
+  assert.equal(insuranceTaxPercentForTerm(14, false), 11);
+  assert.equal(insuranceTaxPercentForTerm(10, true), 4);
+  assert.equal(insuranceTaxPercentForTerm(9, true), 11);
+  assert.equal(insuranceTaxPercentForTerm(12, true), 4);
+  assert.equal(insuranceTaxPercentForTerm(12, false), 11);
+}
 
 {
   const result = simulateInsuranceFundComparison(base({
@@ -90,6 +100,14 @@ assert.equal(effectiveIssueLoadPercent(3, 50), 1.5);
 }
 
 {
+  const tax = insuranceTaxPercentForTerm(12, false);
+  const result = simulateInsuranceFundComparison(base({ years: 12, age50Plus: false, insuranceTaxPercent: tax }));
+  assert.equal(tax, 11);
+  assert.equal(result.insurance.additionalInsuranceTax, 0, "Bei von Beginn an 11 % VSt darf keine weitere 7-%-Nachversteuerung entstehen.");
+  assert.equal(result.insurance.earlyExit, false);
+}
+
+{
   const result = simulateInsuranceFundComparison(base({
     amount: 10000,
     insuranceMinimumAmount: 0,
@@ -116,7 +134,7 @@ assert.equal(effectiveIssueLoadPercent(3, 50), 1.5);
 
 {
   const inputs = base({ product: "ergo_investment", fundName: "Testfonds", fundIsin: "DE0008491051" });
-  const payload = createInsuranceFundCompareData({ inputs, toolboxVersion: "0.7.3", exportedAt: "2026-09-11T00:00:00Z" });
+  const payload = createInsuranceFundCompareData({ inputs, toolboxVersion: "0.7.5", exportedAt: "2026-09-11T00:00:00Z" });
   const normalized = normalizeInsuranceFundCompareData(payload);
   assert.equal(payload.schema_version, 3);
   assert.equal(normalized.inputs.product, "ergo_investment");
