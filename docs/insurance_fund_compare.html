@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Fondsgebundene Lebensversicherung mit Einmalerlag und direkte Fondsveranlagung nach Kosten und österreichischen Steuern vergleichen.">
+  <link rel="icon" href="assets/favicon/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon/favicon-48x48.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="assets/favicon/site.webmanifest">
+  <meta name="theme-color" content="#316880">
+  <title>Toolbox – Fondsversicherung vs. Fondsdepot</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/navigation.css">
+  <link rel="stylesheet" href="css/insurance-fund-compare.css">
+</head>
+<body>
+  <div data-site-header></div>
+  <main>
+    <nav class="breadcrumbs" aria-label="Breadcrumb" data-breadcrumbs></nav>
+
+    <header class="page-heading page-heading--compact-mobile">
+      <p class="page-heading__eyebrow">Finanzen</p>
+      <h1>Fondsversicherung vs. Fondsdepot</h1>
+      <p>Vergleicht einen Einmalerlag in eine fondsgebundene Lebensversicherung mit der direkten Veranlagung in denselben Fonds – inklusive Kosten und österreichischer Steuerwirkung.</p>
+    </header>
+
+    <form class="ifc-form" data-ifc-form novalidate>
+      <section class="panel ifc-panel">
+        <div class="panel__header">
+          <h2>Grunddaten &amp; Fonds</h2>
+          <p>Beide Varianten verwenden denselben Fonds und dieselbe angenommene Fondsentwicklung.</p>
+        </div>
+        <div class="panel__body ifc-grid ifc-grid--4">
+          <div class="field">
+            <label for="amount">Einmaliger Kundenaufwand</label>
+            <input id="amount" name="amount" type="text" inputmode="decimal" autocomplete="off" value="100.000,00" required>
+            <span class="field__hint">Gesamtbetrag, den der Kunde tatsächlich bezahlt.</span>
+          </div>
+          <div class="field">
+            <label for="years">Vergleichslaufzeit</label>
+            <div class="ifc-input-suffix"><input id="years" name="years" type="number" min="1" max="60" step="1" value="15" required><span>Jahre</span></div>
+          </div>
+          <div class="field">
+            <label for="grossReturnPercent">Angenommene Fondsrendite</label>
+            <div class="ifc-input-suffix"><input id="grossReturnPercent" name="grossReturnPercent" type="number" min="-100" max="100" step="0.01" value="6"><span>% p.a.</span></div>
+            <span class="field__hint">Vor den unten erfassten Fondskosten.</span>
+          </div>
+          <div class="field">
+            <label for="fundCostPercent">Fondskosten</label>
+            <div class="ifc-input-suffix"><input id="fundCostPercent" name="fundCostPercent" type="number" min="0" max="20" step="0.01" value="1.00"><span>% p.a.</span></div>
+          </div>
+
+          <div class="field ifc-span-2">
+            <label for="fundName">Union-Investment-Fonds <span class="ifc-optional">(optional)</span></label>
+            <input id="fundName" name="fundName" type="text" maxlength="120" placeholder="z. B. UniGlobal">
+          </div>
+          <div class="field">
+            <label for="fundIsin">ISIN <span class="ifc-optional">(optional)</span></label>
+            <input id="fundIsin" name="fundIsin" type="text" maxlength="12" autocapitalize="characters" placeholder="z. B. DE0008491051">
+          </div>
+          <div class="field ifc-oekb-field">
+            <span class="ifc-field-label">Steuerdaten</span>
+            <a class="secondary-button ifc-button-link" data-oekb-link href="https://my.oekb.at/kapitalmarkt-services/kms-output/fonds-info/sd/af/f" target="_blank" rel="noopener">OeKB-Steuerdaten öffnen</a>
+            <span class="field__hint">Mit ISIN wird direkt die Fondsseite geöffnet.</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="ifc-two-column">
+        <section class="panel ifc-panel ifc-panel--insurance">
+          <div class="panel__header">
+            <p class="ifc-kicker">Variante A</p>
+            <h2>Fondsgebundene Lebensversicherung</h2>
+          </div>
+          <div class="panel__body ifc-stack">
+            <div class="field">
+              <label for="insuranceProduct">Versicherungsprodukt</label>
+              <select id="insuranceProduct" name="insuranceProduct">
+                <option value="ergo_investment" selected>ERGO fürs Investment</option>
+                <option value="ergo_life">ERGO fürs Leben – Einmalprämie</option>
+                <option value="custom">Individuelle Versicherung</option>
+              </select>
+              <span class="field__hint" data-product-hint></span>
+            </div>
+
+            <div class="ifc-grid ifc-grid--2">
+              <div class="field">
+                <label for="insuranceTaxPercent">Versicherungssteuer</label>
+                <div class="ifc-input-suffix"><input id="insuranceTaxPercent" name="insuranceTaxPercent" type="number" min="0" max="30" step="0.01" value="4"><span>%</span></div>
+              </div>
+              <div class="field">
+                <label for="insuranceMinimumAmount">Mindest-Einmalprämie</label>
+                <div class="ifc-input-suffix"><input id="insuranceMinimumAmount" name="insuranceMinimumAmount" type="number" min="0" step="100" value="30000"><span>€</span></div>
+              </div>
+              <div class="field">
+                <label for="insuranceEntryCostPercent">Abschlusskosten</label>
+                <div class="ifc-input-suffix"><input id="insuranceEntryCostPercent" name="insuranceEntryCostPercent" type="number" min="0" max="50" step="0.01" value="5"><span>%</span></div>
+                <span class="field__hint">ERGO fürs Investment: 5 % der Nettoeinmalprämie.</span>
+              </div>
+              <div class="field">
+                <label for="insuranceEntryCostYears">Verteilung Abschlusskosten</label>
+                <div class="ifc-input-suffix"><input id="insuranceEntryCostYears" name="insuranceEntryCostYears" type="number" min="1" max="20" step="1" value="5"><span>Jahre</span></div>
+              </div>
+              <div class="field">
+                <label for="insuranceAdminPercent">Verwaltungskosten</label>
+                <div class="ifc-input-suffix"><input id="insuranceAdminPercent" name="insuranceAdminPercent" type="number" min="0" max="20" step="0.01" value="0.2"><span>% p.a.</span></div>
+              </div>
+              <div class="field">
+                <label for="insuranceRiskAnnual">Risikokosten</label>
+                <div class="ifc-input-suffix"><input id="insuranceRiskAnnual" name="insuranceRiskAnnual" type="text" inputmode="decimal" autocomplete="off" value="0,00"><span>€ p.a.</span></div>
+                <span class="field__hint">Vertragsabhängig; 0 = im Vergleich nicht berücksichtigt.</span>
+              </div>
+            </div>
+
+            <label class="ifc-check">
+              <input id="age50Plus" name="age50Plus" type="checkbox">
+              <span>Versicherungsnehmer und versicherte Person(en) waren bei Abschluss jeweils mindestens 50 Jahre alt.</span>
+            </label>
+
+            <div class="ifc-warning" data-short-term-warning hidden>
+              <strong>Vergleich vor Ende der steuerlichen Mindestanlagedauer.</strong>
+              <span data-short-term-text></span>
+              <div class="field">
+                <label for="personalTaxPercent">Persönlicher ESt-Satz für eine mögliche Differenzbesteuerung</label>
+                <div class="ifc-input-suffix"><input id="personalTaxPercent" name="personalTaxPercent" type="number" min="0" max="60" step="0.01" value="0"><span>%</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel ifc-panel ifc-panel--depot">
+          <div class="panel__header">
+            <p class="ifc-kicker">Variante B</p>
+            <h2>Direkte Fondsveranlagung</h2>
+          </div>
+          <div class="panel__body ifc-stack">
+            <div class="ifc-grid ifc-grid--2">
+              <div class="field">
+                <label for="issueLoadPercent">Regulärer Ausgabeaufschlag</label>
+                <div class="ifc-input-suffix"><input id="issueLoadPercent" name="issueLoadPercent" type="number" min="0" max="100" step="0.01" value="3"><span>%</span></div>
+              </div>
+              <div class="field">
+                <label for="issueLoadDiscountPercent">Sonderkondition / Rabatt</label>
+                <div class="ifc-input-suffix"><input id="issueLoadDiscountPercent" name="issueLoadDiscountPercent" type="number" min="0" max="100" step="1" value="100"><span>%</span></div>
+                <span class="field__hint">100 % Rabatt = kein Ausgabeaufschlag.</span>
+              </div>
+              <div class="field">
+                <label for="depotFeePercent">Depotkosten</label>
+                <div class="ifc-input-suffix"><input id="depotFeePercent" name="depotFeePercent" type="number" min="0" max="20" step="0.01" value="0.20"><span>% p.a.</span></div>
+              </div>
+              <div class="field">
+                <label for="depotFeeAnnual">Fixe Depotkosten</label>
+                <div class="ifc-input-suffix"><input id="depotFeeAnnual" name="depotFeeAnnual" type="text" inputmode="decimal" autocomplete="off" value="0,00"><span>€ p.a.</span></div>
+              </div>
+            </div>
+
+            <div class="ifc-live-value">
+              <span>Effektiver Ausgabeaufschlag nach Rabatt</span>
+              <strong data-effective-issue-load>0,00 %</strong>
+            </div>
+
+            <div class="field">
+              <label for="directTaxMode">Fondsbesteuerung</label>
+              <select id="directTaxMode" name="directTaxMode">
+                <option value="simple" selected>Vereinfacht – 27,5 % KESt auf positiven Gesamtgewinn bei Verkauf</option>
+                <option value="annual_proxy">Erweitert – jährliche Steuerannahme + Restgewinn bei Verkauf</option>
+              </select>
+            </div>
+
+            <div class="ifc-grid ifc-grid--2">
+              <div class="field">
+                <label for="capitalGainsTaxPercent">KESt-Satz</label>
+                <div class="ifc-input-suffix"><input id="capitalGainsTaxPercent" name="capitalGainsTaxPercent" type="number" min="0" max="100" step="0.01" value="27.5"><span>%</span></div>
+              </div>
+              <div class="field" data-annual-taxable-yield-field hidden>
+                <label for="annualTaxableYieldPercent">Jährlich steuerwirksamer Ertrag</label>
+                <div class="ifc-input-suffix"><input id="annualTaxableYieldPercent" name="annualTaxableYieldPercent" type="number" min="0" max="100" step="0.01" value="2"><span>% p.a.</span></div>
+                <span class="field__hint">Näherung auf Basis der OeKB-Steuerdaten; nicht mit der Fondsrendite gleichsetzen.</span>
+              </div>
+            </div>
+
+            <div class="ifc-info">
+              <strong>Steuerhinweis</strong>
+              <span>Die echte österreichische Fondsbesteuerung erfolgt auch über Ausschüttungen und ausschüttungsgleiche Erträge. Der erweiterte Modus ist deshalb eine Modellrechnung; historische OeKB-Werte können als Annahme dienen.</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="ifc-actions">
+        <button class="primary-button" type="submit">Vergleich berechnen</button>
+        <button class="secondary-button" data-export type="button">JSON exportieren</button>
+        <button class="secondary-button" data-import type="button">JSON importieren</button>
+        <button class="secondary-button" data-reset type="button">Zurücksetzen</button>
+        <input type="file" accept="application/json,.json" data-import-file hidden>
+      </div>
+      <p class="form-message form-message--error" data-error hidden></p>
+    </form>
+
+    <section class="ifc-results" data-results hidden>
+      <div class="ifc-result-grid">
+        <article class="ifc-result-card ifc-result-card--insurance">
+          <span>Fondsversicherung</span>
+          <strong data-insurance-end>–</strong>
+          <small data-insurance-return>–</small>
+        </article>
+        <article class="ifc-result-card ifc-result-card--depot">
+          <span>Fondsdepot</span>
+          <strong data-direct-end>–</strong>
+          <small data-direct-return>–</small>
+        </article>
+        <article class="ifc-result-card ifc-result-card--difference">
+          <span data-difference-label>Unterschied</span>
+          <strong data-difference>–</strong>
+          <small data-break-even>–</small>
+        </article>
+      </div>
+
+      <section class="panel ifc-panel ifc-chart-panel">
+        <div class="panel__header">
+          <h2>Vermögensentwicklung</h2>
+          <p>Hypothetischer Nettoauszahlungswert bei Beendigung zum jeweiligen Jahresende.</p>
+        </div>
+        <div class="panel__body">
+          <div class="ifc-chart-legend"><span><i class="ifc-dot ifc-dot--insurance"></i>Fondsversicherung</span><span><i class="ifc-dot ifc-dot--depot"></i>Fondsdepot</span></div>
+          <div class="ifc-chart" data-chart></div>
+        </div>
+      </section>
+
+      <div class="ifc-two-column">
+        <section class="panel ifc-panel">
+          <div class="panel__header"><h2>Kosten &amp; Steuern Versicherung</h2></div>
+          <div class="panel__body"><dl class="ifc-breakdown" data-insurance-breakdown></dl></div>
+        </section>
+        <section class="panel ifc-panel">
+          <div class="panel__header"><h2>Kosten &amp; Steuern Fondsdepot</h2></div>
+          <div class="panel__body"><dl class="ifc-breakdown" data-direct-breakdown></dl></div>
+        </section>
+      </div>
+
+      <section class="ifc-method-note">
+        <strong>Berechnungshinweis</strong>
+        <p>Die Berechnung ist eine Projektion mit jährlichen Rechenschritten. Die tatsächliche Wertentwicklung, Fondskosten, steuerlichen Meldedaten und Versicherungskosten können abweichen. Bei ERGO fürs Investment werden die hinterlegten Abschlusskosten gleichmäßig über fünf Jahre verteilt. Für ERGO fürs Leben sind die individuellen Kosten laut Versicherungsantrag einzutragen.</p>
+      </section>
+    </section>
+
+    <section class="ifc-sources">
+      <h2>Grundlagen</h2>
+      <p><a href="https://ergo-versicherung.at/veranlagung/fondsgebundene-lebensversicherung" target="_blank" rel="noopener">ERGO fürs Investment</a> · <a href="https://ergo-versicherung.at/veranlagung/flexible-veranlagung" target="_blank" rel="noopener">ERGO fürs Leben</a> · <a href="https://www.bmf.gv.at/themen/steuern/steuern-von-a-bis-z/versicherungssteuer/bemessungsgrundlage-steuersaetze.html" target="_blank" rel="noopener">BMF Versicherungssteuer</a> · <a href="https://www.bmf.gv.at/themen/steuern/sparen-veranlagen/lebensversicherungen.html" target="_blank" rel="noopener">BMF Lebensversicherungen</a> · <a href="https://www.oekb.at/kapitalmarkt-services/unser-datenangebot/fonds/steuerdaten" target="_blank" rel="noopener">OeKB Fonds-Steuerdaten</a></p>
+    </section>
+  </main>
+
+  <footer class="site-footer">Toolbox</footer>
+  <script type="module" src="js/navigation.js"></script>
+  <script type="module" src="js/insurance-fund-compare.js?v=0.7.0"></script>
+</body>
+</html>
