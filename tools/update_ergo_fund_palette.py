@@ -32,7 +32,6 @@ FONDSWEB_URL_TEMPLATE = "https://www.fondsweb.com/at/{isin}"
 
 ROOT = Path(__file__).resolve().parents[1]
 CANONICAL_PATH = ROOT / "data" / "ergo_union_funds.json"
-PUBLIC_PATH = ROOT / "docs" / "data" / "ergo_union_funds.json"
 
 ISIN_RE = re.compile(r"\b[A-Z]{2}[A-Z0-9]{10}\b")
 DATE_DE_RE = re.compile(r"\b(\d{2})\.(\d{2})\.(\d{4})\b")
@@ -330,11 +329,10 @@ def merge_palette(
 
 
 def save_palette(payload: dict[str, Any]) -> None:
+    """Write only the canonical palette; publication mirrors are synced centrally."""
     text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
     CANONICAL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    PUBLIC_PATH.parent.mkdir(parents=True, exist_ok=True)
     CANONICAL_PATH.write_text(text, encoding="utf-8")
-    PUBLIC_PATH.write_text(text, encoding="utf-8")
 
 
 def update_palette(*, enrich_performance: bool = True) -> dict[str, Any]:
