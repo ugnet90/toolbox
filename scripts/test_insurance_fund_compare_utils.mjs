@@ -10,7 +10,8 @@ const {
   effectiveIssueLoadPercent,
   simulateInsuranceFundComparison,
   createInsuranceFundCompareData,
-  normalizeInsuranceFundCompareData
+  normalizeInsuranceFundCompareData,
+  suggestReturnScenarios
 } = await import(moduleUrl);
 
 function base(overrides = {}) {
@@ -18,7 +19,6 @@ function base(overrides = {}) {
     amount: 100000,
     years: 15,
     grossReturnPercent: 6,
-    fundCostPercent: 1,
     insuranceTaxPercent: 4,
     insuranceEntryCostPercent: 5,
     insuranceEntryCostYears: 5,
@@ -82,7 +82,6 @@ assert.equal(effectiveIssueLoadPercent(3, 50), 1.5);
     issueLoadDiscountPercent: 0,
     capitalGainsTaxPercent: 0,
     grossReturnPercent: 0,
-    fundCostPercent: 0,
     depotFeePercent: 0
   }));
   assert.ok(Math.abs(result.direct.initialInvestment - 10000 / 1.03) < 0.01);
@@ -102,10 +101,35 @@ assert.equal(effectiveIssueLoadPercent(3, 50), 1.5);
 
 {
   const inputs = base({ product: "ergo_investment", fundName: "Testfonds", fundIsin: "DE0008491051" });
-  const payload = createInsuranceFundCompareData({ inputs, toolboxVersion: "0.7.0", exportedAt: "2026-09-11T00:00:00Z" });
+  const payload = createInsuranceFundCompareData({ inputs, toolboxVersion: "0.7.1", exportedAt: "2026-09-11T00:00:00Z" });
   const normalized = normalizeInsuranceFundCompareData(payload);
   assert.equal(normalized.inputs.product, "ergo_investment");
   assert.equal(normalized.inputs.fundIsin, "DE0008491051");
+}
+
+{
+  const legacy = {
+    format: "toolbox-insurance-fund-compare",
+    schema_version: 1,
+    inputs: base({ fundCostPercent: 1 })
+  };
+  const normalized = normalizeInsuranceFundCompareData(legacy);
+  assert.equal(normalized.inputs.fundCostPercent, undefined);
+}
+
+{
+  assert.deepEqual(suggestReturnScenarios(6.12), [5, 6, 6.12, 7, 8]);
+  assert.deepEqual(suggestReturnScenarios(6), [4, 5, 6, 7, 8]);
+}
+
+{
+  const result = simulateInsuranceFundComparison(base({
+    amount: 10000, insuranceMinimumAmount: 0, insuranceTaxPercent: 0, insuranceEntryCostPercent: 0,
+    insuranceAdminPercent: 0, issueLoadPercent: 0, issueLoadDiscountPercent: 0, depotFeePercent: 0,
+    capitalGainsTaxPercent: 0, years: 1, grossReturnPercent: 6
+  }));
+  assert.ok(Math.abs(result.insurance.endValue - 10600) < 0.01, "6 % Fondsrendite müssen ohne zusätzlichen Fondskostenabzug als 6 % wirken.");
+  assert.ok(!("fundCosts" in result.insurance));
 }
 
 console.log("insurance fund comparison tests: ok");
