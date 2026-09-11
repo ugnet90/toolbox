@@ -4,12 +4,24 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.7.0
+- **Toolbox:** 0.7.1
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.7.1
+
+- Fondskosten aus dem Vergleich entfernt: Die angenommene Fondsrendite versteht sich nun ausdrücklich bereits nach den auf Fondsebene anfallenden Kosten. Dadurch wird derselbe Fonds auf beiden Wegen nicht doppelt mit identischen Fondskosten belastet.
+- Fondsreferenzlogik ergänzt: Bei erkannten Union-Investment-Fonds können historischer Renditewert und regulärer Ausgabeaufschlag vorbelegt werden. Für UniGlobal ist der historische Wert 6,12 % p.a. seit Auflegung (Union Investment, Stand 20.01.2025) hinterlegt; der reguläre Ausgabeaufschlag beträgt 5 %.
+- Zum historischen Renditewert werden automatisch zwei ganzzahlige Szenarien darunter und zwei darüber angeboten. Bei 6,12 % erscheinen damit 5 %, 6 %, 6,12 %, 7 % und 8 %.
+- Quellen- und Standhinweis werden ausschließlich beim ausdrücklich gewählten historischen Wert gezeigt. Bei Szenarioauswahl oder manueller Überschreibung wechselt die Anzeige auf „Individuelle Renditeannahme“.
+- Mindest-Einmalprämie wird als österreichischer Betrag formatiert.
+- Prozentuelle und fixe Depotkosten werden gerätebezogen in `localStorage` gespeichert; Sonderkondition/Rabatt wird bewusst nicht gespeichert. „Zurücksetzen“ behält die gespeicherten Depotkosten.
+- Break-even wird zusätzlich im Verlaufsdiagramm mit gestrichelter senkrechter Linie und angenähertem Schnittjahr markiert.
+- Kosten- und Steuerübersichten nach Start, Kosten, Steuern und Ergebnis gegliedert. Vergleichbare Summen und Nettoendwerte werden dezent grün bzw. rot hervorgehoben.
+- JSON-Schema des neuen Vergleichstools auf v2 angehoben; v1-Exporte bleiben importierbar.
 
 ## Änderungen in 0.7.0
 
@@ -122,7 +134,7 @@ Worker-Endpunkt:
 ### Fondsversicherung vs. Fondsdepot
 
 - Vergleich desselben Fonds in fondsgebundener Lebensversicherung und direktem Fondsdepot.
-- Einmalerlag, Laufzeit, Fondsrendite und Fondskosten.
+- Einmalerlag, Laufzeit und Fondsrendite nach den auf Fondsebene anfallenden Kosten.
 - ERGO-Presets sowie frei editierbare Versicherungsparameter.
 - Abschlusskosten können über mehrere Jahre verteilt werden.
 - Versicherungssteuer, Verwaltungskosten, Risikokosten und steuerliche Mindestanlagedauer.
