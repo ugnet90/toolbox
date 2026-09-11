@@ -48,6 +48,9 @@ jobs:
       - name: Test fund return calculations
         run: node scripts/test_fund_return_utils.mjs
 
+      - name: Test insurance/fund comparison calculations
+        run: node scripts/test_insurance_fund_compare_utils.mjs
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
