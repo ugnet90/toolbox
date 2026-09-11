@@ -14,7 +14,7 @@
   <title>Toolbox – Fondsversicherung vs. Fondsdepot</title>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/insurance-fund-compare.css?v=0.7.3">
+  <link rel="stylesheet" href="css/insurance-fund-compare.css?v=0.7.4">
 </head>
 <body>
   <div data-site-header></div>
@@ -53,17 +53,21 @@
 
           <div class="field ifc-span-2">
             <label for="fundName">Union-Investment-Fonds <span class="ifc-optional">(optional)</span></label>
-            <input id="fundName" name="fundName" type="text" maxlength="120" placeholder="z. B. UniGlobal">
+            <input id="fundName" name="fundName" type="text" maxlength="120" list="ifcFundNameOptions" autocomplete="off" placeholder="z. B. UniGlobal">
+            <datalist id="ifcFundNameOptions"></datalist>
           </div>
           <div class="field">
             <label for="fundIsin">ISIN <span class="ifc-optional">(optional)</span></label>
-            <input id="fundIsin" name="fundIsin" type="text" maxlength="12" autocapitalize="characters" placeholder="z. B. DE0008491051">
+            <input id="fundIsin" name="fundIsin" type="text" maxlength="12" list="ifcFundIsinOptions" autocomplete="off" autocapitalize="characters" placeholder="z. B. DE0008491051">
+            <datalist id="ifcFundIsinOptions"></datalist>
           </div>
           <div class="field ifc-oekb-field">
             <span class="ifc-field-label">Steuerdaten</span>
             <a class="secondary-button ifc-button-link" data-oekb-link href="https://my.oekb.at/kapitalmarkt-services/kms-output/fonds-info/sd/af/f" target="_blank" rel="noopener">OeKB-Steuerdaten öffnen</a>
             <span class="field__hint">Mit ISIN wird direkt die Fondsseite geöffnet.</span>
           </div>
+          <div class="ifc-span-4 ifc-palette-status" data-fund-palette-status role="status">ERGO-Fondspalette wird geladen …</div>
+          <div class="ifc-span-4 ifc-fund-match-status" data-fund-match-status hidden></div>
         </div>
       </section>
 
@@ -250,12 +254,12 @@
 
     <section class="ifc-sources">
       <h2>Grundlagen</h2>
-      <p><a href="https://ergo-versicherung.at/veranlagung/fondsgebundene-lebensversicherung" target="_blank" rel="noopener">ERGO fürs Investment</a> · <a href="https://ergo-versicherung.at/veranlagung/flexible-veranlagung" target="_blank" rel="noopener">ERGO fürs Leben</a> · <a href="https://www.bmf.gv.at/themen/steuern/steuern-von-a-bis-z/versicherungssteuer/bemessungsgrundlage-steuersaetze.html" target="_blank" rel="noopener">BMF Versicherungssteuer</a> · <a href="https://www.bmf.gv.at/themen/steuern/sparen-veranlagen/lebensversicherungen.html" target="_blank" rel="noopener">BMF Lebensversicherungen</a> · <a href="https://www.oekb.at/kapitalmarkt-services/unser-datenangebot/fonds/steuerdaten" target="_blank" rel="noopener">OeKB Fonds-Steuerdaten</a></p>
+      <p><a href="https://ergo-versicherung.at/veranlagung/fondsgebundene-lebensversicherung" target="_blank" rel="noopener">ERGO fürs Investment</a> · <a href="https://ergo-versicherung.at/veranlagung/flexible-veranlagung" target="_blank" rel="noopener">ERGO fürs Leben</a> · <a href="https://ergo-versicherung.at/fileadmin/user_upload/pdf/produktreports/DIE_FONDSPALETTE_ERGO_FUERS_LEBEN_SPAREN_INVESTMENT_GESAMT.pdf" target="_blank" rel="noopener">ERGO Fondsliste</a> · <a href="https://www.union-investment.de/fonds_depot/uniondepot/besonderes-preis-leistungsverzeichnis" target="_blank" rel="noopener">Union Konditionen</a> · <a href="https://www.fondsweb.com/at" target="_blank" rel="noopener">Fondsweb</a> · <a href="https://www.bmf.gv.at/themen/steuern/steuern-von-a-bis-z/versicherungssteuer/bemessungsgrundlage-steuersaetze.html" target="_blank" rel="noopener">BMF Versicherungssteuer</a> · <a href="https://www.bmf.gv.at/themen/steuern/sparen-veranlagen/lebensversicherungen.html" target="_blank" rel="noopener">BMF Lebensversicherungen</a> · <a href="https://www.oekb.at/kapitalmarkt-services/unser-datenangebot/fonds/steuerdaten" target="_blank" rel="noopener">OeKB Fonds-Steuerdaten</a></p>
     </section>
   </main>
 
   <footer class="site-footer">Toolbox</footer>
   <script type="module" src="js/navigation.js"></script>
-  <script type="module" src="js/insurance-fund-compare.js?v=0.7.3"></script>
+  <script type="module" src="js/insurance-fund-compare.js?v=0.7.4"></script>
 </body>
 </html>
