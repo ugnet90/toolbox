@@ -43,14 +43,12 @@
             <label for="years">Vergleichslaufzeit</label>
             <div class="ifc-input-suffix"><input id="years" name="years" type="number" min="1" max="60" step="1" value="15" required><span>Jahre</span></div>
           </div>
-          <div class="field">
+          <div class="field ifc-span-2">
             <label for="grossReturnPercent">Angenommene Fondsrendite</label>
             <div class="ifc-input-suffix"><input id="grossReturnPercent" name="grossReturnPercent" type="number" min="-100" max="100" step="0.01" value="6"><span>% p.a.</span></div>
-            <span class="field__hint">Vor den unten erfassten Fondskosten.</span>
-          </div>
-          <div class="field">
-            <label for="fundCostPercent">Fondskosten</label>
-            <div class="ifc-input-suffix"><input id="fundCostPercent" name="fundCostPercent" type="number" min="0" max="20" step="0.01" value="1.00"><span>% p.a.</span></div>
+            <span class="field__hint">Rendite nach den auf Fondsebene anfallenden Kosten, aber vor kundenseitigen Kosten und Steuern.</span>
+            <div class="ifc-return-suggestions" data-return-suggestions hidden></div>
+            <div class="ifc-return-source" data-return-source>Individuelle Renditeannahme.</div>
           </div>
 
           <div class="field ifc-span-2">
@@ -93,7 +91,7 @@
               </div>
               <div class="field">
                 <label for="insuranceMinimumAmount">Mindest-Einmalprämie</label>
-                <div class="ifc-input-suffix"><input id="insuranceMinimumAmount" name="insuranceMinimumAmount" type="number" min="0" step="100" value="30000"><span>€</span></div>
+                <div class="ifc-input-suffix"><input id="insuranceMinimumAmount" name="insuranceMinimumAmount" type="text" inputmode="decimal" autocomplete="off" value="30.000,00"><span>€</span></div>
               </div>
               <div class="field">
                 <label for="insuranceEntryCostPercent">Abschlusskosten</label>
@@ -148,11 +146,11 @@
                 <span class="field__hint">100 % Rabatt = kein Ausgabeaufschlag.</span>
               </div>
               <div class="field">
-                <label for="depotFeePercent">Depotkosten</label>
+                <label for="depotFeePercent">Depotkosten <span class="ifc-saved-badge">wird gespeichert</span></label>
                 <div class="ifc-input-suffix"><input id="depotFeePercent" name="depotFeePercent" type="number" min="0" max="20" step="0.01" value="0.20"><span>% p.a.</span></div>
               </div>
               <div class="field">
-                <label for="depotFeeAnnual">Fixe Depotkosten</label>
+                <label for="depotFeeAnnual">Fixe Depotkosten <span class="ifc-saved-badge">wird gespeichert</span></label>
                 <div class="ifc-input-suffix"><input id="depotFeeAnnual" name="depotFeeAnnual" type="text" inputmode="decimal" autocomplete="off" value="0,00"><span>€ p.a.</span></div>
               </div>
             </div>
@@ -233,17 +231,17 @@
       <div class="ifc-two-column">
         <section class="panel ifc-panel">
           <div class="panel__header"><h2>Kosten &amp; Steuern Versicherung</h2></div>
-          <div class="panel__body"><dl class="ifc-breakdown" data-insurance-breakdown></dl></div>
+          <div class="panel__body"><div class="ifc-breakdown" data-insurance-breakdown></div></div>
         </section>
         <section class="panel ifc-panel">
           <div class="panel__header"><h2>Kosten &amp; Steuern Fondsdepot</h2></div>
-          <div class="panel__body"><dl class="ifc-breakdown" data-direct-breakdown></dl></div>
+          <div class="panel__body"><div class="ifc-breakdown" data-direct-breakdown></div></div>
         </section>
       </div>
 
       <section class="ifc-method-note">
         <strong>Berechnungshinweis</strong>
-        <p>Die Berechnung ist eine Projektion mit jährlichen Rechenschritten. Die tatsächliche Wertentwicklung, Fondskosten, steuerlichen Meldedaten und Versicherungskosten können abweichen. Bei ERGO fürs Investment werden die hinterlegten Abschlusskosten gleichmäßig über fünf Jahre verteilt. Für ERGO fürs Leben sind die individuellen Kosten laut Versicherungsantrag einzutragen.</p>
+        <p>Die Berechnung ist eine Projektion mit jährlichen Rechenschritten. Die eingegebene Fondsrendite versteht sich bereits nach den auf Fondsebene anfallenden Kosten. Tatsächliche Wertentwicklung, steuerliche Meldedaten und Versicherungskosten können abweichen. Bei ERGO fürs Investment werden die hinterlegten Abschlusskosten gleichmäßig über fünf Jahre verteilt. Für ERGO fürs Leben sind die individuellen Kosten laut Versicherungsantrag einzutragen.</p>
       </section>
     </section>
 
@@ -255,6 +253,6 @@
 
   <footer class="site-footer">Toolbox</footer>
   <script type="module" src="js/navigation.js"></script>
-  <script type="module" src="js/insurance-fund-compare.js?v=0.7.0"></script>
+  <script type="module" src="js/insurance-fund-compare.js?v=0.7.1"></script>
 </body>
 </html>
