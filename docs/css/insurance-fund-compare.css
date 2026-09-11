@@ -444,3 +444,162 @@
 .ifc-breakdown__row.is-neutral > strong {
   color: var(--text);
 }
+
+/* v0.7.2: gemeinsame Kosten-/Steuervergleichstabelle */
+.ifc-comparison-panel .panel__body {
+  padding-top: 16px;
+}
+
+.ifc-comparison-breakdown {
+  display: grid;
+  gap: 18px;
+}
+
+.ifc-compare__header,
+.ifc-compare__row {
+  display: grid;
+  grid-template-columns: minmax(170px, .85fr) repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.ifc-compare__header {
+  align-items: end;
+  padding: 0 0 9px;
+  border-bottom: 2px solid var(--border);
+}
+
+.ifc-compare__header > span {
+  color: var(--text-muted);
+  font-size: .82rem;
+  font-weight: 750;
+}
+
+.ifc-compare__header > strong {
+  font-size: .96rem;
+}
+
+.ifc-compare__section {
+  display: grid;
+  gap: 6px;
+}
+
+.ifc-compare__section h3 {
+  margin: 0 0 2px;
+  color: var(--text-muted);
+  font-size: .76rem;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.ifc-compare__row {
+  padding: 3px 0;
+}
+
+.ifc-compare__label {
+  display: flex;
+  align-items: center;
+  padding: 10px 4px 10px 0;
+  color: var(--text-muted);
+  font-weight: 650;
+}
+
+.ifc-compare__value {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  align-content: center;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface-soft);
+}
+
+.ifc-compare__value strong {
+  font-size: .98rem;
+  white-space: nowrap;
+}
+
+.ifc-compare__value small {
+  color: var(--text-muted);
+  font-size: .78rem;
+  line-height: 1.3;
+}
+
+.ifc-compare__value.is-better {
+  border-color: color-mix(in srgb, #278a57 42%, var(--border));
+  background: color-mix(in srgb, #56b87a 10%, var(--surface));
+}
+
+.ifc-compare__value.is-worse {
+  border-color: color-mix(in srgb, #b94b4b 42%, var(--border));
+  background: color-mix(in srgb, #db6969 9%, var(--surface));
+}
+
+.ifc-compare__value.is-better > strong {
+  color: #187044;
+}
+
+.ifc-compare__value.is-worse > strong {
+  color: #9b3030;
+}
+
+.ifc-compare__advantage {
+  width: fit-content;
+  margin-top: 4px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: #187044;
+  background: color-mix(in srgb, #56b87a 18%, var(--surface));
+  font-size: .75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.ifc-compare__row.is-summary .ifc-compare__label,
+.ifc-compare__row.is-result .ifc-compare__label {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.ifc-compare__row.is-summary .ifc-compare__value,
+.ifc-compare__row.is-result .ifc-compare__value {
+  border-width: 2px;
+}
+
+.ifc-compare__row.is-result .ifc-compare__value strong {
+  font-size: 1.08rem;
+}
+
+@media (max-width: 760px) {
+  .ifc-compare__header {
+    display: none;
+  }
+
+  .ifc-compare__row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .ifc-compare__label {
+    grid-column: 1 / -1;
+    padding: 6px 0 0;
+    color: var(--text);
+    font-weight: 750;
+  }
+
+  .ifc-compare__value::before {
+    color: var(--text-muted);
+    font-size: .72rem;
+    font-weight: 750;
+  }
+
+  .ifc-compare__value:nth-child(2)::before {
+    content: "Fondsversicherung";
+  }
+
+  .ifc-compare__value:nth-child(3)::before {
+    content: "Fondsdepot";
+  }
+}
