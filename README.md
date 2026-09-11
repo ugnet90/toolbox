@@ -4,12 +4,22 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.7.1
+- **Toolbox:** 0.7.2
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.7.2
+
+- ERGO-Kostenpresets aktualisiert: **ERGO fürs Investment** mit 5 % Abschlusskosten der Netto-Einmalprämie über fünf Jahre und 0,3 % p.a. Verwaltungskosten der Deckungsrückstellung; **ERGO fürs Leben – Einmalprämie** mit 5,5 % Abschlusskosten über fünf Jahre, 0,15 % p.a. der Netto-Einmalprämie plus 0,10 % p.a. des Vermögens.
+- Versicherungs-Verwaltungskosten fachlich in zwei Komponenten getrennt: Prozentsatz der Netto-Einmalprämie und Prozentsatz des laufenden Vermögens. Beide Komponenten werden im jährlichen Rechenlauf separat belastet und ausgewiesen.
+- Versicherungskosten werden gerätebezogen in `localStorage` gespeichert – getrennt je Versicherungsprodukt. Gespeichert werden Abschlusskostensatz, Verteilungsdauer, beide Verwaltungskostensätze und Risikokosten. Die Produktpresets bleiben die Ausgangswerte, solange keine eigenen Werte gespeichert wurden.
+- Geldbeträge in Eingaben und Vergleichsausgabe verwenden konsequent österreichische Tausenderpunkte und zwei Dezimalstellen.
+- Die bisher getrennten Kosten-/Steuerkarten wurden zu einer gemeinsamen Vergleichsübersicht zusammengeführt. Wirtschaftlich vergleichbare Positionen stehen jetzt zeilenweise direkt nebeneinander.
+- Bei vergleichbaren Positionen wird der jeweilige Euro-Vorteil unmittelbar auf der günstigeren Seite angezeigt; günstigere Werte werden grün, ungünstigere rot hervorgehoben. Nicht direkt vergleichbare Einzelpositionen bleiben neutral.
+- JSON-Schema des Vergleichstools auf v3 angehoben. Exporte aus Schema v1/v2 bleiben importierbar; der frühere einzelne Verwaltungskostensatz wird dabei als vermögensabhängige Verwaltungskomponente übernommen.
 
 ## Änderungen in 0.7.1
 
