@@ -4,12 +4,25 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.6.13
+- **Toolbox:** 0.7.0
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.7.0
+
+- Neues Finanz-Tool **„Fondsversicherung vs. Fondsdepot“** für den Vergleich eines Einmalerlags in eine fondsgebundene Lebensversicherung mit einer direkten Fondsveranlagung.
+- Gemeinsame Fondsannahmen: Einmalbetrag, Laufzeit, angenommene Fondsrendite vor Fondskosten und Fondskosten p.a.
+- Preset **„ERGO fürs Investment“** mit 30.000 € Mindest-Einmalprämie, 4 % Versicherungssteuer, 5 % Abschlusskosten der Nettoeinmalprämie verteilt auf fünf Jahre und 0,2 % Verwaltungskosten p.a.; Risikokosten bleiben vertragsabhängig editierbar.
+- Preset **„ERGO fürs Leben – Einmalprämie“** mit 5.000 € Mindest-Einmalprämie und 100-%-Fondsvergleich; individuelle Abschluss-, Verwaltungs- und Risikokosten müssen aus dem konkreten Antrag übernommen werden.
+- Direkte Fondsveranlagung berücksichtigt regulären Ausgabeaufschlag, Rabatt/Sonderkondition, prozentuelle und fixe Depotkosten sowie 27,5 % KESt.
+- Zwei Steuerverfahren für das Fondsdepot: vereinfachte Endbesteuerung oder erweiterte Modellrechnung mit jährlich steuerwirksamem Ertrag als OeKB-basierter Annahme.
+- Steuerliche Mindestanlagedauer der Lebensversicherung wird mit 15 Jahren bzw. 10 Jahren bei 50+-Voraussetzung berücksichtigt. Bei kürzerem Vergleichshorizont werden 7 % zusätzliche Versicherungssteuer und eine optional einzugebende Differenz-ESt modelliert.
+- Ergebnis mit Nettoendwerten, Netto-Effektivrenditen, Kosten-/Steueraufschlüsselung, Vorteil in Euro und Break-even-Jahr sowie grafischem Verlauf der hypothetischen Nettoauszahlungswerte.
+- JSON-Im-/Export und Zurücksetzen sind integriert. Die OeKB-Steuerdatenseite kann aus einer eingegebenen ISIN direkt geöffnet werden.
+- `data/tools.json` enthält nun auch die bereits vorhandenen Finanztools sowie das neue Vergleichstool, damit das Dashboard die vollständige aktive Tool-Liste erhält.
 
 ## Änderungen in 0.6.13
 
@@ -105,6 +118,18 @@ Worker-Endpunkt:
 - Versicherungssteuer 0 %, 4 % oder 11 %.
 - Annualisierter Netto-Effektivzins.
 - Vergleich mit österreichischer Spareinlage.
+
+### Fondsversicherung vs. Fondsdepot
+
+- Vergleich desselben Fonds in fondsgebundener Lebensversicherung und direktem Fondsdepot.
+- Einmalerlag, Laufzeit, Fondsrendite und Fondskosten.
+- ERGO-Presets sowie frei editierbare Versicherungsparameter.
+- Abschlusskosten können über mehrere Jahre verteilt werden.
+- Versicherungssteuer, Verwaltungskosten, Risikokosten und steuerliche Mindestanlagedauer.
+- Ausgabeaufschlag mit Rabatt/Sonderkondition, Depotkosten und Fondsbesteuerung für die Direktanlage.
+- Vereinfachter Steuervergleich oder erweiterte OeKB-basierte Steuerannahme.
+- Nettoendwerte, Effektivrenditen, Break-even-Jahr, Detailkosten und Verlaufsgrafik.
+- JSON-Im-/Export.
 
 ### Depotrendite & Vergleich
 
