@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "source": {
+    "name": "ERGO Fondsliste – ERGO fürs Leben / ERGO fürs Sparen / ERGO fürs Investment",
+    "url": "https://ergo-versicherung.at/fileadmin/user_upload/pdf/produktreports/DIE_FONDSPALETTE_ERGO_FUERS_LEBEN_SPAREN_INVESTMENT_GESAMT.pdf",
+    "source_updated_at": "2026-09-09",
+    "checked_at": "2026-09-11"
+  },
+  "issue_load_source": {
+    "name": "Union Investment – Besonderes Preis- und Leistungsverzeichnis",
+    "url": "https://www.union-investment.de/fonds_depot/uniondepot/besonderes-preis-leistungsverzeichnis",
+    "checked_at": "2026-09-11"
+  },
+  "performance_policy": {
+    "preferred": "standardized_total_return",
+    "preferred_source": "Fondsweb / Union Investment",
+    "fallback": "union_price_cagr",
+    "fallback_note": "Kursbasierte Näherung; Ausschüttungen sind darin nicht enthalten."
+  },
+  "funds": [
+    {
+      "name": "UniStrategie Ausgewogen",
+      "isin": "DE0005314116",
+      "aliases": ["UniStrategie: Ausgewogen"],
+      "issue_load_percent": 3.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    },
+    {
+      "name": "UniGlobal",
+      "isin": "DE0008491051",
+      "aliases": [],
+      "issue_load_percent": 5.0,
+      "issue_load_source": "Union Investment",
+      "performance": {
+        "kind": "bvi",
+        "source": "Fondsweb",
+        "source_url": "https://www.fondsweb.com/at/DE0008491051",
+        "stand": "2026-09-08",
+        "annualized": {"1": 17.96, "3": 14.89, "5": 9.98, "10": 11.91, "15": 12.60, "20": 9.30}
+      }
+    },
+    {
+      "name": "UniMarktführer",
+      "isin": "LU0103244595",
+      "aliases": ["UniMarktführer A"],
+      "issue_load_percent": 4.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    },
+    {
+      "name": "UniESG Aktien Global",
+      "isin": "DE000A0M80G4",
+      "aliases": [],
+      "issue_load_percent": 5.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    },
+    {
+      "name": "UniGlobal Dividende A",
+      "isin": "LU1570401114",
+      "aliases": ["UniGlobal Dividende"],
+      "issue_load_percent": 5.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    },
+    {
+      "name": "UniEuropa",
+      "isin": "LU0047060487",
+      "aliases": ["UniEuropa A"],
+      "issue_load_percent": 5.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    },
+    {
+      "name": "UniESG Aktien Europa",
+      "isin": "LU0090707612",
+      "aliases": [],
+      "issue_load_percent": 5.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    },
+    {
+      "name": "UniAsia",
+      "isin": "LU0037079034",
+      "aliases": [],
+      "issue_load_percent": 5.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    },
+    {
+      "name": "UniNordamerika",
+      "isin": "DE0009750075",
+      "aliases": [],
+      "issue_load_percent": 5.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    },
+    {
+      "name": "UniRak ESG",
+      "isin": "LU0718558488",
+      "aliases": ["UniRak ESG A"],
+      "issue_load_percent": 3.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    },
+    {
+      "name": "UniRak Konservativ ESG",
+      "isin": "LU1572731245",
+      "aliases": ["UniRak Konservativ ESG A", "UniRak Nachhaltig Konservativ A", "UniRak Nachhaltig Konservativ"],
+      "issue_load_percent": 2.0,
+      "issue_load_source": "Union Investment",
+      "performance": {
+        "kind": "bvi",
+        "source": "Fondsweb",
+        "source_url": "https://www.fondsweb.com/at/LU1572731245",
+        "stand": "2026-09-08",
+        "annualized": {"1": 2.92, "3": 4.83, "5": -0.77}
+      }
+    },
+    {
+      "name": "UniEuroRenta Corporates",
+      "isin": "LU0117072461",
+      "aliases": ["UniEuroRenta Corporates A"],
+      "issue_load_percent": 3.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    },
+    {
+      "name": "UniIndustrie 4.0",
+      "isin": "LU1772413420",
+      "aliases": ["UniIndustrie 4.0 A"],
+      "issue_load_percent": 4.0,
+      "issue_load_source": "Union Investment",
+      "performance": {
+        "kind": "bvi",
+        "source": "Fondsweb",
+        "source_url": "https://www.fondsweb.com/at/LU1772413420",
+        "stand": "2026-09-08",
+        "annualized": {"1": 19.84, "3": 17.16, "5": 7.80}
+      }
+    },
+    {
+      "name": "UniZukunft Klima",
+      "isin": "DE000A2QFXR5",
+      "aliases": ["UniZukunft Klima A"],
+      "issue_load_percent": 2.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    },
+    {
+      "name": "UniSector HighTech",
+      "isin": "LU0101441672",
+      "aliases": ["UniSector: HighTech", "UniSector: HighTech A", "UniSector HighTech A"],
+      "issue_load_percent": 4.0,
+      "issue_load_source": "Union Investment",
+      "performance": null
+    }
+  ],
+  "removed_funds": []
+}
