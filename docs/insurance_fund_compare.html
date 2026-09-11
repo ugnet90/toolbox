@@ -14,7 +14,7 @@
   <title>Toolbox – Fondsversicherung vs. Fondsdepot</title>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/insurance-fund-compare.css?v=0.7.5">
+  <link rel="stylesheet" href="css/insurance-fund-compare.css?v=0.7.6">
 </head>
 <body>
   <div data-site-header></div>
@@ -53,8 +53,17 @@
 
           <div class="field ifc-span-2">
             <label for="fundName">Union-Investment-Fonds <span class="ifc-optional">(optional)</span></label>
-            <input id="fundName" name="fundName" type="text" maxlength="120" list="ifcFundNameOptions" autocomplete="off" placeholder="z. B. UniGlobal">
+            <div class="ifc-fund-picker" data-fund-picker>
+              <div class="ifc-fund-picker__control">
+                <input id="fundName" name="fundName" type="text" maxlength="120" list="ifcFundNameOptions" autocomplete="off" placeholder="z. B. UniGlobal" aria-controls="ifcFundMenu" aria-expanded="false">
+                <button class="ifc-fund-picker__toggle" type="button" data-fund-menu-toggle aria-label="Fonds aus der ERGO-Palette auswählen" title="Fonds auswählen" disabled>
+                  <span aria-hidden="true">▾</span>
+                </button>
+              </div>
+              <div id="ifcFundMenu" class="ifc-fund-menu" data-fund-menu role="listbox" hidden></div>
+            </div>
             <datalist id="ifcFundNameOptions"></datalist>
+            <span class="field__hint">Fondsname eintippen oder über ▾ direkt aus der gesamten aktuellen ERGO-Palette auswählen.</span>
           </div>
           <div class="field">
             <label for="fundIsin">ISIN <span class="ifc-optional">(optional)</span></label>
@@ -261,6 +270,6 @@
 
   <footer class="site-footer">Toolbox</footer>
   <script type="module" src="js/navigation.js"></script>
-  <script type="module" src="js/insurance-fund-compare.js?v=0.7.5"></script>
+  <script type="module" src="js/insurance-fund-compare.js?v=0.7.6"></script>
 </body>
 </html>
