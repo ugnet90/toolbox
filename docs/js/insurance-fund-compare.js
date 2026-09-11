@@ -4,10 +4,11 @@ import {
   createInsuranceFundCompareData,
   normalizeInsuranceFundCompareData,
   suggestReturnScenarios
-} from "./insurance-fund-compare-utils.js?v=0.7.1";
+} from "./insurance-fund-compare-utils.js?v=0.7.2";
 
-const TOOLBOX_VERSION = "0.7.1";
+const TOOLBOX_VERSION = "0.7.2";
 const DEPOT_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:depot-costs:v1";
+const INSURANCE_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:insurance-costs:v1";
 
 const form = document.querySelector("[data-ifc-form]");
 const resultsHost = document.querySelector("[data-results]");
@@ -20,24 +21,30 @@ const PRODUCT_PRESETS = {
     tax: 4,
     entryCost: 5,
     entryYears: 5,
-    admin: 0.2,
-    hint: "Mindest-Einmalprämie 30.000 €. Abschlusskosten 5 % der Nettoeinmalprämie, gleichmäßig über fünf Jahre; Verwaltung 0,2 % p.a. der Deckungsrückstellung. Risikokosten laut Vertrag."
+    adminPremium: 0,
+    adminAsset: 0.3,
+    riskAnnual: 0,
+    hint: "Mindest-Einmalprämie 30.000,00 €. Abschlusskosten 5 % der Netto-Einmalprämie, gleichmäßig über fünf Jahre; laufende Verwaltung 0,3 % p.a. der Deckungsrückstellung. Risikokosten laut Vertrag."
   },
   ergo_life: {
     minimum: 5000,
     tax: 4,
-    entryCost: "",
+    entryCost: 5.5,
     entryYears: 5,
-    admin: "",
-    hint: "Mindest-Einmalprämie 5.000 €. Für den Vergleich 100 % Fondsveranlagung. Abschluss-, Verwaltungs- und Risikokosten bitte aus dem konkreten Versicherungsantrag übernehmen."
+    adminPremium: 0.15,
+    adminAsset: 0.10,
+    riskAnnual: 0,
+    hint: "Mindest-Einmalprämie 5.000,00 €. Abschlusskosten 5,5 % der Netto-Einmalprämie, gleichmäßig über fünf Jahre; Verwaltung 0,15 % p.a. der Netto-Einmalprämie plus 0,10 % p.a. des Vermögens. Risikokosten laut Vertrag."
   },
   custom: {
     minimum: 0,
     tax: 4,
     entryCost: "",
     entryYears: 5,
-    admin: "",
-    hint: "Alle Kosten und die Mindestprämie individuell erfassen."
+    adminPremium: "",
+    adminAsset: "",
+    riskAnnual: 0,
+    hint: "Alle Kosten und die Mindestprämie individuell erfassen. Gespeichert werden die Kostenwerte getrennt für dieses Produkt."
   }
 };
 
@@ -69,6 +76,7 @@ const FUND_PROFILES = [
 ];
 
 let returnAssumption = { mode: "manual", profile: null };
+let activeInsuranceProduct = "ergo_investment";
 
 function el(id) { return document.getElementById(id); }
 
@@ -88,15 +96,15 @@ function parseGermanNumber(value) {
 }
 
 function money(value) {
-  return new Intl.NumberFormat("de-AT", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0);
+  return new Intl.NumberFormat("de-AT", { style: "currency", currency: "EUR", useGrouping: true, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0);
 }
 
 function pct(value, digits = 2) {
-  return `${new Intl.NumberFormat("de-AT", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(Number(value) || 0)} %`;
+  return `${new Intl.NumberFormat("de-AT", { useGrouping: true, minimumFractionDigits: digits, maximumFractionDigits: digits }).format(Number(value) || 0)} %`;
 }
 
 function numberDe(value, digits = 2) {
-  return new Intl.NumberFormat("de-AT", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(Number(value) || 0);
+  return new Intl.NumberFormat("de-AT", { useGrouping: true, minimumFractionDigits: digits, maximumFractionDigits: digits }).format(Number(value) || 0);
 }
 
 function formatAmountInput(input) {
@@ -117,9 +125,11 @@ function numericValue(id, { allowBlank = false } = {}) {
 function collectInputs() {
   const product = el("insuranceProduct").value;
   const entryCost = numericValue("insuranceEntryCostPercent", { allowBlank: true });
-  const adminCost = numericValue("insuranceAdminPercent", { allowBlank: true });
+  const adminPremiumCost = numericValue("insuranceAdminPremiumPercent", { allowBlank: true });
+  const adminAssetCost = numericValue("insuranceAdminAssetPercent", { allowBlank: true });
   if (entryCost === null) throw new Error("Bitte die Abschlusskosten der gewählten Versicherung eintragen.");
-  if (adminCost === null) throw new Error("Bitte die jährlichen Verwaltungskosten der gewählten Versicherung eintragen.");
+  if (adminPremiumCost === null) throw new Error("Bitte die Verwaltungskosten auf die Netto-Einmalprämie eintragen.");
+  if (adminAssetCost === null) throw new Error("Bitte die Verwaltungskosten auf das Vermögen eintragen.");
 
   return {
     product,
@@ -135,7 +145,8 @@ function collectInputs() {
     insuranceMinimumAmount: numericValue("insuranceMinimumAmount"),
     insuranceEntryCostPercent: entryCost,
     insuranceEntryCostYears: numericValue("insuranceEntryCostYears"),
-    insuranceAdminPercent: adminCost,
+    insuranceAdminPremiumPercent: adminPremiumCost,
+    insuranceAdminAssetPercent: adminAssetCost,
     insuranceRiskAnnual: numericValue("insuranceRiskAnnual"),
     age50Plus: el("age50Plus").checked,
     personalTaxPercent: numericValue("personalTaxPercent"),
@@ -163,16 +174,58 @@ function setFormattedMinimum(value) {
   el("insuranceMinimumAmount").value = numberDe(value, 2);
 }
 
+function readInsuranceCostDefaults() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(INSURANCE_COST_STORAGE_KEY) || "null");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function insuranceCostValuesFromForm() {
+  const entryCost = Number(el("insuranceEntryCostPercent").value);
+  const entryYears = Number(el("insuranceEntryCostYears").value);
+  const adminPremium = Number(el("insuranceAdminPremiumPercent").value);
+  const adminAsset = Number(el("insuranceAdminAssetPercent").value);
+  const riskAnnual = parseGermanNumber(el("insuranceRiskAnnual").value);
+  if (![entryCost, entryYears, adminPremium, adminAsset, riskAnnual].every(Number.isFinite)) return null;
+  return { entryCost, entryYears, adminPremium, adminAsset, riskAnnual };
+}
+
+function saveInsuranceCostDefaults(product = el("insuranceProduct").value) {
+  try {
+    const values = insuranceCostValuesFromForm();
+    if (!values || !product) return;
+    const all = readInsuranceCostDefaults();
+    all[product] = values;
+    localStorage.setItem(INSURANCE_COST_STORAGE_KEY, JSON.stringify(all));
+  } catch { /* localStorage kann im Browser deaktiviert sein */ }
+}
+
+function applyInsuranceCostValues(values) {
+  el("insuranceEntryCostPercent").value = values.entryCost;
+  el("insuranceEntryCostYears").value = values.entryYears;
+  el("insuranceAdminPremiumPercent").value = values.adminPremium;
+  el("insuranceAdminAssetPercent").value = values.adminAsset;
+  el("insuranceRiskAnnual").value = numberDe(Number(values.riskAnnual) || 0, 2);
+}
+
 function updateProductPreset({ preserveManual = false } = {}) {
-  const preset = PRODUCT_PRESETS[el("insuranceProduct").value];
+  const product = el("insuranceProduct").value;
+  const preset = PRODUCT_PRESETS[product];
   if (!preset) return;
   if (!preserveManual) {
     setFormattedMinimum(preset.minimum);
     el("insuranceTaxPercent").value = preset.tax;
-    el("insuranceEntryCostPercent").value = preset.entryCost;
-    el("insuranceEntryCostYears").value = preset.entryYears;
-    el("insuranceAdminPercent").value = preset.admin;
-    el("insuranceRiskAnnual").value = "0,00";
+    const saved = readInsuranceCostDefaults()[product];
+    applyInsuranceCostValues(saved || {
+      entryCost: preset.entryCost,
+      entryYears: preset.entryYears,
+      adminPremium: preset.adminPremium,
+      adminAsset: preset.adminAsset,
+      riskAnnual: preset.riskAnnual
+    });
   }
   document.querySelector("[data-product-hint]").textContent = preset.hint;
   updateShortTermWarning();
@@ -289,16 +342,62 @@ function saveDepotCostDefaults() {
 }
 
 function comparisonClass(own, other, { higherIsBetter = false } = {}) {
-  if (Math.abs(own - other) < 0.005) return "is-neutral";
+  if (!Number.isFinite(own) || !Number.isFinite(other) || Math.abs(own - other) < 0.005) return "is-neutral";
   const ownBetter = higherIsBetter ? own > other : own < other;
   return ownBetter ? "is-better" : "is-worse";
 }
 
-function breakdownHtml(groups) {
-  return groups.map((group) => `
-    <section class="ifc-breakdown__section">
+function advantageHtml(own, other, { higherIsBetter = false, compare = true } = {}) {
+  if (!compare || !Number.isFinite(own) || !Number.isFinite(other) || Math.abs(own - other) < 0.005) return "";
+  const ownBetter = higherIsBetter ? own > other : own < other;
+  if (!ownBetter) return "";
+  return `<span class="ifc-compare__advantage">Vorteil + ${money(Math.abs(own - other))}</span>`;
+}
+
+function comparisonValueHtml(value, other, { higherIsBetter = false, compare = true, detail = "" } = {}) {
+  if (!Number.isFinite(value)) {
+    return `<div class="ifc-compare__value is-neutral"><strong>–</strong>${detail ? `<small>${detail}</small>` : ""}</div>`;
+  }
+  const className = compare ? comparisonClass(value, other, { higherIsBetter }) : "is-neutral";
+  return `<div class="ifc-compare__value ${className}"><strong>${money(value)}</strong>${detail ? `<small>${detail}</small>` : ""}${advantageHtml(value, other, { higherIsBetter, compare })}</div>`;
+}
+
+function comparisonRowHtml({ label, insurance, direct, higherIsBetter = false, compare = true, insuranceDetail = "", directDetail = "", summary = false, result = false }) {
+  return `<div class="ifc-compare__row${summary ? " is-summary" : ""}${result ? " is-result" : ""}">
+    <div class="ifc-compare__label">${label}</div>
+    ${comparisonValueHtml(insurance, direct, { higherIsBetter, compare, detail: insuranceDetail })}
+    ${comparisonValueHtml(direct, insurance, { higherIsBetter, compare, detail: directDetail })}
+  </div>`;
+}
+
+function renderComparisonBreakdown(result) {
+  const host = document.querySelector("[data-comparison-breakdown]");
+  const exitInsuranceTax = result.insurance.additionalInsuranceTax + result.insurance.incomeTax;
+  const groups = [
+    { title: "Start", rows: [
+      { label: "Kundenaufwand", insurance: result.inputs.amount, direct: result.inputs.amount, compare: false },
+      { label: "Zu Beginn veranlagt", insurance: result.insurance.initialNetPremium, direct: result.direct.initialInvestment, higherIsBetter: true, insuranceDetail: "Nettoeinmalprämie nach VSt", directDetail: "nach Ausgabeaufschlag" }
+    ]},
+    { title: "Kosten", rows: [
+      { label: "Einmalkosten", insurance: result.insurance.entryCostCharged, direct: result.direct.issueLoadCost, insuranceDetail: "Abschlusskosten", directDetail: "Ausgabeaufschlag" },
+      { label: "Laufende Kosten", insurance: result.insurance.adminCosts, direct: result.direct.depotCosts, insuranceDetail: `Verwaltung: Netto-Prämie ${money(result.insurance.adminPremiumCosts)} · Vermögen ${money(result.insurance.adminAssetCosts)}`, directDetail: "Depotkosten" },
+      { label: "Risikokosten", insurance: result.insurance.riskCosts, direct: NaN, compare: false, insuranceDetail: "Versicherung", directDetail: "keine entsprechende Position" },
+      { label: "Kosten gesamt", insurance: result.insurance.totalCosts, direct: result.direct.totalCosts, summary: true }
+    ]},
+    { title: "Steuern", rows: [
+      { label: "Während Start/Laufzeit", insurance: result.insurance.initialInsuranceTax, direct: result.direct.annualTaxes, compare: false, insuranceDetail: "Versicherungssteuer bei Einzahlung", directDetail: "unterjährige KESt (Modell)" },
+      { label: "Bei Ausstieg/Verkauf", insurance: exitInsuranceTax, direct: result.direct.saleTax, insuranceDetail: "zusätzliche VSt + Differenz-ESt", directDetail: "KESt bei Verkauf" },
+      { label: "Steuern gesamt", insurance: result.insurance.totalTaxes, direct: result.direct.totalTaxes, summary: true }
+    ]},
+    { title: "Ergebnis", rows: [
+      { label: "Nettoendwert", insurance: result.insurance.endValue, direct: result.direct.endValue, higherIsBetter: true, result: true }
+    ]}
+  ];
+
+  host.innerHTML = `<div class="ifc-compare__header"><span>Position</span><strong>Fondsversicherung</strong><strong>Fondsdepot</strong></div>` + groups.map((group) => `
+    <section class="ifc-compare__section">
       <h3>${group.title}</h3>
-      ${group.rows.map((row) => `<div class="ifc-breakdown__row ${row.className || ""}"><span>${row.label}</span><strong>${row.value}</strong></div>`).join("")}
+      ${group.rows.map(comparisonRowHtml).join("")}
     </section>`).join("");
 }
 
@@ -382,54 +481,7 @@ function renderResult(result) {
     ? `Fondsversicherung erstmals ab Jahr ${result.comparison.breakEvenYear} vorne${Number.isFinite(result.comparison.breakEvenYearApprox) ? ` · Schnittpunkt ca. Jahr ${numberDe(result.comparison.breakEvenYearApprox, 1)}` : ""}`
     : "Kein Break-even zugunsten der Fondsversicherung innerhalb der Laufzeit";
 
-  const costInsuranceClass = comparisonClass(result.insurance.totalCosts, result.direct.totalCosts);
-  const costDirectClass = comparisonClass(result.direct.totalCosts, result.insurance.totalCosts);
-  const taxInsuranceClass = comparisonClass(result.insurance.totalTaxes, result.direct.totalTaxes);
-  const taxDirectClass = comparisonClass(result.direct.totalTaxes, result.insurance.totalTaxes);
-  const endInsuranceClass = comparisonClass(result.insurance.endValue, result.direct.endValue, { higherIsBetter: true });
-  const endDirectClass = comparisonClass(result.direct.endValue, result.insurance.endValue, { higherIsBetter: true });
-
-  document.querySelector("[data-insurance-breakdown]").innerHTML = breakdownHtml([
-    { title: "Start", rows: [
-      { label: "Kundenaufwand", value: money(result.inputs.amount) },
-      { label: "Nettoeinmalprämie nach VSt", value: money(result.insurance.initialNetPremium) }
-    ]},
-    { title: "Kosten", rows: [
-      { label: "Abschlusskosten gesamt", value: money(result.insurance.entryCostCharged) },
-      { label: "Verwaltungskosten gesamt", value: money(result.insurance.adminCosts) },
-      { label: "Risikokosten gesamt", value: money(result.insurance.riskCosts) },
-      { label: "Kosten gesamt", value: money(result.insurance.totalCosts), className: `is-summary ${costInsuranceClass}` }
-    ]},
-    { title: "Steuern", rows: [
-      { label: "Versicherungssteuer bei Einzahlung", value: money(result.insurance.initialInsuranceTax) },
-      { label: "Zusätzliche VSt bei frühem Ausstieg", value: money(result.insurance.additionalInsuranceTax) },
-      { label: "Differenz-ESt bei frühem Ausstieg", value: money(result.insurance.incomeTax) },
-      { label: "Steuern gesamt", value: money(result.insurance.totalTaxes), className: `is-summary ${taxInsuranceClass}` }
-    ]},
-    { title: "Ergebnis", rows: [
-      { label: "Nettoendwert", value: money(result.insurance.endValue), className: `is-result ${endInsuranceClass}` }
-    ]}
-  ]);
-
-  document.querySelector("[data-direct-breakdown]").innerHTML = breakdownHtml([
-    { title: "Start", rows: [
-      { label: "Kundenaufwand", value: money(result.inputs.amount) },
-      { label: "Tatsächlich investiert", value: money(result.direct.initialInvestment) }
-    ]},
-    { title: "Kosten", rows: [
-      { label: "Ausgabeaufschlag", value: money(result.direct.issueLoadCost) },
-      { label: "Depotkosten gesamt", value: money(result.direct.depotCosts) },
-      { label: "Kosten gesamt", value: money(result.direct.totalCosts), className: `is-summary ${costDirectClass}` }
-    ]},
-    { title: "Steuern", rows: [
-      { label: "Unterjährige KESt (Modell)", value: money(result.direct.annualTaxes) },
-      { label: "KESt bei Verkauf", value: money(result.direct.saleTax) },
-      { label: "Steuern gesamt", value: money(result.direct.totalTaxes), className: `is-summary ${taxDirectClass}` }
-    ]},
-    { title: "Ergebnis", rows: [
-      { label: "Nettoendwert", value: money(result.direct.endValue), className: `is-result ${endDirectClass}` }
-    ]}
-  ]);
+  renderComparisonBreakdown(result);
 
   renderChart(result.history, result.comparison);
   resultsHost.hidden = false;
@@ -442,6 +494,7 @@ function calculate() {
     const inputs = collectInputs();
     const result = simulateInsuranceFundComparison(inputs);
     saveDepotCostDefaults();
+    saveInsuranceCostDefaults();
     renderResult(result);
     return { inputs, result };
   } catch (error) {
@@ -500,6 +553,7 @@ function applyInputs(inputs) {
     const node = el(key === "product" ? "insuranceProduct" : key);
     if (node && value !== undefined && value !== null) node.value = String(value);
   });
+  activeInsuranceProduct = el("insuranceProduct").value;
   updateProductPreset({ preserveManual: true });
   updateDirectTaxFields();
   updateEffectiveIssueLoad();
@@ -509,7 +563,11 @@ function applyInputs(inputs) {
 }
 
 form.addEventListener("submit", (event) => { event.preventDefault(); calculate(); });
-el("insuranceProduct").addEventListener("change", () => updateProductPreset());
+el("insuranceProduct").addEventListener("change", () => {
+  saveInsuranceCostDefaults(activeInsuranceProduct);
+  activeInsuranceProduct = el("insuranceProduct").value;
+  updateProductPreset();
+});
 el("directTaxMode").addEventListener("change", updateDirectTaxFields);
 el("age50Plus").addEventListener("change", updateShortTermWarning);
 el("years").addEventListener("input", updateShortTermWarning);
@@ -525,6 +583,11 @@ el("fundIsin").addEventListener("input", updateOekbLink);
 [el("depotFeePercent"), el("depotFeeAnnual")].forEach((input) => {
   input.addEventListener("change", saveDepotCostDefaults);
   input.addEventListener("blur", saveDepotCostDefaults);
+});
+
+[el("insuranceEntryCostPercent"), el("insuranceEntryCostYears"), el("insuranceAdminPremiumPercent"), el("insuranceAdminAssetPercent"), el("insuranceRiskAnnual")].forEach((input) => {
+  input.addEventListener("change", () => saveInsuranceCostDefaults());
+  input.addEventListener("blur", () => saveInsuranceCostDefaults());
 });
 
 el("fundName").addEventListener("input", () => {
@@ -609,6 +672,7 @@ form.querySelector("[data-reset]").addEventListener("click", () => {
   el("insuranceRiskAnnual").value = "0,00";
   el("depotFeeAnnual").value = "0,00";
   loadDepotCostDefaults();
+  activeInsuranceProduct = el("insuranceProduct").value;
   returnAssumption = { mode: "manual", profile: null };
   renderReturnSuggestion(null);
   updateProductPreset();
@@ -620,6 +684,7 @@ form.querySelector("[data-reset]").addEventListener("click", () => {
 });
 
 loadDepotCostDefaults();
+activeInsuranceProduct = el("insuranceProduct").value;
 updateProductPreset();
 updateDirectTaxFields();
 updateEffectiveIssueLoad();

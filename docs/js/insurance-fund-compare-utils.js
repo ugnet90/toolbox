@@ -1,5 +1,5 @@
 export const INSURANCE_FUND_COMPARE_FORMAT = "toolbox-insurance-fund-compare";
-export const INSURANCE_FUND_COMPARE_SCHEMA_VERSION = 2;
+export const INSURANCE_FUND_COMPARE_SCHEMA_VERSION = 3;
 
 const EPS = 1e-9;
 
@@ -50,7 +50,11 @@ function normalizeInputs(raw = {}) {
   const insuranceTaxPercent = finite(raw.insuranceTaxPercent, "Versicherungssteuer", { min: 0, max: 30 });
   const insuranceEntryCostPercent = finite(raw.insuranceEntryCostPercent, "Abschlusskosten", { min: 0, max: 50 });
   const insuranceEntryCostYears = finite(raw.insuranceEntryCostYears, "Verteilung der Abschlusskosten", { min: 1, max: 20, integer: true });
-  const insuranceAdminPercent = finite(raw.insuranceAdminPercent, "Versicherungs-Verwaltungskosten", { min: 0, max: 20 });
+  // v1/v2 verwendeten nur insuranceAdminPercent. Dieser Wert wird bei alten Daten
+  // als vermögensabhängige Verwaltungskomponente übernommen.
+  const legacyAdminPercent = raw.insuranceAdminPercent;
+  const insuranceAdminPremiumPercent = finite(raw.insuranceAdminPremiumPercent ?? 0, "Verwaltungskosten auf Netto-Einmalprämie", { min: 0, max: 20 });
+  const insuranceAdminAssetPercent = finite(raw.insuranceAdminAssetPercent ?? legacyAdminPercent ?? 0, "Verwaltungskosten auf Vermögen", { min: 0, max: 20 });
   const insuranceRiskAnnual = finite(raw.insuranceRiskAnnual ?? 0, "Risikokosten", { min: 0, max: 1_000_000 });
   const age50Plus = Boolean(raw.age50Plus);
   const personalTaxPercent = finite(raw.personalTaxPercent ?? 0, "Persönlicher Einkommensteuersatz", { min: 0, max: 60 });
@@ -78,7 +82,8 @@ function normalizeInputs(raw = {}) {
     insuranceTaxRate: insuranceTaxPercent / 100,
     insuranceEntryCostRate: insuranceEntryCostPercent / 100,
     insuranceEntryCostYears,
-    insuranceAdminRate: insuranceAdminPercent / 100,
+    insuranceAdminPremiumRate: insuranceAdminPremiumPercent / 100,
+    insuranceAdminAssetRate: insuranceAdminAssetPercent / 100,
     insuranceRiskAnnual,
     age50Plus,
     personalTaxRate: personalTaxPercent / 100,
@@ -144,6 +149,7 @@ export function simulateInsuranceFundComparison(rawInputs) {
   const initialInsuranceTax = n.amount - n.insuranceNetPremium;
   const totalEntryCost = n.insuranceNetPremium * n.insuranceEntryCostRate;
   const entryCostPerYear = totalEntryCost / n.insuranceEntryCostYears;
+  const adminPremiumCostPerYear = n.insuranceNetPremium * n.insuranceAdminPremiumRate;
 
   const directInitialInvestment = n.amount / (1 + effectiveLoadRate);
   const issueLoadCost = n.amount - directInitialInvestment;
@@ -152,7 +158,8 @@ export function simulateInsuranceFundComparison(rawInputs) {
   let directBalance = directInitialInvestment;
   let directTaxBasis = directInitialInvestment;
 
-  let insuranceAdminCosts = 0;
+  let insuranceAdminPremiumCosts = 0;
+  let insuranceAdminAssetCosts = 0;
   let insuranceRiskCosts = 0;
   let insuranceEntryCostsCharged = 0;
   let directDepotCosts = 0;
@@ -172,9 +179,13 @@ export function simulateInsuranceFundComparison(rawInputs) {
 
     insuranceBalance = applyFundYear(insuranceBalance, n.fundReturnRate);
 
-    const adminCost = Math.min(insuranceBalance * n.insuranceAdminRate, insuranceBalance);
-    insuranceBalance -= adminCost;
-    insuranceAdminCosts += adminCost;
+    const adminPremiumCost = Math.min(adminPremiumCostPerYear, insuranceBalance);
+    insuranceBalance -= adminPremiumCost;
+    insuranceAdminPremiumCosts += adminPremiumCost;
+
+    const adminAssetCost = Math.min(insuranceBalance * n.insuranceAdminAssetRate, insuranceBalance);
+    insuranceBalance -= adminAssetCost;
+    insuranceAdminAssetCosts += adminAssetCost;
 
     const directOpening = directBalance;
     directBalance = applyFundYear(directBalance, n.fundReturnRate);
@@ -214,6 +225,7 @@ export function simulateInsuranceFundComparison(rawInputs) {
   const finalDirect = directLiquidation(directBalance, directTaxBasis, directAnnualTaxes, n);
   const directEndValue = finalDirect.netValue;
   const breakEven = calculateBreakEven(history);
+  const insuranceAdminCosts = insuranceAdminPremiumCosts + insuranceAdminAssetCosts;
   const insuranceTotalCosts = insuranceEntryCostsCharged + insuranceAdminCosts + insuranceRiskCosts;
   const directTotalCosts = issueLoadCost + directDepotCosts;
 
@@ -230,6 +242,9 @@ export function simulateInsuranceFundComparison(rawInputs) {
       totalEntryCost,
       entryCostCharged: insuranceEntryCostsCharged,
       entryCostPerYear,
+      adminPremiumCostPerYear,
+      adminPremiumCosts: insuranceAdminPremiumCosts,
+      adminAssetCosts: insuranceAdminAssetCosts,
       adminCosts: insuranceAdminCosts,
       riskCosts: insuranceRiskCosts,
       totalCosts: insuranceTotalCosts,
@@ -271,6 +286,7 @@ export function createInsuranceFundCompareData({ inputs, toolboxVersion = "", ex
   simulateInsuranceFundComparison(inputs);
   const cleanedInputs = { ...inputs };
   delete cleanedInputs.fundCostPercent;
+  delete cleanedInputs.insuranceAdminPercent;
   return {
     format: INSURANCE_FUND_COMPARE_FORMAT,
     schema_version: INSURANCE_FUND_COMPARE_SCHEMA_VERSION,
@@ -283,12 +299,17 @@ export function createInsuranceFundCompareData({ inputs, toolboxVersion = "", ex
 export function normalizeInsuranceFundCompareData(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Die Datei enthält keine gültigen Vergleichsdaten.");
   const schema = Number(payload.schema_version);
-  if (payload.format !== INSURANCE_FUND_COMPARE_FORMAT || ![1, INSURANCE_FUND_COMPARE_SCHEMA_VERSION].includes(schema)) {
+  if (payload.format !== INSURANCE_FUND_COMPARE_FORMAT || ![1, 2, INSURANCE_FUND_COMPARE_SCHEMA_VERSION].includes(schema)) {
     throw new Error("Die Datei ist keine unterstützte Versicherungs-/Fondsvergleich-Datei.");
   }
   if (!payload.inputs || typeof payload.inputs !== "object" || Array.isArray(payload.inputs)) throw new Error("Die Importdatei enthält keine Eingabedaten.");
   const inputs = { ...payload.inputs };
   delete inputs.fundCostPercent;
+  if (inputs.insuranceAdminAssetPercent === undefined && inputs.insuranceAdminPercent !== undefined) {
+    inputs.insuranceAdminAssetPercent = inputs.insuranceAdminPercent;
+  }
+  if (inputs.insuranceAdminPremiumPercent === undefined) inputs.insuranceAdminPremiumPercent = 0;
+  delete inputs.insuranceAdminPercent;
   simulateInsuranceFundComparison(inputs);
   return { inputs };
 }
