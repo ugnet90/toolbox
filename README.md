@@ -4,12 +4,20 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.7.5
+- **Toolbox:** 0.7.6
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.7.6
+
+- Fondswechsel über das Dropdown verbessert: Das Fondsfeld bleibt weiterhin frei eintippbar, besitzt jetzt aber einen eigenen Auswahlpfeil. Dieser öffnet unabhängig vom aktuell eingetragenen Fonds immer die vollständige aktuelle ERGO-/Union-Fondspalette. Ein Fonds kann dadurch direkt gewechselt werden, ohne den bisherigen Namen zu löschen oder den Rechner zurückzusetzen.
+- Die bisherige Datalist bleibt für die Texteingabe erhalten; vollständige Fondsnamen bzw. ISINs werden weiterhin automatisch erkannt und ergänzen Name, ISIN, Ausgabeaufschlag und historischen Renditevorschlag.
+- Die Veröffentlichung von Projektdaten wurde zentralisiert: `tools/sync_public_data.py` synchronisiert nun sowohl `data/tools.json` nach `docs/data/tools.json` als auch `data/ergo_union_funds.json` nach `docs/data/ergo_union_funds.json`. Mit `--check` wird die Byte-Gleichheit geprüft.
+- `tools/update_ergo_fund_palette.py` schreibt nur noch die kanonische Fondsdatei unter `data/`. Der manuelle Workflow ruft anschließend die zentrale Datensynchronisierung auf und prüft die Übereinstimmung, bevor kanonische Datei und Pages-Spiegel gemeinsam committed werden.
+- Der GitHub-Pages-Workflow verwendet weiterhin dieselbe zentrale Synchronisierung vor dem Build. Damit existiert keine zweite unabhängig gepflegte ERGO-Fondsdatei mehr.
 
 ## Änderungen in 0.7.5
 
@@ -348,7 +356,8 @@ toolbox/
 ├─ .github/
 │  └─ workflows/
 ├─ data/
-│  └─ tools.json
+│  ├─ tools.json
+│  └─ ergo_union_funds.json
 ├─ docs/
 │  ├─ assets/
 │  ├─ css/
@@ -382,9 +391,9 @@ Webseiten werden bewusst nicht unter `tools/` abgelegt.
 
 Die Navigation wird zentral über `SITE_MAP` und `SITE_NAV` in `docs/js/site-map.js` gepflegt.
 
-`data/tools.json` ist die kanonische Tool-Liste. `docs/data/tools.json` ist nur die veröffentlichte Build-Kopie und wird im Workflow synchronisiert.
+`data/tools.json` ist die kanonische Tool-Liste. `data/ergo_union_funds.json` ist die kanonische ERGO-/Union-Fondspalette. Die entsprechenden Dateien unter `docs/data/` sind ausschließlich öffentliche Spiegel und werden zentral mit `tools/sync_public_data.py` erzeugt.
 
-Der GitHub-Pages-Workflow synchronisiert die öffentlichen Daten, validiert die Projektstruktur, führt die Tests aus und veröffentlicht anschließend `docs/`.
+Der GitHub-Pages-Workflow synchronisiert die öffentlichen Daten, validiert die Projektstruktur, führt die Tests aus und veröffentlicht anschließend `docs/`. Der manuelle Workflow **Update ERGO fund palette** verwendet dieselbe Synchronisierung und prüft anschließend mit `--check`, dass kanonische Datei und Pages-Spiegel byte-identisch sind.
 
 ## Versionierung
 
