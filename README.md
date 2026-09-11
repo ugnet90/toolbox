@@ -4,12 +4,25 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.7.3
+- **Toolbox:** 0.7.4
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.7.4
+
+- Die Fondsreferenz des Rechners wird aus einer eigenen ERGO-/Union-Fondspalette geladen. Der ausgelieferte Stand enthält die aktuell in der gemeinsamen ERGO-Fondsliste für „ERGO fürs Leben / ERGO fürs Sparen / ERGO fürs Investment“ enthaltenen Union-Investment-Fonds mit Name und ISIN.
+- Neue manuelle GitHub Action **„Update ERGO fund palette“** ergänzt. Sie besitzt ausschließlich `workflow_dispatch` und keinen Zeitplan: Die aktuelle ERGO-Fondsliste wird nur auf ausdrücklichen manuellen Start geprüft.
+- Der Aktualisierungsworkflow übernimmt neu hinzugekommene Union-Fonds automatisch und archiviert nicht mehr enthaltene Fonds automatisch in `removed_funds`. Kanonische und öffentliche Fondsdatei werden gemeinsam aktualisiert.
+- Beim Öffnen des Rechners wird nur der lokale Datenstand der gespeicherten Fondspalette geprüft. Ist `checked_at` älter als 60 Tage, erscheint ein Hinweis auf die manuelle GitHub-Action; beim Seitenaufruf erfolgt keine externe Aktualisierung.
+- Fondsname und ISIN sind über die gesamte gespeicherte ERGO-/Union-Palette miteinander verknüpft. Nach eindeutiger Erkennung werden Name, ISIN und regulärer Ausgabeaufschlag automatisch vorbelegt.
+- Reguläre Ausgabeaufschläge werden beim Fondslisten-Update bevorzugt aus dem offiziellen Union-Investment-Preis-/Leistungsverzeichnis übernommen. Fondsweb wird nur als Fallback verwendet.
+- Historische Renditevorschläge verwenden – soweit gespeichert bzw. abrufbar – standardisierte annualisierte Performancewerte. Für die gewählte Vergleichslaufzeit wird der längste verfügbare Standardzeitraum verwendet, der die Laufzeit nicht überschreitet; bei kürzerer Laufzeit der kürzeste verfügbare Zeitraum.
+- Fondsweb wird beim manuellen Update bestmöglich als Quelle für standardisierte Performancewerte genutzt. Kann keine standardisierte Performance geliefert werden, ermittelt der Rechner für Union-Fonds eine kursbasierte historische Näherung über die bestehende Union-Kursquelle; diese wird ausdrücklich als Kurs-CAGR ohne Ausschüttungen gekennzeichnet.
+- Der historische Vorschlag bleibt weiterhin zusammen mit zwei niedrigeren und zwei höheren Renditeszenarien auswählbar. Quellenangabe und Datenstand werden nur beim historischen Wert angezeigt und bei manueller bzw. Szenario-Auswahl entfernt.
+- Nach jeder relevanten Eingabe- oder Auswahländerung wird ein bereits berechnetes Ergebnis sofort ausgeblendet, auch bei `change`-Ereignissen wie dem Wechsel des Versicherungsprodukts.
 
 ## Änderungen in 0.7.3
 
