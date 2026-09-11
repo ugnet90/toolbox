@@ -14,7 +14,7 @@
   <title>Toolbox – Fondsversicherung vs. Fondsdepot</title>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/insurance-fund-compare.css?v=0.7.4">
+  <link rel="stylesheet" href="css/insurance-fund-compare.css?v=0.7.5">
 </head>
 <body>
   <div data-site-header></div>
@@ -92,6 +92,7 @@
               <div class="field">
                 <label for="insuranceTaxPercent">Versicherungssteuer</label>
                 <div class="ifc-input-suffix"><input id="insuranceTaxPercent" name="insuranceTaxPercent" type="number" min="0" max="30" step="0.01" value="4"><span>%</span></div>
+                <span class="field__hint" data-insurance-tax-hint>Für ERGO-Produkte wird der Satz aus Laufzeit und 50+-Voraussetzung automatisch bestimmt.</span>
               </div>
               <div class="field">
                 <label for="insuranceMinimumAmount">Mindest-Einmalprämie</label>
@@ -248,7 +249,7 @@
 
       <section class="ifc-method-note">
         <strong>Berechnungshinweis</strong>
-        <p>Die Berechnung ist eine Projektion mit jährlichen Rechenschritten. Die eingegebene Fondsrendite versteht sich bereits nach den auf Fondsebene anfallenden Kosten. Tatsächliche Wertentwicklung, steuerliche Meldedaten und Versicherungskosten können abweichen. Die hinterlegten ERGO-Abschlusskosten werden gleichmäßig über fünf Jahre verteilt. Verwaltungskosten können getrennt als Prozentsatz der Netto-Einmalprämie und des laufenden Vermögens modelliert werden. Persönlich angepasste Versicherungskosten werden getrennt je Versicherungsprodukt gespeichert. Depotkosten und Sonderkondition/Rabatt werden ebenfalls lokal auf dem Gerät gespeichert.</p>
+        <p>Die Berechnung ist eine Projektion mit jährlichen Rechenschritten. Die eingegebene Fondsrendite versteht sich bereits nach den auf Fondsebene anfallenden Kosten. Tatsächliche Wertentwicklung, steuerliche Meldedaten und Versicherungskosten können abweichen. Die hinterlegten ERGO-Abschlusskosten werden gleichmäßig über fünf Jahre verteilt. Verwaltungskosten können getrennt als Prozentsatz der Netto-Einmalprämie und des laufenden Vermögens modelliert werden. Persönlich angepasste Versicherungskosten werden getrennt je Versicherungsprodukt gespeichert. Bei den beiden ERGO-Produkten wird die Versicherungssteuer aus Laufzeit und 50+-Voraussetzung automatisch mit 4 % bzw. 11 % gesetzt. Depotkosten und Sonderkondition/Rabatt werden ebenfalls lokal auf dem Gerät gespeichert.</p>
       </section>
     </section>
 
@@ -260,6 +261,6 @@
 
   <footer class="site-footer">Toolbox</footer>
   <script type="module" src="js/navigation.js"></script>
-  <script type="module" src="js/insurance-fund-compare.js?v=0.7.4"></script>
+  <script type="module" src="js/insurance-fund-compare.js?v=0.7.5"></script>
 </body>
 </html>
