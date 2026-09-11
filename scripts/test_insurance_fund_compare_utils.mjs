@@ -28,7 +28,7 @@ function base(overrides = {}) {
     personalTaxPercent: 0,
     insuranceMinimumAmount: 30000,
     issueLoadPercent: 3,
-    issueLoadDiscountPercent: 100,
+    issueLoadDiscountPercent: 0,
     depotFeePercent: 0.2,
     depotFeeAnnual: 0,
     capitalGainsTaxPercent: 27.5,
@@ -116,7 +116,7 @@ assert.equal(effectiveIssueLoadPercent(3, 50), 1.5);
 
 {
   const inputs = base({ product: "ergo_investment", fundName: "Testfonds", fundIsin: "DE0008491051" });
-  const payload = createInsuranceFundCompareData({ inputs, toolboxVersion: "0.7.2", exportedAt: "2026-09-11T00:00:00Z" });
+  const payload = createInsuranceFundCompareData({ inputs, toolboxVersion: "0.7.3", exportedAt: "2026-09-11T00:00:00Z" });
   const normalized = normalizeInsuranceFundCompareData(payload);
   assert.equal(payload.schema_version, 3);
   assert.equal(normalized.inputs.product, "ergo_investment");
