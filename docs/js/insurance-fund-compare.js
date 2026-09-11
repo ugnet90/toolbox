@@ -4,11 +4,13 @@ import {
   createInsuranceFundCompareData,
   normalizeInsuranceFundCompareData,
   suggestReturnScenarios
-} from "./insurance-fund-compare-utils.js?v=0.7.2";
+} from "./insurance-fund-compare-utils.js?v=0.7.3";
 
-const TOOLBOX_VERSION = "0.7.2";
-const DEPOT_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:depot-costs:v1";
-const INSURANCE_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:insurance-costs:v1";
+const TOOLBOX_VERSION = "0.7.3";
+const DEPOT_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:depot-costs:v2";
+const LEGACY_DEPOT_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:depot-costs:v1";
+const INSURANCE_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:insurance-costs:v2";
+const LEGACY_INSURANCE_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:insurance-costs:v1";
 
 const form = document.querySelector("[data-ifc-form]");
 const resultsHost = document.querySelector("[data-results]");
@@ -47,6 +49,29 @@ const PRODUCT_PRESETS = {
     hint: "Alle Kosten und die Mindestprämie individuell erfassen. Gespeichert werden die Kostenwerte getrennt für dieses Produkt."
   }
 };
+
+function ensureInsuranceAdminFieldsCompatibility() {
+  if (el("insuranceAdminPremiumPercent") && el("insuranceAdminAssetPercent")) return;
+  const legacy = el("insuranceAdminPercent");
+  if (!legacy) return;
+  const legacyField = legacy.closest(".field");
+  const grid = legacyField?.parentElement;
+  if (!legacyField || !grid) return;
+  const product = el("insuranceProduct")?.value || "ergo_investment";
+  const preset = PRODUCT_PRESETS[product] || PRODUCT_PRESETS.custom;
+  const legacyValue = Number(legacy.value);
+  const premiumValue = Number.isFinite(Number(preset.adminPremium)) ? preset.adminPremium : 0;
+  const assetValue = Number.isFinite(Number(preset.adminAsset)) ? preset.adminAsset : (Number.isFinite(legacyValue) ? legacyValue : 0);
+  const premiumField = document.createElement("div");
+  premiumField.className = "field";
+  premiumField.innerHTML = `<label for="insuranceAdminPremiumPercent">Verwaltung auf Netto-Einmalprämie <span class="ifc-saved-badge">wird gespeichert</span></label><div class="ifc-input-suffix"><input id="insuranceAdminPremiumPercent" name="insuranceAdminPremiumPercent" type="number" min="0" max="20" step="0.01" value="${premiumValue}"><span>% p.a.</span></div>`;
+  const assetField = document.createElement("div");
+  assetField.className = "field";
+  assetField.innerHTML = `<label for="insuranceAdminAssetPercent">Verwaltung auf Vermögen <span class="ifc-saved-badge">wird gespeichert</span></label><div class="ifc-input-suffix"><input id="insuranceAdminAssetPercent" name="insuranceAdminAssetPercent" type="number" min="0" max="20" step="0.01" value="${assetValue}"><span>% p.a.</span></div>`;
+  legacyField.replaceWith(premiumField, assetField);
+}
+
+ensureInsuranceAdminFieldsCompatibility();
 
 // Kuratierte Fondsreferenzen für die automatische Vorbelegung. Die Rendite ist eine
 // historische BVI-Wertentwicklung und bereits NACH Fondskosten. Sie ist keine Prognose.
@@ -176,8 +201,15 @@ function setFormattedMinimum(value) {
 
 function readInsuranceCostDefaults() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(INSURANCE_COST_STORAGE_KEY) || "null");
-    return parsed && typeof parsed === "object" ? parsed : {};
+    const raw = localStorage.getItem(INSURANCE_COST_STORAGE_KEY) || localStorage.getItem(LEGACY_INSURANCE_COST_STORAGE_KEY) || "null";
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const result = {};
+    for (const product of Object.keys(PRODUCT_PRESETS)) {
+      const values = parsed[product];
+      if (values && typeof values === "object" && !Array.isArray(values)) result[product] = values;
+    }
+    return result;
   } catch {
     return {};
   }
@@ -203,12 +235,13 @@ function saveInsuranceCostDefaults(product = el("insuranceProduct").value) {
   } catch { /* localStorage kann im Browser deaktiviert sein */ }
 }
 
-function applyInsuranceCostValues(values) {
-  el("insuranceEntryCostPercent").value = values.entryCost;
-  el("insuranceEntryCostYears").value = values.entryYears;
-  el("insuranceAdminPremiumPercent").value = values.adminPremium;
-  el("insuranceAdminAssetPercent").value = values.adminAsset;
-  el("insuranceRiskAnnual").value = numberDe(Number(values.riskAnnual) || 0, 2);
+function applyInsuranceCostValues(values, preset = null) {
+  const fallback = preset || {};
+  el("insuranceEntryCostPercent").value = values?.entryCost ?? fallback.entryCost ?? "";
+  el("insuranceEntryCostYears").value = values?.entryYears ?? fallback.entryYears ?? 5;
+  el("insuranceAdminPremiumPercent").value = values?.adminPremium ?? fallback.adminPremium ?? 0;
+  el("insuranceAdminAssetPercent").value = values?.adminAsset ?? fallback.adminAsset ?? 0;
+  el("insuranceRiskAnnual").value = numberDe(Number(values?.riskAnnual ?? fallback.riskAnnual ?? 0) || 0, 2);
 }
 
 function updateProductPreset({ preserveManual = false } = {}) {
@@ -219,13 +252,7 @@ function updateProductPreset({ preserveManual = false } = {}) {
     setFormattedMinimum(preset.minimum);
     el("insuranceTaxPercent").value = preset.tax;
     const saved = readInsuranceCostDefaults()[product];
-    applyInsuranceCostValues(saved || {
-      entryCost: preset.entryCost,
-      entryYears: preset.entryYears,
-      adminPremium: preset.adminPremium,
-      adminAsset: preset.adminAsset,
-      riskAnnual: preset.riskAnnual
-    });
+    applyInsuranceCostValues(saved, preset);
   }
   document.querySelector("[data-product-hint]").textContent = preset.hint;
   updateShortTermWarning();
@@ -325,19 +352,27 @@ function applyFundProfile({ forceHistorical = true } = {}) {
 
 function loadDepotCostDefaults() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(DEPOT_COST_STORAGE_KEY) || "null");
-    if (!parsed || typeof parsed !== "object") return;
-    if (Number.isFinite(Number(parsed.percent))) el("depotFeePercent").value = String(parsed.percent);
-    if (Number.isFinite(Number(parsed.annual))) el("depotFeeAnnual").value = numberDe(Number(parsed.annual), 2);
-  } catch { /* lokale Voreinstellung ist optional */ }
+    const raw = localStorage.getItem(DEPOT_COST_STORAGE_KEY) || localStorage.getItem(LEGACY_DEPOT_COST_STORAGE_KEY) || "null";
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      if (Number.isFinite(Number(parsed.percent))) el("depotFeePercent").value = String(parsed.percent);
+      if (Number.isFinite(Number(parsed.annual))) el("depotFeeAnnual").value = numberDe(Number(parsed.annual), 2);
+      el("issueLoadDiscountPercent").value = Number.isFinite(Number(parsed.discount)) ? String(parsed.discount) : "0";
+      return;
+    }
+    el("issueLoadDiscountPercent").value = "0";
+  } catch {
+    el("issueLoadDiscountPercent").value = "0";
+  }
 }
 
 function saveDepotCostDefaults() {
   try {
     const percent = Number(el("depotFeePercent").value);
     const annual = parseGermanNumber(el("depotFeeAnnual").value);
-    if (!Number.isFinite(percent) || !Number.isFinite(annual)) return;
-    localStorage.setItem(DEPOT_COST_STORAGE_KEY, JSON.stringify({ percent, annual }));
+    const discount = Number(el("issueLoadDiscountPercent").value);
+    if (![percent, annual, discount].every(Number.isFinite)) return;
+    localStorage.setItem(DEPOT_COST_STORAGE_KEY, JSON.stringify({ percent, annual, discount }));
   } catch { /* localStorage kann im Browser deaktiviert sein */ }
 }
 
@@ -580,7 +615,7 @@ el("fundIsin").addEventListener("input", updateOekbLink);
   input.addEventListener("blur", () => formatAmountInput(input));
 });
 
-[el("depotFeePercent"), el("depotFeeAnnual")].forEach((input) => {
+[el("depotFeePercent"), el("depotFeeAnnual"), el("issueLoadDiscountPercent")].forEach((input) => {
   input.addEventListener("change", saveDepotCostDefaults);
   input.addEventListener("blur", saveDepotCostDefaults);
 });
@@ -590,30 +625,38 @@ el("fundIsin").addEventListener("input", updateOekbLink);
   input.addEventListener("blur", () => saveInsuranceCostDefaults());
 });
 
-el("fundName").addEventListener("input", () => {
-  const profile = returnAssumption.profile;
-  if (!profile) return;
-  const name = normalizeFundName(el("fundName").value);
-  const stillMatches = profile.aliases.includes(name) || normalizeFundName(profile.name) === name;
-  if (!stillMatches) {
-    if (el("fundIsin").value.trim().toUpperCase() === profile.isin) el("fundIsin").value = "";
-    returnAssumption = { mode: "manual", profile: null };
-    renderReturnSuggestion(null);
-    updateOekbLink();
+function handleFundReferenceInput(changedField) {
+  const matched = matchFundProfile();
+  if (matched) {
+    applyFundProfile({ forceHistorical: true });
+    return;
   }
-});
 
-el("fundIsin").addEventListener("input", () => {
   const profile = returnAssumption.profile;
-  if (!profile) return;
-  const isin = el("fundIsin").value.trim().toUpperCase();
-  if (isin && isin !== profile.isin) {
-    const name = normalizeFundName(el("fundName").value);
-    if (profile.aliases.includes(name) || normalizeFundName(profile.name) === name) el("fundName").value = "";
+  if (!profile) {
     returnAssumption = { mode: "manual", profile: null };
     renderReturnSuggestion(null);
+    return;
   }
-});
+
+  if (changedField === "name") {
+    const name = normalizeFundName(el("fundName").value);
+    const stillMatches = profile.aliases.includes(name) || normalizeFundName(profile.name) === name;
+    if (!stillMatches && el("fundIsin").value.trim().toUpperCase() === profile.isin) el("fundIsin").value = "";
+  } else {
+    const isin = el("fundIsin").value.trim().toUpperCase();
+    if (isin && isin !== profile.isin) {
+      const name = normalizeFundName(el("fundName").value);
+      if (profile.aliases.includes(name) || normalizeFundName(profile.name) === name) el("fundName").value = "";
+    }
+  }
+  returnAssumption = { mode: "manual", profile: null };
+  renderReturnSuggestion(null);
+  updateOekbLink();
+}
+
+el("fundName").addEventListener("input", () => handleFundReferenceInput("name"));
+el("fundIsin").addEventListener("input", () => handleFundReferenceInput("isin"));
 
 [el("fundName"), el("fundIsin")].forEach((input) => {
   input.addEventListener("change", () => applyFundProfile({ forceHistorical: true }));
@@ -670,7 +713,6 @@ form.querySelector("[data-reset]").addEventListener("click", () => {
   form.reset();
   el("amount").value = "100.000,00";
   el("insuranceRiskAnnual").value = "0,00";
-  el("depotFeeAnnual").value = "0,00";
   loadDepotCostDefaults();
   activeInsuranceProduct = el("insuranceProduct").value;
   returnAssumption = { mode: "manual", profile: null };
@@ -689,4 +731,4 @@ updateProductPreset();
 updateDirectTaxFields();
 updateEffectiveIssueLoad();
 updateOekbLink();
-renderReturnSuggestion(null);
+applyFundProfile({ forceHistorical: true });
