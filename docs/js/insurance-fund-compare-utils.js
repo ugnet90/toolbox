@@ -41,6 +41,11 @@ function qualifyingMinimumYears(age50Plus) {
   return age50Plus ? 10 : 15;
 }
 
+export function insuranceTaxPercentForTerm(years, age50Plus) {
+  const term = finite(years, "Laufzeit", { min: 1, max: 60, integer: true });
+  return term < qualifyingMinimumYears(Boolean(age50Plus)) ? 11 : 4;
+}
+
 function normalizeInputs(raw = {}) {
   const amount = finite(raw.amount, "Anlagebetrag", { min: 0.01 });
   const years = finite(raw.years, "Laufzeit", { min: 1, max: 60, integer: true });

@@ -3,10 +3,11 @@ import {
   simulateInsuranceFundComparison,
   createInsuranceFundCompareData,
   normalizeInsuranceFundCompareData,
-  suggestReturnScenarios
-} from "./insurance-fund-compare-utils.js?v=0.7.4";
+  suggestReturnScenarios,
+  insuranceTaxPercentForTerm
+} from "./insurance-fund-compare-utils.js?v=0.7.5";
 
-const TOOLBOX_VERSION = "0.7.4";
+const TOOLBOX_VERSION = "0.7.5";
 const DEPOT_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:depot-costs:v2";
 const LEGACY_DEPOT_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:depot-costs:v1";
 const INSURANCE_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:insurance-costs:v2";
@@ -179,6 +180,21 @@ function setError(message = "") {
   errorHost.textContent = message;
 }
 
+function invalidateResults({ clearError = true } = {}) {
+  resultsHost.hidden = true;
+  resultsHost.setAttribute("hidden", "");
+  document.querySelector("[data-insurance-end]").textContent = "–";
+  document.querySelector("[data-insurance-return]").textContent = "–";
+  document.querySelector("[data-direct-end]").textContent = "–";
+  document.querySelector("[data-direct-return]").textContent = "–";
+  document.querySelector("[data-difference-label]").textContent = "Unterschied";
+  document.querySelector("[data-difference]").textContent = "–";
+  document.querySelector("[data-break-even]").textContent = "–";
+  document.querySelector("[data-chart]").replaceChildren();
+  document.querySelector("[data-comparison-breakdown]").replaceChildren();
+  if (clearError) setError();
+}
+
 function setFormattedMinimum(value) {
   el("insuranceMinimumAmount").value = numberDe(value, 2);
 }
@@ -228,6 +244,42 @@ function applyInsuranceCostValues(values, preset = null) {
   el("insuranceRiskAnnual").value = numberDe(Number(values?.riskAnnual ?? fallback.riskAnnual ?? 0) || 0, 2);
 }
 
+function usesAutomaticErgoInsuranceTax(product = el("insuranceProduct").value) {
+  return product === "ergo_investment" || product === "ergo_life";
+}
+
+function requiredInsuranceTaxPercent() {
+  const years = Number(el("years").value);
+  if (!Number.isFinite(years) || !Number.isInteger(years) || years < 1 || years > 60) return null;
+  return insuranceTaxPercentForTerm(years, el("age50Plus").checked);
+}
+
+function updateInsuranceTaxForTerm() {
+  const product = el("insuranceProduct").value;
+  const input = el("insuranceTaxPercent");
+  const hint = document.querySelector("[data-insurance-tax-hint]");
+
+  if (!usesAutomaticErgoInsuranceTax(product)) {
+    input.readOnly = false;
+    input.removeAttribute("aria-readonly");
+    if (hint) hint.textContent = "Bei individuellen Produkten den tatsächlich geltenden Versicherungssteuersatz eintragen.";
+    updateShortTermWarning();
+    return;
+  }
+
+  const tax = requiredInsuranceTaxPercent();
+  const minimumYears = el("age50Plus").checked ? 10 : 15;
+  input.readOnly = true;
+  input.setAttribute("aria-readonly", "true");
+  if (Number.isFinite(tax)) input.value = String(tax);
+  if (hint) {
+    hint.textContent = tax === 11
+      ? `Automatisch 11 %: Die gewählte Laufzeit unterschreitet die erforderlichen ${minimumYears} Jahre.`
+      : `Automatisch 4 %: Die erforderliche Mindestlaufzeit von ${minimumYears} Jahren ist erfüllt.`;
+  }
+  updateShortTermWarning();
+}
+
 function updateProductPreset({ preserveManual = false } = {}) {
   const product = el("insuranceProduct").value;
   const preset = PRODUCT_PRESETS[product];
@@ -239,7 +291,7 @@ function updateProductPreset({ preserveManual = false } = {}) {
     applyInsuranceCostValues(saved, preset);
   }
   document.querySelector("[data-product-hint]").textContent = preset.hint;
-  updateShortTermWarning();
+  updateInsuranceTaxForTerm();
 }
 
 function updateShortTermWarning() {
@@ -247,7 +299,7 @@ function updateShortTermWarning() {
   const minYears = el("age50Plus").checked ? 10 : 15;
   const warning = document.querySelector("[data-short-term-warning]");
   const text = document.querySelector("[data-short-term-text]");
-  const show = Number.isFinite(years) && years < minYears && Number(el("insuranceTaxPercent").value) < 11;
+  const show = !usesAutomaticErgoInsuranceTax() && Number.isFinite(years) && years < minYears && Number(el("insuranceTaxPercent").value) < 11;
   warning.hidden = !show;
   if (show) text.textContent = `Bei einer Auszahlung nach ${years} Jahr(en) liegt die Modelllaufzeit unter ${minYears} Jahren. Der Rechner berücksichtigt deshalb 7 % zusätzliche Versicherungssteuer; eine mögliche Differenz-ESt wird mit dem unten eingegebenen persönlichen Steuersatz modelliert.`;
 }
@@ -366,21 +418,21 @@ async function loadFundPalette() {
   }
 }
 
-function findFundByName(name) {
+function findFundByName(name, { allowPrefix = true } = {}) {
   const normalized = normalizeFundName(name);
   if (!normalized) return null;
   const exact = fundProfiles.find((profile) => profile.searchNames.includes(normalized));
-  if (exact) return exact;
+  if (exact || !allowPrefix) return exact || null;
   if (normalized.length < 4) return null;
   const candidates = fundProfiles.filter((profile) => profile.searchNames.some((candidate) => candidate.startsWith(normalized)));
   return candidates.length === 1 ? candidates[0] : null;
 }
 
-function findFundByIsin(isin) {
+function findFundByIsin(isin, { allowPrefix = true } = {}) {
   const normalized = String(isin || "").trim().toUpperCase();
   if (!normalized) return null;
   const exact = fundProfiles.find((profile) => profile.isin === normalized);
-  if (exact) return exact;
+  if (exact || !allowPrefix) return exact || null;
   if (normalized.length < 4) return null;
   const candidates = fundProfiles.filter((profile) => profile.isin.startsWith(normalized));
   return candidates.length === 1 ? candidates[0] : null;
@@ -392,6 +444,14 @@ function matchFundProfile(preferredField = "") {
   if (preferredField === "name") return findFundByName(name) || (!name.trim() ? findFundByIsin(isin) : null);
   if (preferredField === "isin") return findFundByIsin(isin) || (!isin ? findFundByName(name) : null);
   return findFundByIsin(isin) || findFundByName(name);
+}
+
+function matchFundProfileExact(preferredField = "") {
+  const isin = el("fundIsin").value.trim().toUpperCase();
+  const name = el("fundName").value;
+  if (preferredField === "name") return findFundByName(name, { allowPrefix: false }) || (!name.trim() ? findFundByIsin(isin, { allowPrefix: false }) : null);
+  if (preferredField === "isin") return findFundByIsin(isin, { allowPrefix: false }) || (!isin ? findFundByName(name, { allowPrefix: false }) : null);
+  return findFundByIsin(isin, { allowPrefix: false }) || findFundByName(name, { allowPrefix: false });
 }
 
 function renderFundMatchStatus(profile = null) {
@@ -787,6 +847,7 @@ function renderResult(result) {
 
   renderChart(result.history, result.comparison);
   resultsHost.hidden = false;
+  resultsHost.removeAttribute("hidden");
   resultsHost.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -875,7 +936,7 @@ function applyInputs(inputs) {
   updateProductPreset({ preserveManual: true });
   updateDirectTaxFields();
   updateEffectiveIssueLoad();
-  updateShortTermWarning();
+  updateInsuranceTaxForTerm();
   updateOekbLink();
   restoreReturnMode(inputs);
 }
@@ -887,9 +948,11 @@ el("insuranceProduct").addEventListener("change", () => {
   updateProductPreset();
 });
 el("directTaxMode").addEventListener("change", updateDirectTaxFields);
-el("age50Plus").addEventListener("change", updateShortTermWarning);
+el("age50Plus").addEventListener("change", () => {
+  updateInsuranceTaxForTerm();
+});
 el("years").addEventListener("input", () => {
-  updateShortTermWarning();
+  updateInsuranceTaxForTerm();
   refreshHistoricalSuggestionForYears();
 });
 el("insuranceTaxPercent").addEventListener("input", updateShortTermWarning);
@@ -912,7 +975,10 @@ el("fundIsin").addEventListener("input", updateOekbLink);
 });
 
 async function handleFundReferenceInput(changedField) {
-  const matched = matchFundProfile(changedField);
+  // Während des Tippens nur vollständige Treffer übernehmen. Ein eindeutiges
+  // Präfix würde sonst den bisherigen Fonds sofort wieder einsetzen und einen
+  // Wechsel ohne Zurücksetzen praktisch verhindern.
+  const matched = matchFundProfileExact(changedField);
   if (matched) {
     await applyFundProfile({ forceHistorical: true, profile: matched, preferredField: changedField });
     return;
@@ -956,22 +1022,19 @@ document.querySelector("[data-return-suggestions]").addEventListener("click", (e
   el("grossReturnPercent").value = String(value);
   returnAssumption = { mode: button.dataset.returnKind === "historical" ? "historical" : "scenario", profile: returnAssumption.profile || matchFundProfile() };
   renderReturnSuggestion(returnAssumption.profile);
-  resultsHost.hidden = true;
+  invalidateResults();
 });
 
-form.addEventListener("input", (event) => {
-  if (!event.target.closest("[data-export], [data-import], [data-reset]")) {
-    resultsHost.hidden = true;
-    setError();
-  }
-});
+function invalidateOnFormEdit(event) {
+  if (!(event.target instanceof Element)) return;
+  if (event.target.matches("[data-import-file]")) return;
+  invalidateResults();
+}
 
-form.addEventListener("change", (event) => {
-  if (!event.target.closest("[data-export], [data-import], [data-reset]")) {
-    resultsHost.hidden = true;
-    setError();
-  }
-});
+// Capture-Listener: Das Ergebnis verschwindet schon beim ersten Editieren,
+// bevor feldspezifische Handler weitere Werte automatisch ändern.
+form.addEventListener("input", invalidateOnFormEdit, true);
+form.addEventListener("change", invalidateOnFormEdit, true);
 
 form.querySelector("[data-export]").addEventListener("click", async () => {
   setError();
@@ -1010,8 +1073,7 @@ form.querySelector("[data-reset]").addEventListener("click", () => {
   updateDirectTaxFields();
   updateEffectiveIssueLoad();
   updateOekbLink();
-  resultsHost.hidden = true;
-  setError();
+  invalidateResults();
 });
 
 async function initInsuranceFundCompare() {
