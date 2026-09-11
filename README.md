@@ -4,12 +4,19 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.7.4
+- **Toolbox:** 0.7.5
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.7.5
+
+- Für die beiden ERGO-Einmalprämienprodukte wird die Versicherungssteuer automatisch aus der gewählten Laufzeit und der 50+-Voraussetzung bestimmt: 4 % ab 15 Jahren bzw. ab 10 Jahren, wenn Versicherungsnehmer und versicherte Person(en) bei Abschluss jeweils mindestens 50 Jahre alt waren; darunter 11 %. Das Feld ist bei den ERGO-Produkten deshalb nicht mehr manuell editierbar.
+- Bei einer individuellen Versicherung bleibt der Versicherungssteuersatz frei editierbar; die bisherige Modelllogik für einen vorzeitigen Ausstieg aus einer mit 4 % besteuerten Police bleibt dort erhalten.
+- Berechnungsergebnisse werden bei jeder Eingabe- oder Auswahländerung zuverlässig invalidiert: Ergebnisbereich, Diagramm und Vergleichsdetails werden sofort entfernt. Ein expliziter CSS-Schutz stellt sicher, dass `hidden` nicht durch seitenbezogene `display`-Regeln übersteuert wird.
+- Fondswechsel ohne Zurücksetzen repariert: Während der Texteingabe wird nur noch ein vollständiger Fondsname bzw. eine vollständige ISIN automatisch übernommen. Eindeutige Teilpräfixe setzen den bisherigen Fonds nicht mehr zurück; eine andere Auswahl aus der Datalist kann daher unmittelbar getroffen werden.
 
 ## Änderungen in 0.7.4
 
