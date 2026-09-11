@@ -4,9 +4,9 @@ import {
   createInsuranceFundCompareData,
   normalizeInsuranceFundCompareData,
   suggestReturnScenarios
-} from "./insurance-fund-compare-utils.js?v=0.7.3";
+} from "./insurance-fund-compare-utils.js?v=0.7.4";
 
-const TOOLBOX_VERSION = "0.7.3";
+const TOOLBOX_VERSION = "0.7.4";
 const DEPOT_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:depot-costs:v2";
 const LEGACY_DEPOT_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:depot-costs:v1";
 const INSURANCE_COST_STORAGE_KEY = "toolbox:insurance-fund-compare:insurance-costs:v2";
@@ -73,35 +73,19 @@ function ensureInsuranceAdminFieldsCompatibility() {
 
 ensureInsuranceAdminFieldsCompatibility();
 
-// Kuratierte Fondsreferenzen für die automatische Vorbelegung. Die Rendite ist eine
-// historische BVI-Wertentwicklung und bereits NACH Fondskosten. Sie ist keine Prognose.
-const FUND_PROFILES = [
-  {
-    name: "UniGlobal",
-    aliases: ["uniglobal"],
-    isin: "DE0008491051",
-    issueLoadPercent: 5,
-    historicalReturnPercent: 6.12,
-    historicalPeriod: "seit Auflegung",
-    historicalStand: "20.01.2025",
-    historicalSource: "Union Investment",
-    sourceUrl: "https://www.union-investment.at/unsere-services/aktuelles/nachrichten/65-jahre-uniglobal"
-  },
-  {
-    name: "UniRak Konservativ ESG A",
-    aliases: ["unirak konservativ esg a", "unirak konservativ esg", "unirak nachhaltig konservativ a", "unirak nachhaltig konservativ"],
-    isin: "LU1572731245",
-    issueLoadPercent: 2,
-    historicalReturnPercent: null,
-    historicalPeriod: "",
-    historicalStand: "",
-    historicalSource: "Union Investment",
-    sourceUrl: "https://www.union-investment.at/fonds/fonds-finden"
-  }
-];
+const FUND_PALETTE_URL = `data/ergo_union_funds.json?v=${TOOLBOX_VERSION}`;
+const DATA_PROXY = "https://toolbox-bundesschatz-proxy.daniel-koechler.workers.dev";
+const FUND_PALETTE_STALE_DAYS = 60;
+const FUND_UPDATE_WORKFLOW_URL = "https://github.com/ugnet90/toolbox/actions/workflows/update-ergo-fund-palette.yml";
+const RETURN_FALLBACK_CACHE_KEY = "toolbox:insurance-fund-compare:return-fallback:v1";
+const RETURN_FALLBACK_CACHE_DAYS = 7;
+const STANDARD_RETURN_PERIODS = [20, 15, 10, 5, 3, 1];
 
+let fundProfiles = [];
+let fundPaletteSource = null;
 let returnAssumption = { mode: "manual", profile: null };
 let activeInsuranceProduct = "ergo_investment";
+let historicalRequestSequence = 0;
 
 function el(id) { return document.getElementById(id); }
 
@@ -290,23 +274,252 @@ function updateOekbLink() {
 }
 
 function normalizeFundName(value) {
-  return String(value ?? "").trim().toLocaleLowerCase("de-AT").replace(/\s+/g, " ");
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("de-AT")
+    .replace(/[:]/g, " ")
+    .replace(/\s+/g, " ");
 }
 
-function matchFundProfile() {
-  const isin = el("fundIsin").value.trim().toUpperCase();
-  const name = normalizeFundName(el("fundName").value);
-  if (isin) {
-    const byIsin = FUND_PROFILES.find((profile) => profile.isin === isin);
-    if (byIsin) return byIsin;
+function formatIsoDateDe(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
+  return match ? `${match[3]}.${match[2]}.${match[1]}` : String(value || "");
+}
+
+function normalizeFundProfile(raw) {
+  const name = String(raw?.name || "").trim();
+  const isin = String(raw?.isin || "").trim().toUpperCase();
+  const aliases = Array.isArray(raw?.aliases) ? raw.aliases.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  const issueLoad = raw?.issue_load_percent === null || raw?.issue_load_percent === undefined
+    ? null
+    : Number(raw.issue_load_percent);
+  return {
+    name,
+    isin,
+    aliases,
+    issueLoadPercent: Number.isFinite(issueLoad) ? issueLoad : null,
+    issueLoadSource: String(raw?.issue_load_source || "").trim(),
+    performance: raw?.performance && typeof raw.performance === "object" ? raw.performance : null,
+    searchNames: [name, ...aliases].map(normalizeFundName).filter(Boolean)
+  };
+}
+
+function populateFundDatalists() {
+  const nameList = el("ifcFundNameOptions");
+  const isinList = el("ifcFundIsinOptions");
+  if (!nameList || !isinList) return;
+  nameList.replaceChildren(...fundProfiles.map((profile) => {
+    const option = document.createElement("option");
+    option.value = profile.name;
+    option.label = profile.isin;
+    return option;
+  }));
+  isinList.replaceChildren(...fundProfiles.map((profile) => {
+    const option = document.createElement("option");
+    option.value = profile.isin;
+    option.label = profile.name;
+    return option;
+  }));
+}
+
+function paletteAgeDays(checkedAt) {
+  const timestamp = Date.parse(`${checkedAt || ""}T00:00:00Z`);
+  if (!Number.isFinite(timestamp)) return null;
+  return Math.max(0, Math.floor((Date.now() - timestamp) / 86_400_000));
+}
+
+function renderFundPaletteStatus(error = null) {
+  const host = document.querySelector("[data-fund-palette-status]");
+  if (!host) return;
+  host.classList.remove("is-stale", "is-error");
+  if (error) {
+    host.classList.add("is-error");
+    host.textContent = `ERGO-Fondspalette konnte nicht geladen werden: ${error}`;
+    return;
   }
-  if (!name) return null;
-  return FUND_PROFILES.find((profile) => profile.aliases.includes(name) || normalizeFundName(profile.name) === name) || null;
+  const checkedAt = String(fundPaletteSource?.checked_at || "");
+  const sourceAt = String(fundPaletteSource?.source_updated_at || "");
+  const age = paletteAgeDays(checkedAt);
+  const base = `ERGO-Fondspalette: ${fundProfiles.length} Union-Fonds · Quelle Stand ${formatIsoDateDe(sourceAt) || "unbekannt"} · zuletzt geprüft ${formatIsoDateDe(checkedAt) || "unbekannt"}.`;
+  if (age !== null && age > FUND_PALETTE_STALE_DAYS) {
+    host.classList.add("is-stale");
+    host.innerHTML = `${base} <strong>Seit ${age} Tagen nicht geprüft.</strong> Eine manuelle Aktualisierung über <a href="${FUND_UPDATE_WORKFLOW_URL}" target="_blank" rel="noopener">GitHub Actions → Update ERGO fund palette</a> wird empfohlen.`;
+  } else {
+    host.textContent = base;
+  }
+}
+
+async function loadFundPalette() {
+  try {
+    const response = await fetch(FUND_PALETTE_URL, { cache: "no-store", headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (!payload || !Array.isArray(payload.funds)) throw new Error("ungültiges Datenformat");
+    fundProfiles = payload.funds.map(normalizeFundProfile).filter((item) => item.name && /^[A-Z]{2}[A-Z0-9]{10}$/.test(item.isin));
+    fundPaletteSource = payload.source || null;
+    populateFundDatalists();
+    renderFundPaletteStatus();
+  } catch (error) {
+    fundProfiles = [];
+    fundPaletteSource = null;
+    renderFundPaletteStatus(error instanceof Error ? error.message : String(error));
+  }
+}
+
+function findFundByName(name) {
+  const normalized = normalizeFundName(name);
+  if (!normalized) return null;
+  const exact = fundProfiles.find((profile) => profile.searchNames.includes(normalized));
+  if (exact) return exact;
+  if (normalized.length < 4) return null;
+  const candidates = fundProfiles.filter((profile) => profile.searchNames.some((candidate) => candidate.startsWith(normalized)));
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+function findFundByIsin(isin) {
+  const normalized = String(isin || "").trim().toUpperCase();
+  if (!normalized) return null;
+  const exact = fundProfiles.find((profile) => profile.isin === normalized);
+  if (exact) return exact;
+  if (normalized.length < 4) return null;
+  const candidates = fundProfiles.filter((profile) => profile.isin.startsWith(normalized));
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+function matchFundProfile(preferredField = "") {
+  const isin = el("fundIsin").value.trim().toUpperCase();
+  const name = el("fundName").value;
+  if (preferredField === "name") return findFundByName(name) || (!name.trim() ? findFundByIsin(isin) : null);
+  if (preferredField === "isin") return findFundByIsin(isin) || (!isin ? findFundByName(name) : null);
+  return findFundByIsin(isin) || findFundByName(name);
+}
+
+function renderFundMatchStatus(profile = null) {
+  const host = document.querySelector("[data-fund-match-status]");
+  if (!host) return;
+  if (!profile) {
+    host.hidden = true;
+    host.textContent = "";
+    return;
+  }
+  host.hidden = false;
+  if (Number.isFinite(profile.issueLoadPercent)) {
+    const source = profile.issueLoadSource ? ` · Quelle: ${profile.issueLoadSource}` : "";
+    host.innerHTML = `<strong>${profile.name}</strong> · ${profile.isin} · regulärer Ausgabeaufschlag ${numberDe(profile.issueLoadPercent, 2)} %${source}`;
+  } else {
+    host.innerHTML = `<strong>${profile.name}</strong> · ${profile.isin} · Ausgabeaufschlag konnte nicht automatisch ermittelt werden; bitte prüfen.`;
+  }
+}
+
+function selectStandardizedPerformance(profile, years) {
+  const annualized = profile?.performance?.annualized;
+  if (!annualized || typeof annualized !== "object") return null;
+  const available = Object.entries(annualized)
+    .map(([period, value]) => ({ period: Number(period), value: Number(value) }))
+    .filter((item) => Number.isFinite(item.period) && Number.isFinite(item.value) && item.period > 0)
+    .sort((a, b) => a.period - b.period);
+  if (!available.length) return null;
+  const term = Number(years);
+  const eligible = available.filter((item) => item.period <= term);
+  const selected = eligible.length ? eligible.at(-1) : available[0];
+  return {
+    ...profile,
+    historicalReturnPercent: selected.value,
+    historicalPeriod: `${selected.period} Jahr${selected.period === 1 ? "" : "e"}`,
+    historicalStand: String(profile.performance.stand || ""),
+    historicalSource: String(profile.performance.source || "Fondsweb"),
+    sourceUrl: String(profile.performance.source_url || `https://www.fondsweb.com/at/${profile.isin}`),
+    historicalNote: "Wertentwicklung nach BVI-/Total-Return-Methode; Vergangenheitswerte sind keine Prognose."
+  };
+}
+
+function readReturnFallbackCache() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(RETURN_FALLBACK_CACHE_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeReturnFallbackCache(cache) {
+  try { localStorage.setItem(RETURN_FALLBACK_CACHE_KEY, JSON.stringify(cache)); } catch { /* optional cache */ }
+}
+
+function fallbackCacheKey(isin, periodYears) {
+  return `${isin}:${periodYears}`;
+}
+
+function isoYearsAgo(years) {
+  const date = new Date();
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(date.getUTCFullYear() - years);
+  return date.toISOString().slice(0, 10);
+}
+
+function preferredFallbackPeriod(years) {
+  const term = Number(years);
+  return STANDARD_RETURN_PERIODS.find((period) => period <= term) || 1;
+}
+
+async function fetchUnionPriceHistoricalProfile(profile, years) {
+  const periodYears = preferredFallbackPeriod(years);
+  const cache = readReturnFallbackCache();
+  const key = fallbackCacheKey(profile.isin, periodYears);
+  const cached = cache[key];
+  const cachedAt = Date.parse(cached?.fetchedAt || "");
+  if (cached && Number.isFinite(cachedAt) && Date.now() - cachedAt < RETURN_FALLBACK_CACHE_DAYS * 86_400_000) {
+    return { ...profile, ...cached.profile };
+  }
+
+  const end = new Date().toISOString().slice(0, 10);
+  const start = isoYearsAgo(periodYears);
+  const url = new URL(`${DATA_PROXY}/union-prices`);
+  url.searchParams.set("isin", profile.isin);
+  url.searchParams.set("start", start);
+  url.searchParams.set("end", end);
+  const response = await fetch(url.toString(), { cache: "no-store", headers: { Accept: "application/json" } });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error || "Union-Kursdaten konnten nicht geladen werden.");
+
+  const observations = [];
+  if (payload.previous_observation) observations.push(payload.previous_observation);
+  observations.push(...(Array.isArray(payload.observations) ? payload.observations : []));
+  const valid = observations
+    .map((item) => ({ date: String(item?.date || ""), price: Number(item?.redemption_price) }))
+    .filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item.date) && Number.isFinite(item.price) && item.price > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (valid.length < 2) throw new Error("Zu wenige historische Union-Kurse verfügbar.");
+  const first = valid[0];
+  const last = valid.at(-1);
+  const durationYears = (Date.parse(`${last.date}T00:00:00Z`) - Date.parse(`${first.date}T00:00:00Z`)) / (365.2425 * 86_400_000);
+  if (!Number.isFinite(durationYears) || durationYears < 0.75) throw new Error("Historischer Kurszeitraum ist zu kurz.");
+  const annualized = (Math.pow(last.price / first.price, 1 / durationYears) - 1) * 100;
+  if (!Number.isFinite(annualized)) throw new Error("Kursbasierte Durchschnittsrendite konnte nicht berechnet werden.");
+
+  const derived = {
+    historicalReturnPercent: annualized,
+    historicalPeriod: `ca. ${numberDe(durationYears, 1)} Jahre · kursbasiert`,
+    historicalStand: last.date,
+    historicalSource: "Union Investment",
+    sourceUrl: "https://www.union-investment.de/fonds/fonds-finden",
+    historicalNote: "Kursbasierte Näherung aus Rücknahmepreisen; Ausschüttungen sind nicht enthalten. Vergangenheitswerte sind keine Prognose."
+  };
+  cache[key] = { fetchedAt: new Date().toISOString(), profile: derived };
+  writeReturnFallbackCache(cache);
+  return { ...profile, ...derived };
+}
+
+async function resolveHistoricalProfile(profile, years) {
+  const standardized = selectStandardizedPerformance(profile, years);
+  if (standardized) return standardized;
+  return fetchUnionPriceHistoricalProfile(profile, years);
 }
 
 function renderReturnSuggestion(profile = returnAssumption.profile) {
   const suggestionHost = document.querySelector("[data-return-suggestions]");
   const sourceHost = document.querySelector("[data-return-source]");
+  sourceHost.classList.remove("is-loading");
   if (!profile || !Number.isFinite(profile.historicalReturnPercent)) {
     suggestionHost.hidden = true;
     suggestionHost.innerHTML = "";
@@ -322,32 +535,86 @@ function renderReturnSuggestion(profile = returnAssumption.profile) {
   suggestionHost.hidden = false;
 
   if (returnAssumption.mode === "historical") {
-    sourceHost.innerHTML = `Historische Wertentwicklung: <strong>${numberDe(profile.historicalReturnPercent, 2)} % p.a.</strong> (${profile.historicalPeriod}) · Quelle: <a href="${profile.sourceUrl}" target="_blank" rel="noopener">${profile.historicalSource}</a> · Stand ${profile.historicalStand}<br><span>Vergangenheitswerte sind keine Prognose.</span>`;
+    const source = profile.sourceUrl
+      ? `<a href="${profile.sourceUrl}" target="_blank" rel="noopener">${profile.historicalSource}</a>`
+      : profile.historicalSource;
+    const stand = profile.historicalStand ? ` · Stand ${formatIsoDateDe(profile.historicalStand)}` : "";
+    const note = profile.historicalNote ? `<br><span>${profile.historicalNote}</span>` : "<br><span>Vergangenheitswerte sind keine Prognose.</span>";
+    sourceHost.innerHTML = `Historischer Vorschlag: <strong>${numberDe(profile.historicalReturnPercent, 2)} % p.a.</strong> (${profile.historicalPeriod}) · Quelle: ${source}${stand}${note}`;
   } else {
     sourceHost.textContent = "Individuelle Renditeannahme.";
   }
 }
 
-function applyFundProfile({ forceHistorical = true } = {}) {
-  const profile = matchFundProfile();
-  if (!profile) {
+function renderReturnLoading(profile) {
+  const suggestionHost = document.querySelector("[data-return-suggestions]");
+  const sourceHost = document.querySelector("[data-return-source]");
+  suggestionHost.hidden = true;
+  suggestionHost.innerHTML = "";
+  sourceHost.classList.add("is-loading");
+  sourceHost.textContent = `${profile.name}: historische Rendite wird ermittelt …`;
+}
+
+async function applyFundProfile({ forceHistorical = true, profile = null, preferredField = "" } = {}) {
+  const baseProfile = profile || matchFundProfile(preferredField);
+  const requestId = ++historicalRequestSequence;
+  if (!baseProfile) {
     returnAssumption = { mode: "manual", profile: null };
     renderReturnSuggestion(null);
+    renderFundMatchStatus(null);
     return;
   }
-  if (!el("fundName").value.trim()) el("fundName").value = profile.name;
-  if (!el("fundIsin").value.trim()) el("fundIsin").value = profile.isin;
-  el("issueLoadPercent").value = String(profile.issueLoadPercent);
+
+  el("fundName").value = baseProfile.name;
+  el("fundIsin").value = baseProfile.isin;
+  if (Number.isFinite(baseProfile.issueLoadPercent)) {
+    el("issueLoadPercent").value = String(baseProfile.issueLoadPercent);
+  } else {
+    el("issueLoadPercent").value = "";
+  }
   updateEffectiveIssueLoad();
   updateOekbLink();
+  renderFundMatchStatus(baseProfile);
+  renderReturnLoading(baseProfile);
 
-  if (forceHistorical && Number.isFinite(profile.historicalReturnPercent)) {
-    el("grossReturnPercent").value = String(profile.historicalReturnPercent);
-    returnAssumption = { mode: "historical", profile };
-  } else {
-    returnAssumption = { mode: "manual", profile };
+  try {
+    const historicalProfile = await resolveHistoricalProfile(baseProfile, Number(el("years").value));
+    if (requestId !== historicalRequestSequence) return;
+    if (forceHistorical && Number.isFinite(historicalProfile.historicalReturnPercent)) {
+      el("grossReturnPercent").value = String(Number(historicalProfile.historicalReturnPercent.toFixed(6)));
+      returnAssumption = { mode: "historical", profile: historicalProfile };
+    } else {
+      const previousMode = returnAssumption.profile?.isin === historicalProfile.isin ? returnAssumption.mode : "manual";
+      returnAssumption = { mode: previousMode, profile: historicalProfile };
+    }
+    renderReturnSuggestion(historicalProfile);
+  } catch (error) {
+    if (requestId !== historicalRequestSequence) return;
+    returnAssumption = { mode: "manual", profile: baseProfile };
+    const suggestionHost = document.querySelector("[data-return-suggestions]");
+    const sourceHost = document.querySelector("[data-return-source]");
+    suggestionHost.hidden = true;
+    suggestionHost.innerHTML = "";
+    sourceHost.classList.remove("is-loading");
+    sourceHost.textContent = `${baseProfile.name}: keine historische Rendite automatisch verfügbar (${error instanceof Error ? error.message : String(error)}). Individuelle Renditeannahme.`;
   }
-  renderReturnSuggestion(profile);
+}
+
+async function refreshHistoricalSuggestionForYears() {
+  const currentBase = matchFundProfile() || returnAssumption.profile;
+  if (!currentBase?.isin) return;
+  const base = fundProfiles.find((item) => item.isin === currentBase.isin) || currentBase;
+  const requestId = ++historicalRequestSequence;
+  try {
+    const historicalProfile = await resolveHistoricalProfile(base, Number(el("years").value));
+    if (requestId !== historicalRequestSequence) return;
+    const mode = returnAssumption.mode;
+    returnAssumption = { mode, profile: historicalProfile };
+    if (mode === "historical") el("grossReturnPercent").value = String(Number(historicalProfile.historicalReturnPercent.toFixed(6)));
+    renderReturnSuggestion(historicalProfile);
+  } catch {
+    // Laufzeitänderungen dürfen eine zuvor manuell gewählte Annahme nicht blockieren.
+  }
 }
 
 function loadDepotCostDefaults() {
@@ -564,14 +831,30 @@ async function saveJsonFile(data, suggestedName) {
 }
 
 function restoreReturnMode(inputs) {
-  const profile = matchFundProfile();
-  if (!profile) {
+  const base = matchFundProfile();
+  if (!base) {
     returnAssumption = { mode: "manual", profile: null };
     renderReturnSuggestion(null);
+    renderFundMatchStatus(null);
     return;
   }
   const mode = ["historical", "scenario", "manual"].includes(inputs?.returnAssumptionMode) ? inputs.returnAssumptionMode : "manual";
+  let profile = selectStandardizedPerformance(base, Number(inputs?.years));
+  const importedHistorical = Number(inputs?.historicalReturnPercent);
+  if (!profile && Number.isFinite(importedHistorical)) {
+    profile = {
+      ...base,
+      historicalReturnPercent: importedHistorical,
+      historicalPeriod: "importierter historischer Vorschlag",
+      historicalStand: String(inputs?.historicalReturnStand || ""),
+      historicalSource: "Import",
+      sourceUrl: "",
+      historicalNote: "Vergangenheitswerte sind keine Prognose."
+    };
+  }
+  profile ||= base;
   returnAssumption = { mode, profile };
+  renderFundMatchStatus(base);
   renderReturnSuggestion(profile);
 }
 
@@ -605,7 +888,10 @@ el("insuranceProduct").addEventListener("change", () => {
 });
 el("directTaxMode").addEventListener("change", updateDirectTaxFields);
 el("age50Plus").addEventListener("change", updateShortTermWarning);
-el("years").addEventListener("input", updateShortTermWarning);
+el("years").addEventListener("input", () => {
+  updateShortTermWarning();
+  refreshHistoricalSuggestionForYears();
+});
 el("insuranceTaxPercent").addEventListener("input", updateShortTermWarning);
 el("issueLoadPercent").addEventListener("input", updateEffectiveIssueLoad);
 el("issueLoadDiscountPercent").addEventListener("input", updateEffectiveIssueLoad);
@@ -625,42 +911,36 @@ el("fundIsin").addEventListener("input", updateOekbLink);
   input.addEventListener("blur", () => saveInsuranceCostDefaults());
 });
 
-function handleFundReferenceInput(changedField) {
-  const matched = matchFundProfile();
+async function handleFundReferenceInput(changedField) {
+  const matched = matchFundProfile(changedField);
   if (matched) {
-    applyFundProfile({ forceHistorical: true });
+    await applyFundProfile({ forceHistorical: true, profile: matched, preferredField: changedField });
     return;
   }
 
   const profile = returnAssumption.profile;
-  if (!profile) {
-    returnAssumption = { mode: "manual", profile: null };
-    renderReturnSuggestion(null);
-    return;
-  }
-
-  if (changedField === "name") {
-    const name = normalizeFundName(el("fundName").value);
-    const stillMatches = profile.aliases.includes(name) || normalizeFundName(profile.name) === name;
-    if (!stillMatches && el("fundIsin").value.trim().toUpperCase() === profile.isin) el("fundIsin").value = "";
-  } else {
-    const isin = el("fundIsin").value.trim().toUpperCase();
-    if (isin && isin !== profile.isin) {
+  if (profile) {
+    if (changedField === "name") {
       const name = normalizeFundName(el("fundName").value);
-      if (profile.aliases.includes(name) || normalizeFundName(profile.name) === name) el("fundName").value = "";
+      if (!profile.searchNames?.includes(name) && el("fundIsin").value.trim().toUpperCase() === profile.isin) el("fundIsin").value = "";
+    } else {
+      const isin = el("fundIsin").value.trim().toUpperCase();
+      if (isin && isin !== profile.isin && normalizeFundName(el("fundName").value) === normalizeFundName(profile.name)) el("fundName").value = "";
     }
   }
+  ++historicalRequestSequence;
   returnAssumption = { mode: "manual", profile: null };
   renderReturnSuggestion(null);
+  renderFundMatchStatus(null);
   updateOekbLink();
 }
 
-el("fundName").addEventListener("input", () => handleFundReferenceInput("name"));
-el("fundIsin").addEventListener("input", () => handleFundReferenceInput("isin"));
+el("fundName").addEventListener("input", () => { handleFundReferenceInput("name"); });
+el("fundIsin").addEventListener("input", () => { handleFundReferenceInput("isin"); });
 
 [el("fundName"), el("fundIsin")].forEach((input) => {
-  input.addEventListener("change", () => applyFundProfile({ forceHistorical: true }));
-  input.addEventListener("blur", () => applyFundProfile({ forceHistorical: true }));
+  input.addEventListener("change", () => { applyFundProfile({ forceHistorical: true, preferredField: input.id === "fundName" ? "name" : "isin" }); });
+  input.addEventListener("blur", () => { applyFundProfile({ forceHistorical: true, preferredField: input.id === "fundName" ? "name" : "isin" }); });
 });
 
 el("grossReturnPercent").addEventListener("input", () => {
@@ -680,6 +960,13 @@ document.querySelector("[data-return-suggestions]").addEventListener("click", (e
 });
 
 form.addEventListener("input", (event) => {
+  if (!event.target.closest("[data-export], [data-import], [data-reset]")) {
+    resultsHost.hidden = true;
+    setError();
+  }
+});
+
+form.addEventListener("change", (event) => {
   if (!event.target.closest("[data-export], [data-import], [data-reset]")) {
     resultsHost.hidden = true;
     setError();
@@ -715,8 +1002,10 @@ form.querySelector("[data-reset]").addEventListener("click", () => {
   el("insuranceRiskAnnual").value = "0,00";
   loadDepotCostDefaults();
   activeInsuranceProduct = el("insuranceProduct").value;
+  ++historicalRequestSequence;
   returnAssumption = { mode: "manual", profile: null };
   renderReturnSuggestion(null);
+  renderFundMatchStatus(null);
   updateProductPreset();
   updateDirectTaxFields();
   updateEffectiveIssueLoad();
@@ -725,10 +1014,17 @@ form.querySelector("[data-reset]").addEventListener("click", () => {
   setError();
 });
 
-loadDepotCostDefaults();
-activeInsuranceProduct = el("insuranceProduct").value;
-updateProductPreset();
-updateDirectTaxFields();
-updateEffectiveIssueLoad();
-updateOekbLink();
-applyFundProfile({ forceHistorical: true });
+async function initInsuranceFundCompare() {
+  loadDepotCostDefaults();
+  activeInsuranceProduct = el("insuranceProduct").value;
+  updateProductPreset();
+  updateDirectTaxFields();
+  updateEffectiveIssueLoad();
+  updateOekbLink();
+  await loadFundPalette();
+  if (el("fundName").value.trim() || el("fundIsin").value.trim()) {
+    await applyFundProfile({ forceHistorical: true });
+  }
+}
+
+initInsuranceFundCompare();
