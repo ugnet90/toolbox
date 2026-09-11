@@ -14,7 +14,7 @@
   <title>Toolbox – Fondsversicherung vs. Fondsdepot</title>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/insurance-fund-compare.css">
+  <link rel="stylesheet" href="css/insurance-fund-compare.css?v=0.7.3">
 </head>
 <body>
   <div data-site-header></div>
@@ -94,20 +94,24 @@
                 <div class="ifc-input-suffix"><input id="insuranceMinimumAmount" name="insuranceMinimumAmount" type="text" inputmode="decimal" autocomplete="off" value="30.000,00"><span>€</span></div>
               </div>
               <div class="field">
-                <label for="insuranceEntryCostPercent">Abschlusskosten</label>
+                <label for="insuranceEntryCostPercent">Abschlusskosten <span class="ifc-saved-badge">wird gespeichert</span></label>
                 <div class="ifc-input-suffix"><input id="insuranceEntryCostPercent" name="insuranceEntryCostPercent" type="number" min="0" max="50" step="0.01" value="5"><span>%</span></div>
-                <span class="field__hint">ERGO fürs Investment: 5 % der Nettoeinmalprämie.</span>
+                <span class="field__hint">Prozentsatz der Netto-Einmalprämie.</span>
               </div>
               <div class="field">
-                <label for="insuranceEntryCostYears">Verteilung Abschlusskosten</label>
+                <label for="insuranceEntryCostYears">Verteilung Abschlusskosten <span class="ifc-saved-badge">wird gespeichert</span></label>
                 <div class="ifc-input-suffix"><input id="insuranceEntryCostYears" name="insuranceEntryCostYears" type="number" min="1" max="20" step="1" value="5"><span>Jahre</span></div>
               </div>
               <div class="field">
-                <label for="insuranceAdminPercent">Verwaltungskosten</label>
-                <div class="ifc-input-suffix"><input id="insuranceAdminPercent" name="insuranceAdminPercent" type="number" min="0" max="20" step="0.01" value="0.2"><span>% p.a.</span></div>
+                <label for="insuranceAdminPremiumPercent">Verwaltung auf Netto-Einmalprämie <span class="ifc-saved-badge">wird gespeichert</span></label>
+                <div class="ifc-input-suffix"><input id="insuranceAdminPremiumPercent" name="insuranceAdminPremiumPercent" type="number" min="0" max="20" step="0.01" value="0"><span>% p.a.</span></div>
               </div>
               <div class="field">
-                <label for="insuranceRiskAnnual">Risikokosten</label>
+                <label for="insuranceAdminAssetPercent">Verwaltung auf Vermögen <span class="ifc-saved-badge">wird gespeichert</span></label>
+                <div class="ifc-input-suffix"><input id="insuranceAdminAssetPercent" name="insuranceAdminAssetPercent" type="number" min="0" max="20" step="0.01" value="0.3"><span>% p.a.</span></div>
+              </div>
+              <div class="field">
+                <label for="insuranceRiskAnnual">Risikokosten <span class="ifc-saved-badge">wird gespeichert</span></label>
                 <div class="ifc-input-suffix"><input id="insuranceRiskAnnual" name="insuranceRiskAnnual" type="text" inputmode="decimal" autocomplete="off" value="0,00"><span>€ p.a.</span></div>
                 <span class="field__hint">Vertragsabhängig; 0 = im Vergleich nicht berücksichtigt.</span>
               </div>
@@ -141,9 +145,9 @@
                 <div class="ifc-input-suffix"><input id="issueLoadPercent" name="issueLoadPercent" type="number" min="0" max="100" step="0.01" value="3"><span>%</span></div>
               </div>
               <div class="field">
-                <label for="issueLoadDiscountPercent">Sonderkondition / Rabatt</label>
-                <div class="ifc-input-suffix"><input id="issueLoadDiscountPercent" name="issueLoadDiscountPercent" type="number" min="0" max="100" step="1" value="100"><span>%</span></div>
-                <span class="field__hint">100 % Rabatt = kein Ausgabeaufschlag.</span>
+                <label for="issueLoadDiscountPercent">Sonderkondition / Rabatt <span class="ifc-saved-badge">wird gespeichert</span></label>
+                <div class="ifc-input-suffix"><input id="issueLoadDiscountPercent" name="issueLoadDiscountPercent" type="number" min="0" max="100" step="1" value="0"><span>%</span></div>
+                <span class="field__hint">0 % = kein Rabatt; 100 % Rabatt = kein Ausgabeaufschlag.</span>
               </div>
               <div class="field">
                 <label for="depotFeePercent">Depotkosten <span class="ifc-saved-badge">wird gespeichert</span></label>
@@ -228,20 +232,19 @@
         </div>
       </section>
 
-      <div class="ifc-two-column">
-        <section class="panel ifc-panel">
-          <div class="panel__header"><h2>Kosten &amp; Steuern Versicherung</h2></div>
-          <div class="panel__body"><div class="ifc-breakdown" data-insurance-breakdown></div></div>
-        </section>
-        <section class="panel ifc-panel">
-          <div class="panel__header"><h2>Kosten &amp; Steuern Fondsdepot</h2></div>
-          <div class="panel__body"><div class="ifc-breakdown" data-direct-breakdown></div></div>
-        </section>
-      </div>
+      <section class="panel ifc-panel ifc-comparison-panel">
+        <div class="panel__header">
+          <h2>Kosten &amp; Steuern im Vergleich</h2>
+          <p>Gleiche bzw. wirtschaftlich vergleichbare Positionen stehen direkt nebeneinander. Der jeweilige Euro-Vorteil wird auf der günstigeren Seite angezeigt.</p>
+        </div>
+        <div class="panel__body">
+          <div class="ifc-comparison-breakdown" data-comparison-breakdown></div>
+        </div>
+      </section>
 
       <section class="ifc-method-note">
         <strong>Berechnungshinweis</strong>
-        <p>Die Berechnung ist eine Projektion mit jährlichen Rechenschritten. Die eingegebene Fondsrendite versteht sich bereits nach den auf Fondsebene anfallenden Kosten. Tatsächliche Wertentwicklung, steuerliche Meldedaten und Versicherungskosten können abweichen. Bei ERGO fürs Investment werden die hinterlegten Abschlusskosten gleichmäßig über fünf Jahre verteilt. Für ERGO fürs Leben sind die individuellen Kosten laut Versicherungsantrag einzutragen.</p>
+        <p>Die Berechnung ist eine Projektion mit jährlichen Rechenschritten. Die eingegebene Fondsrendite versteht sich bereits nach den auf Fondsebene anfallenden Kosten. Tatsächliche Wertentwicklung, steuerliche Meldedaten und Versicherungskosten können abweichen. Die hinterlegten ERGO-Abschlusskosten werden gleichmäßig über fünf Jahre verteilt. Verwaltungskosten können getrennt als Prozentsatz der Netto-Einmalprämie und des laufenden Vermögens modelliert werden. Persönlich angepasste Versicherungskosten werden getrennt je Versicherungsprodukt gespeichert. Depotkosten und Sonderkondition/Rabatt werden ebenfalls lokal auf dem Gerät gespeichert.</p>
       </section>
     </section>
 
@@ -253,6 +256,6 @@
 
   <footer class="site-footer">Toolbox</footer>
   <script type="module" src="js/navigation.js"></script>
-  <script type="module" src="js/insurance-fund-compare.js?v=0.7.1"></script>
+  <script type="module" src="js/insurance-fund-compare.js?v=0.7.3"></script>
 </body>
 </html>
