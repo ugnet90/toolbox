@@ -1,0 +1,50 @@
+name: Update ERGO fund palette
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-ergo-fund-palette
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install updater dependencies
+        run: python -m pip install --disable-pip-version-check pypdf requests beautifulsoup4
+
+      - name: Test updater parsers
+        run: python scripts/test_update_ergo_fund_palette.py
+
+      - name: Update ERGO fund palette
+        run: python tools/update_ergo_fund_palette.py
+
+      - name: Validate generated JSON
+        run: |
+          python -m json.tool data/ergo_union_funds.json > /dev/null
+          python -m json.tool docs/data/ergo_union_funds.json > /dev/null
+          cmp data/ergo_union_funds.json docs/data/ergo_union_funds.json
+
+      - name: Commit refreshed fund data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ergo_union_funds.json docs/data/ergo_union_funds.json
+          if git diff --cached --quiet; then
+            echo "No fund data changes."
+            exit 0
+          fi
+          git commit -m "chore: refresh ERGO fund palette"
+          git push
