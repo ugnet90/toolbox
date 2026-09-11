@@ -4,12 +4,21 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.7.2
+- **Toolbox:** 0.7.3
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.7.3
+
+- Fondsreferenz-Autovervollständigung repariert und auf unmittelbare Erkennung während der Eingabe umgestellt: bei vollständig erkanntem Fondsnamen oder ISIN werden ISIN/Fondsname, historischer Renditevorschlag und regulärer Ausgabeaufschlag sofort vorbelegt.
+- Schutz gegen gemischte Browser-Cache-Stände ergänzt: Lädt eine ältere HTML-Struktur zusammen mit aktuellem JavaScript, werden die zwei getrennten Verwaltungskostenfelder automatisch nachgerüstet. Dadurch entfällt die irreführende Fehlermeldung „Verwaltungskosten auf die Netto-Einmalprämie eintragen“.
+- Versicherungskosten bleiben strikt je Versicherungsprodukt getrennt gespeichert. ERGO fürs Investment und ERGO fürs Leben besitzen voneinander unabhängige lokale Kostenprofile; vorhandene v0.7.2-Werte werden produktbezogen übernommen.
+- ERGO fürs Leben verwendet als Preset 5,5 % Abschlusskosten über fünf Jahre sowie 0,15 % p.a. der Netto-Einmalprämie plus 0,10 % p.a. des Vermögens. ERGO fürs Investment bleibt bei 5 % über fünf Jahre und 0,3 % p.a. des Vermögens.
+- Depotkosten und Sonderkondition/Rabatt werden nun gemeinsam lokal gespeichert. Der Standard-Rabatt ist 0 %; damit gilt ohne individuelle Sonderkondition der reguläre Ausgabeaufschlag des Fonds.
+- Versionsparameter für seitenbezogenes CSS/JavaScript angehoben, um Cache-Mischstände bei Updates zusätzlich zu reduzieren.
 
 ## Änderungen in 0.7.2
 
