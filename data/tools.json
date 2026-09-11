@@ -13,28 +13,37 @@
     {
       "id": "bundesschatz-compare",
       "title": "Bundesschatz-Vergleich",
-      "description": "Aktuelle Bundesschatz-Konditionen mit dem erforderlichen Zinssatz einer österreichischen Spareinlage vergleichen.",
+      "description": "Bundesschatz mit einer österreichischen Spareinlage nach Steuern vergleichen.",
       "category": "Finanzen",
-      "icon": "⚖️",
+      "icon": "🏛️",
       "href": "bundesschatz_compare.html",
       "status": "active"
     },
     {
       "id": "effective-interest",
       "title": "Effektivzins & Vergleich",
-      "description": "Netto-Rendite aus Ein- und Auszahlung sowie Laufzeit berechnen und mit einer Spareinlage vergleichen.",
+      "description": "Effektivzins aus Ein- und Auszahlung, Laufzeit, Steuern und Versicherungssteuer berechnen.",
       "category": "Finanzen",
-      "icon": "📈",
+      "icon": "％",
       "href": "effective_interest.html",
       "status": "active"
     },
     {
       "id": "fund-return",
       "title": "Depotrendite & Vergleich",
-      "description": "Datumsgenaue Depotrendite aus beliebigen Zahlungsströmen berechnen, Sparpläne erkennen und mit mehreren historischen Zinsbenchmarks vergleichen.",
+      "description": "Depot mit Zahlungsströmen, historischen Kursen und Zinsbenchmarks analysieren und vergleichen.",
       "category": "Finanzen",
-      "icon": "📊",
+      "icon": "📈",
       "href": "fund_return.html",
+      "status": "active"
+    },
+    {
+      "id": "insurance-fund-compare",
+      "title": "Fondsversicherung vs. Fondsdepot",
+      "description": "Fondsgebundene Lebensversicherung mit Einmalerlag und direkte Fondsveranlagung nach Kosten und Steuern vergleichen.",
+      "category": "Finanzen",
+      "icon": "⚖️",
+      "href": "insurance_fund_compare.html",
       "status": "active"
     }
   ]
