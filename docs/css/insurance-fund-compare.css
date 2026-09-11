@@ -650,3 +650,17 @@
     grid-column: auto;
   }
 }
+
+/* v0.7.5: author-level display rules must never override the hidden state. */
+.ifc-results[hidden],
+.ifc-return-suggestions[hidden],
+.ifc-fund-match-status[hidden],
+.ifc-warning[hidden],
+[data-annual-taxable-yield-field][hidden] {
+  display: none !important;
+}
+
+#insuranceTaxPercent[readonly] {
+  cursor: default;
+  opacity: .9;
+}
