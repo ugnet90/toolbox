@@ -1,4 +1,4 @@
-export const SITE_VERSION = "0.6.13";
+export const SITE_VERSION = "0.7.0";
 
 export const SITE_MAP = {
   dashboard: {
@@ -30,6 +30,11 @@ export const SITE_MAP = {
     label: "Depotrendite & Vergleich",
     href: "fund_return.html",
     parent: "dashboard"
+  },
+  insuranceFundCompare: {
+    label: "Fondsversicherung vs. Fondsdepot",
+    href: "insurance_fund_compare.html",
+    parent: "dashboard"
   }
 };
 
@@ -52,6 +57,6 @@ export const SITE_NAV = [
   {
     type: "group",
     label: "Finanzen",
-    items: ["bundesschatzCompare", "effectiveInterest", "fundReturn"]
+    items: ["bundesschatzCompare", "effectiveInterest", "fundReturn", "insuranceFundCompare"]
   }
 ];
