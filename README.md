@@ -4,12 +4,22 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.7.6
+- **Toolbox:** 0.8.0
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.8.0
+
+- Neues Finanz-Tool **„Zinsrechner“** für einen zunächst bewusst einfachen Fall mit unverändertem Betrag und unveränderten Zinssätzen über den gesamten Zeitraum.
+- Eingaben: Sollzinssatz p.a., zusätzlicher Überziehungszinssatz p.a., Rahmen, Betrag, Datum von/bis und Berechnungsart.
+- Unterstützte Berechnungsarten: `act/360`, `act/365` und `30/360` kaufmännisch. Die zuletzt verwendete Berechnungsart wird gerätebezogen in `localStorage` gespeichert und beim nächsten Aufruf wieder vorbelegt.
+- Sollzinsen werden auf den gesamten Betrag gerechnet; Überziehungszinsen zusätzlich nur auf `max(Betrag - Rahmen, 0)`.
+- Ergebnis zeigt Sollzinsen, Überziehungszinsen und Gesamtsumme in Euro sowie Zinstage und verwendete Berechnungsart.
+- Jede Eingabeänderung verwirft ein bereits angezeigtes Ergebnis sofort. Beträge werden österreichisch mit Tausenderpunkt und zwei Dezimalstellen formatiert.
+- Tool in Dashboard, Navigation, Projektvalidierung und GitHub-Pages-Testlauf aufgenommen.
 
 ## Änderungen in 0.7.6
 
@@ -177,6 +187,16 @@ Worker-Endpunkt:
 - Versicherungssteuer 0 %, 4 % oder 11 %.
 - Annualisierter Netto-Effektivzins.
 - Vergleich mit österreichischer Spareinlage.
+
+### Zinsrechner
+
+- Einfacher Zinsrechner für einen über den gesamten Zeitraum unveränderten Betrag und unveränderte Zinssätze.
+- Sollzinssatz p.a. auf den gesamten Betrag.
+- Zusätzlicher Überziehungszinssatz p.a. nur auf den Betrag oberhalb des Rahmens.
+- Zeitraum über Datum von/bis.
+- Berechnungsarten `act/360`, `act/365` und `30/360` kaufmännisch.
+- Die zuletzt gewählte Berechnungsart wird lokal gespeichert und beim nächsten Aufruf wiederhergestellt.
+- Ausgabe von Sollzinsen, Überziehungszinsen und Gesamtzinsen in Euro.
 
 ### Fondsversicherung vs. Fondsdepot
 
