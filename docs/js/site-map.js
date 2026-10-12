@@ -1,4 +1,4 @@
-export const SITE_VERSION = "0.8.0";
+export const SITE_VERSION = "0.8.1";
 
 export const SITE_MAP = {
   dashboard: {
@@ -27,7 +27,7 @@ export const SITE_MAP = {
     parent: "dashboard"
   },
   interestCalculator: {
-    label: "Zinsrechner",
+    label: "Sollzinsrechner",
     href: "interest_calculator.html",
     parent: "dashboard"
   },

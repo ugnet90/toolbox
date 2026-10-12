@@ -1,4 +1,4 @@
-import { calculateInterest } from "./interest-calculator-utils.js?v=0.8.0";
+import { calculateInterest } from "./interest-calculator-utils.js?v=0.8.1";
 
 const STORAGE_KEY = "toolbox:interest-calculator:method:v1";
 const DEFAULT_METHOD = "ACT_360";
@@ -8,7 +8,23 @@ const form = document.querySelector("[data-interest-form]");
 const errorNode = document.querySelector("[data-interest-error]");
 const resultsNode = document.querySelector("[data-interest-results]");
 const methodSelect = document.querySelector("#calculationMethod");
-const amountInputs = [document.querySelector("#limitAmount"), document.querySelector("#amount")];
+const periodModeSelect = document.querySelector("#periodMode");
+const debitRateInput = document.querySelector("#debitRatePercent");
+const overdraftRateInput = document.querySelector("#overdraftRatePercent");
+const limitInput = document.querySelector("#limitAmount");
+const amountInput = document.querySelector("#amount");
+const startDateInput = document.querySelector("#startDate");
+const endDateInput = document.querySelector("#endDate");
+const dayCountInput = document.querySelector("#dayCount");
+
+const overdraftField = document.querySelector("[data-overdraft-field]");
+const periodModeField = document.querySelector("[data-period-mode-field]");
+const dateFields = document.querySelector("[data-date-fields]");
+const daysField = document.querySelector("[data-days-field]");
+const methodField = document.querySelector("[data-method-field]");
+const submitButton = document.querySelector("[data-submit-button]");
+
+const amountInputs = [limitInput, amountInput];
 
 const output = {
   debitInterest: document.querySelector("[data-debit-interest]"),
@@ -40,6 +56,10 @@ function parseGermanNumber(value) {
     normalized = normalized.replace(/\./g, "");
   }
   return Number(normalized);
+}
+
+function optionalAmount(value) {
+  return String(value ?? "").trim() === "" ? 0 : parseGermanNumber(value);
 }
 
 function formatAmountValue(value) {
@@ -92,6 +112,51 @@ function methodLabel(value) {
   return "act/360";
 }
 
+function hasValidBaseInputs() {
+  const debitRate = parseGermanNumber(debitRateInput?.value);
+  const amount = parseGermanNumber(amountInput?.value);
+  const limit = optionalAmount(limitInput?.value);
+  return Number.isFinite(debitRate) && debitRate >= 0 && Number.isFinite(amount) && amount >= 0 && Number.isFinite(limit) && limit >= 0;
+}
+
+function needsOverdraftRate() {
+  const amount = parseGermanNumber(amountInput?.value);
+  const limit = optionalAmount(limitInput?.value);
+  return Number.isFinite(amount) && Number.isFinite(limit) && amount > limit;
+}
+
+function overdraftInputReady() {
+  if (!needsOverdraftRate()) return true;
+  const rate = parseGermanNumber(overdraftRateInput?.value);
+  return Number.isFinite(rate) && rate >= 0;
+}
+
+function periodInputReady() {
+  if (periodModeSelect?.value === "DAYS") {
+    const days = Number(dayCountInput?.value);
+    return Number.isInteger(days) && days >= 0;
+  }
+  return Boolean(startDateInput?.value && endDateInput?.value);
+}
+
+function updateProgressiveFields() {
+  const baseReady = hasValidBaseInputs();
+  const overdraftNeeded = baseReady && needsOverdraftRate();
+  if (overdraftField) overdraftField.hidden = !overdraftNeeded;
+
+  const ratesReady = baseReady && overdraftInputReady();
+  if (periodModeField) periodModeField.hidden = !ratesReady;
+
+  const showPeriodInputs = ratesReady;
+  const useDays = periodModeSelect?.value === "DAYS";
+  if (dateFields) dateFields.hidden = !showPeriodInputs || useDays;
+  if (daysField) daysField.hidden = !showPeriodInputs || !useDays;
+
+  const periodReady = ratesReady && periodInputReady();
+  if (methodField) methodField.hidden = !periodReady;
+  if (submitButton) submitButton.hidden = !periodReady;
+}
+
 function render(result) {
   output.debitInterest.textContent = currency.format(result.debitInterest);
   output.overdraftInterest.textContent = currency.format(result.overdraftInterest);
@@ -108,15 +173,24 @@ function showError(message) {
 }
 
 if (methodSelect) methodSelect.value = loadStoredMethod();
+updateProgressiveFields();
 
-form?.addEventListener("input", clearResults);
+form?.addEventListener("input", () => {
+  clearResults();
+  updateProgressiveFields();
+});
+
 form?.addEventListener("change", (event) => {
   clearResults();
   if (event.target === methodSelect) saveMethod(methodSelect.value);
+  updateProgressiveFields();
 });
 
 amountInputs.forEach((input) => {
-  input?.addEventListener("blur", () => formatAmountInput(input));
+  input?.addEventListener("blur", () => {
+    formatAmountInput(input);
+    updateProgressiveFields();
+  });
 });
 
 form?.addEventListener("submit", (event) => {
@@ -125,14 +199,20 @@ form?.addEventListener("submit", (event) => {
   amountInputs.forEach(formatAmountInput);
 
   const data = new FormData(form);
+  const useDays = String(data.get("periodMode") || "DATES") === "DAYS";
+  const limit = optionalAmount(data.get("limitAmount"));
+  const amount = parseGermanNumber(data.get("amount"));
+  const overdraftNeeded = Number.isFinite(amount) && Number.isFinite(limit) && amount > limit;
+
   try {
     const result = calculateInterest({
       debitRatePercent: parseGermanNumber(data.get("debitRatePercent")),
-      overdraftRatePercent: parseGermanNumber(data.get("overdraftRatePercent")),
-      limitAmount: parseGermanNumber(data.get("limitAmount")),
-      amount: parseGermanNumber(data.get("amount")),
-      startDate: String(data.get("startDate") || ""),
-      endDate: String(data.get("endDate") || ""),
+      overdraftRatePercent: overdraftNeeded ? parseGermanNumber(data.get("overdraftRatePercent")) : 0,
+      limitAmount: limit,
+      amount,
+      startDate: useDays ? "" : String(data.get("startDate") || ""),
+      endDate: useDays ? "" : String(data.get("endDate") || ""),
+      dayCount: useDays ? String(data.get("dayCount") ?? "") : null,
       calculationMethod: String(data.get("calculationMethod") || DEFAULT_METHOD)
     });
     saveMethod(result.method);

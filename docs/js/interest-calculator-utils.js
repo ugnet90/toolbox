@@ -29,6 +29,15 @@ function days30E360(start, end) {
   return 360 * (end.year - start.year) + 30 * (end.month - start.month) + (d2 - d1);
 }
 
+function periodFromDays(dayCount, calculationMethod) {
+  const method = String(calculationMethod || "");
+  if (!ALLOWED_METHODS.has(method)) throw new Error("Ungültige Berechnungsart.");
+  const days = Number(dayCount);
+  if (!Number.isInteger(days) || days < 0) throw new Error("Anzahl Tage muss eine ganze Zahl ab 0 sein.");
+  const denominator = method === "ACT_365" ? 365 : 360;
+  return { days, denominator, yearFraction: days / denominator, method, periodSource: "days" };
+}
+
 export function interestPeriod(startDate, endDate, calculationMethod = "ACT_360") {
   const method = String(calculationMethod || "");
   if (!ALLOWED_METHODS.has(method)) throw new Error("Ungültige Berechnungsart.");
@@ -39,26 +48,35 @@ export function interestPeriod(startDate, endDate, calculationMethod = "ACT_360"
 
   if (method === "30_360") {
     const days = days30E360(start, end);
-    return { days, denominator: 360, yearFraction: days / 360, method };
+    return { days, denominator: 360, yearFraction: days / 360, method, periodSource: "dates" };
   }
 
   const days = actualDaysBetween(start, end);
   const denominator = method === "ACT_365" ? 365 : 360;
-  return { days, denominator, yearFraction: days / denominator, method };
+  return { days, denominator, yearFraction: days / denominator, method, periodSource: "dates" };
+}
+
+export function interestPeriodFromDays(dayCount, calculationMethod = "ACT_360") {
+  return periodFromDays(dayCount, calculationMethod);
 }
 
 export function calculateInterest({
   debitRatePercent,
-  overdraftRatePercent,
-  limitAmount,
+  overdraftRatePercent = 0,
+  limitAmount = 0,
   amount,
-  startDate,
-  endDate,
+  startDate = "",
+  endDate = "",
+  dayCount = null,
   calculationMethod = "ACT_360"
 }) {
   const debitRate = Number(debitRatePercent);
-  const overdraftRate = Number(overdraftRatePercent);
-  const limit = Number(limitAmount);
+  const overdraftRate = overdraftRatePercent === "" || overdraftRatePercent === null || overdraftRatePercent === undefined
+    ? 0
+    : Number(overdraftRatePercent);
+  const limit = limitAmount === "" || limitAmount === null || limitAmount === undefined
+    ? 0
+    : Number(limitAmount);
   const principal = Number(amount);
 
   if (!Number.isFinite(debitRate) || debitRate < 0) throw new Error("Sollzinssatz muss mindestens 0 % sein.");
@@ -66,7 +84,11 @@ export function calculateInterest({
   if (!Number.isFinite(limit) || limit < 0) throw new Error("Rahmen muss mindestens 0 € sein.");
   if (!Number.isFinite(principal) || principal < 0) throw new Error("Betrag muss mindestens 0 € sein.");
 
-  const period = interestPeriod(startDate, endDate, calculationMethod);
+  const useDirectDays = dayCount !== null && dayCount !== undefined && String(dayCount).trim() !== "";
+  const period = useDirectDays
+    ? periodFromDays(dayCount, calculationMethod)
+    : interestPeriod(startDate, endDate, calculationMethod);
+
   const overdraftAmount = Math.max(principal - limit, 0);
   const debitInterest = principal * (debitRate / 100) * period.yearFraction;
   const overdraftInterest = overdraftAmount * (overdraftRate / 100) * period.yearFraction;
