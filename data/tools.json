@@ -29,6 +29,15 @@
       "status": "active"
     },
     {
+      "id": "interest-calculator",
+      "title": "Zinsrechner",
+      "description": "Soll- und Überziehungszinsen für einen unveränderten Betrag und Zinssatz in einem festen Zeitraum berechnen.",
+      "category": "Finanzen",
+      "icon": "🧮",
+      "href": "interest_calculator.html",
+      "status": "active"
+    },
+    {
       "id": "fund-return",
       "title": "Depotrendite & Vergleich",
       "description": "Depot mit Zahlungsströmen, historischen Kursen und Zinsbenchmarks analysieren und vergleichen.",
