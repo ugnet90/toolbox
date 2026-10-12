@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Sollzinsen und zusätzliche Überziehungszinsen für einen unveränderten Betrag und Zinssatz berechnen.">
+  <link rel="icon" href="assets/favicon/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon/favicon-48x48.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="assets/favicon/site.webmanifest">
+  <meta name="theme-color" content="#316880">
+  <title>Toolbox – Zinsrechner</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/navigation.css">
+  <link rel="stylesheet" href="css/interest-calculator.css?v=0.8.0">
+</head>
+<body>
+  <div data-site-header></div>
+
+  <main>
+    <nav class="breadcrumbs" aria-label="Breadcrumb" data-breadcrumbs></nav>
+
+    <header class="page-heading page-heading--compact-mobile">
+      <p class="page-heading__eyebrow">Finanzen</p>
+      <h1>Zinsrechner</h1>
+      <p>Soll- und Überziehungszinsen für einen unveränderten Betrag und unveränderte Zinssätze in einem festen Zeitraum berechnen.</p>
+    </header>
+
+    <section class="panel interest-panel">
+      <div class="panel__header">
+        <h2>Zinsen berechnen</h2>
+        <p>Überziehungszinsen werden zusätzlich zu den Sollzinsen nur für den Betrag oberhalb des Rahmens berechnet.</p>
+      </div>
+      <div class="panel__body">
+        <form class="interest-form" data-interest-form>
+          <div class="interest-form__rates">
+            <div class="field">
+              <label for="debitRatePercent">Sollzinssatz p.a.</label>
+              <input id="debitRatePercent" name="debitRatePercent" type="text" inputmode="decimal" autocomplete="off" required>
+            </div>
+            <div class="field">
+              <label for="overdraftRatePercent">Überziehungszinssatz p.a.</label>
+              <input id="overdraftRatePercent" name="overdraftRatePercent" type="text" inputmode="decimal" autocomplete="off" required>
+            </div>
+          </div>
+
+          <div class="interest-form__amounts">
+            <div class="field">
+              <label for="limitAmount">Rahmen</label>
+              <input id="limitAmount" name="limitAmount" type="text" inputmode="decimal" autocomplete="off" required>
+            </div>
+            <div class="field">
+              <label for="amount">Betrag</label>
+              <input id="amount" name="amount" type="text" inputmode="decimal" autocomplete="off" required>
+            </div>
+          </div>
+
+          <div class="interest-form__dates">
+            <div class="field">
+              <label for="startDate">Datum von</label>
+              <input id="startDate" name="startDate" type="date" required>
+            </div>
+            <div class="field">
+              <label for="endDate">Datum bis</label>
+              <input id="endDate" name="endDate" type="date" required>
+            </div>
+          </div>
+
+          <div class="field interest-form__method">
+            <label for="calculationMethod">Berechnungsart</label>
+            <select id="calculationMethod" name="calculationMethod">
+              <option value="ACT_360">act/360 – tatsächliche Tage / 360</option>
+              <option value="ACT_365">act/365 – tatsächliche Tage / 365</option>
+              <option value="30_360">30/360 – kaufmännisch</option>
+            </select>
+            <span class="field__hint">Die zuletzt gewählte Berechnungsart wird auf diesem Gerät gespeichert.</span>
+          </div>
+
+          <button class="primary-button" type="submit">Zinsen berechnen</button>
+          <p class="form-message form-message--error" data-interest-error hidden></p>
+        </form>
+
+        <div class="interest-results" data-interest-results hidden aria-live="polite">
+          <div class="interest-result-card">
+            <span class="interest-result-card__label">Sollzinsen</span>
+            <strong class="interest-result-card__value" data-debit-interest></strong>
+            <span class="interest-result-card__meta">auf den gesamten Betrag</span>
+          </div>
+          <div class="interest-result-card">
+            <span class="interest-result-card__label">Überziehungszinsen</span>
+            <strong class="interest-result-card__value" data-overdraft-interest></strong>
+            <span class="interest-result-card__meta">zusätzlich oberhalb des Rahmens</span>
+          </div>
+          <div class="interest-result-card interest-result-card--total">
+            <span class="interest-result-card__label">Gesamt</span>
+            <strong class="interest-result-card__value" data-total-interest></strong>
+            <span class="interest-result-card__meta" data-period-meta></span>
+          </div>
+        </div>
+
+        <aside class="interest-note" aria-label="Hinweis zur Berechnung">
+          <strong>Berechnungslogik:</strong> Sollzinsen werden auf den gesamten Betrag gerechnet. Überziehungszinsen fallen zusätzlich nur auf den Betrag an, der den Rahmen übersteigt. Bei act/360 und act/365 zählen die tatsächlichen Kalendertage; bei 30/360 wird jeder Monat mit 30 Tagen angesetzt. Der erste Tag wird nicht, der letzte Tag wird mitgezählt.
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">Toolbox · v0.8.0</footer>
+
+  <script type="module" src="js/navigation.js"></script>
+  <script type="module" src="js/interest-calculator.js?v=0.8.0"></script>
+</body>
+</html>
