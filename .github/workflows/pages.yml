@@ -45,6 +45,9 @@ jobs:
       - name: Test effective interest calculations
         run: node scripts/test_effective_interest_utils.mjs
 
+      - name: Test interest calculator
+        run: node scripts/test_interest_calculator_utils.mjs
+
       - name: Test fund return calculations
         run: node scripts/test_fund_return_utils.mjs
 
