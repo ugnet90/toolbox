@@ -4,12 +4,20 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.8.1
+- **Toolbox:** 0.8.2
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.8.2
+
+- Desktop-Layout des Sollzinsrechners verdichtet: Sollzinssatz, Rahmen und Betrag stehen in einer Zeile; Überziehungszinssatz, Zeitraumerfassung und Berechnungsart werden – soweit benötigt – ebenfalls kompakt nebeneinander angeordnet. Mobil bleibt die einspaltige Darstellung erhalten.
+- Der zuletzt verwendete **Überziehungszinssatz** wird gerätebezogen in `localStorage` gespeichert und beim nächsten Aufruf automatisch vorbelegt.
+- Die **Zeitraumerfassung startet bei jedem neuen Seitenaufruf bewusst mit „Datum von / bis“**. Auf „Anzahl Tage“ wird nur umgestellt, wenn dies aktiv ausgewählt wird; diese Auswahl wird nicht dauerhaft gespeichert.
+- Betragsfelder verwenden nun eine explizite österreichische Formatierung mit Tausenderpunkt, z. B. `80.000,00`, statt einer browserabhängigen Gruppierung mit Leerzeichen.
+- Nicht mehr notwendige Hinweistexte unter Rahmen, Überziehungszinssatz und Berechnungsart wurden entfernt, um die Eingabemaske zusätzlich zu verkürzen.
 
 ## Änderungen in 0.8.1
 
