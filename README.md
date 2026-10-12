@@ -4,12 +4,20 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.8.0
+- **Toolbox:** 0.8.1
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.8.1
+
+- **„Zinsrechner“ in „Sollzinsrechner“ umbenannt**; Dashboard, Navigation, Seitentitel und Beschreibung wurden entsprechend angepasst.
+- Eingabemaske progressiv vereinfacht: zunächst sind nur Sollzinssatz, Rahmen und Betrag sichtbar. Der Überziehungszinssatz erscheint nur, wenn der Betrag den Rahmen tatsächlich übersteigt; Zeitraum, Berechnungsart und Berechnen-Button werden erst eingeblendet, sobald die davor benötigten Angaben vollständig sind.
+- Ein leerer Rahmen wird automatisch als `0,00 €` behandelt. Eine explizite Eingabe von `0` ist nicht mehr erforderlich.
+- Zeitraum kann alternativ zur Datumsangabe direkt als **Anzahl Tage** erfasst werden. Bei direkter Tageseingabe wird diese Anzahl unabhängig von der Berechnungsart unmittelbar als Zinstage verwendet; der Nenner bleibt gemäß `act/360`, `act/365` bzw. `30/360` 360/365/360.
+- Die zuletzt gewählte Berechnungsart bleibt weiterhin lokal gespeichert. Bereits angezeigte Ergebnisse werden bei jeder Eingabeänderung weiterhin sofort verworfen.
 
 ## Änderungen in 0.8.0
 
