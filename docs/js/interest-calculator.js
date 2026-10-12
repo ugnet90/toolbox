@@ -1,6 +1,8 @@
-import { calculateInterest } from "./interest-calculator-utils.js?v=0.8.1";
+import { calculateInterest } from "./interest-calculator-utils.js?v=0.8.2";
 
-const STORAGE_KEY = "toolbox:interest-calculator:method:v1";
+const METHOD_STORAGE_KEY = "toolbox:interest-calculator:method:v1";
+const OVERDRAFT_RATE_STORAGE_KEY = "toolbox:interest-calculator:overdraft-rate:v1";
+const DEFAULT_PERIOD_MODE = "DATES";
 const DEFAULT_METHOD = "ACT_360";
 const ALLOWED_METHODS = new Set(["ACT_360", "ACT_365", "30_360"]);
 
@@ -65,10 +67,11 @@ function optionalAmount(value) {
 function formatAmountValue(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "";
-  return new Intl.NumberFormat("de-AT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(number);
+
+  const sign = number < 0 ? "-" : "";
+  const [integerPart, fractionPart] = Math.abs(number).toFixed(2).split(".");
+  const grouped = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${sign}${grouped},${fractionPart}`;
 }
 
 function formatAmountInput(input) {
@@ -90,7 +93,7 @@ function clearResults() {
 
 function loadStoredMethod() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(METHOD_STORAGE_KEY);
     return ALLOWED_METHODS.has(stored) ? stored : DEFAULT_METHOD;
   } catch {
     return DEFAULT_METHOD;
@@ -100,7 +103,27 @@ function loadStoredMethod() {
 function saveMethod(value) {
   if (!ALLOWED_METHODS.has(value)) return;
   try {
-    localStorage.setItem(STORAGE_KEY, value);
+    localStorage.setItem(METHOD_STORAGE_KEY, value);
+  } catch {
+    // Lokale Speicherung ist Komfortfunktion; Berechnung bleibt nutzbar.
+  }
+}
+
+function loadStoredOverdraftRate() {
+  try {
+    const stored = localStorage.getItem(OVERDRAFT_RATE_STORAGE_KEY);
+    const value = parseGermanNumber(stored);
+    return Number.isFinite(value) && value >= 0 ? stored : "";
+  } catch {
+    return "";
+  }
+}
+
+function saveOverdraftRate(value) {
+  const parsed = parseGermanNumber(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return;
+  try {
+    localStorage.setItem(OVERDRAFT_RATE_STORAGE_KEY, String(value).trim());
   } catch {
     // Lokale Speicherung ist Komfortfunktion; Berechnung bleibt nutzbar.
   }
@@ -173,6 +196,8 @@ function showError(message) {
 }
 
 if (methodSelect) methodSelect.value = loadStoredMethod();
+if (periodModeSelect) periodModeSelect.value = DEFAULT_PERIOD_MODE;
+if (overdraftRateInput) overdraftRateInput.value = loadStoredOverdraftRate();
 updateProgressiveFields();
 
 form?.addEventListener("input", () => {
@@ -183,6 +208,7 @@ form?.addEventListener("input", () => {
 form?.addEventListener("change", (event) => {
   clearResults();
   if (event.target === methodSelect) saveMethod(methodSelect.value);
+  if (event.target === overdraftRateInput) saveOverdraftRate(overdraftRateInput.value);
   updateProgressiveFields();
 });
 
@@ -216,6 +242,7 @@ form?.addEventListener("submit", (event) => {
       calculationMethod: String(data.get("calculationMethod") || DEFAULT_METHOD)
     });
     saveMethod(result.method);
+    if (overdraftNeeded) saveOverdraftRate(overdraftRateInput?.value);
     render(result);
   } catch (error) {
     showError(error?.message || "Berechnung nicht möglich.");
