@@ -30,8 +30,8 @@
     },
     {
       "id": "interest-calculator",
-      "title": "Zinsrechner",
-      "description": "Soll- und Überziehungszinsen für einen unveränderten Betrag und Zinssatz in einem festen Zeitraum berechnen.",
+      "title": "Sollzinsrechner",
+      "description": "Soll- und zusätzliche Überziehungszinsen für einen unveränderten Betrag und Zinssatz über einen Datumszeitraum oder eine direkte Anzahl Zinstage berechnen.",
       "category": "Finanzen",
       "icon": "🧮",
       "href": "interest_calculator.html",
