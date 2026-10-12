@@ -1,0 +1,117 @@
+.interest-panel {
+  max-width: 900px;
+}
+
+.interest-form {
+  display: grid;
+  gap: 16px;
+}
+
+.interest-form__rates,
+.interest-form__amounts,
+.interest-form__dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 280px));
+  gap: 12px;
+}
+
+.interest-form__method {
+  max-width: 360px;
+}
+
+.interest-form .field {
+  min-width: 0;
+}
+
+.interest-form .primary-button {
+  justify-self: start;
+}
+
+.field__hint {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.interest-results {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.interest-results[hidden] {
+  display: none !important;
+}
+
+.interest-result-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.interest-result-card--total {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: var(--accent-soft);
+}
+
+.interest-result-card__label,
+.interest-result-card__meta {
+  display: block;
+}
+
+.interest-result-card__label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.interest-result-card__value {
+  display: block;
+  margin-top: 5px;
+  font-size: clamp(1.55rem, 5vw, 2.2rem);
+  line-height: 1.1;
+}
+
+.interest-result-card__meta {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.interest-note {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  color: var(--text-muted);
+  background: var(--surface-soft);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.interest-note strong {
+  color: var(--text);
+}
+
+@media (max-width: 700px) {
+  .interest-form__rates,
+  .interest-form__amounts,
+  .interest-form__dates,
+  .interest-results {
+    grid-template-columns: 1fr;
+  }
+
+  .interest-form__method {
+    max-width: none;
+  }
+
+  .interest-form .primary-button {
+    width: 100%;
+  }
+}
