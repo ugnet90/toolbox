@@ -11,10 +11,10 @@
   <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon/apple-touch-icon.png">
   <link rel="manifest" href="assets/favicon/site.webmanifest">
   <meta name="theme-color" content="#316880">
-  <title>Toolbox – Zinsrechner</title>
+  <title>Toolbox – Sollzinsrechner</title>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/interest-calculator.css?v=0.8.0">
+  <link rel="stylesheet" href="css/interest-calculator.css?v=0.8.1">
 </head>
 <body>
   <div data-site-header></div>
@@ -24,8 +24,8 @@
 
     <header class="page-heading page-heading--compact-mobile">
       <p class="page-heading__eyebrow">Finanzen</p>
-      <h1>Zinsrechner</h1>
-      <p>Soll- und Überziehungszinsen für einen unveränderten Betrag und unveränderte Zinssätze in einem festen Zeitraum berechnen.</p>
+      <h1>Sollzinsrechner</h1>
+      <p>Soll- und Überziehungszinsen für einen unveränderten Betrag und unveränderte Zinssätze berechnen.</p>
     </header>
 
     <section class="panel interest-panel">
@@ -35,21 +35,15 @@
       </div>
       <div class="panel__body">
         <form class="interest-form" data-interest-form>
-          <div class="interest-form__rates">
+          <div class="interest-form__base">
             <div class="field">
               <label for="debitRatePercent">Sollzinssatz p.a.</label>
               <input id="debitRatePercent" name="debitRatePercent" type="text" inputmode="decimal" autocomplete="off" required>
             </div>
             <div class="field">
-              <label for="overdraftRatePercent">Überziehungszinssatz p.a.</label>
-              <input id="overdraftRatePercent" name="overdraftRatePercent" type="text" inputmode="decimal" autocomplete="off" required>
-            </div>
-          </div>
-
-          <div class="interest-form__amounts">
-            <div class="field">
               <label for="limitAmount">Rahmen</label>
-              <input id="limitAmount" name="limitAmount" type="text" inputmode="decimal" autocomplete="off" required>
+              <input id="limitAmount" name="limitAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
+              <span class="field__hint">Leer = 0,00 €</span>
             </div>
             <div class="field">
               <label for="amount">Betrag</label>
@@ -57,18 +51,37 @@
             </div>
           </div>
 
-          <div class="interest-form__dates">
+          <div class="field interest-form__overdraft" data-overdraft-field hidden>
+            <label for="overdraftRatePercent">Überziehungszinssatz p.a.</label>
+            <input id="overdraftRatePercent" name="overdraftRatePercent" type="text" inputmode="decimal" autocomplete="off">
+            <span class="field__hint">Nur erforderlich, wenn der Betrag den Rahmen übersteigt.</span>
+          </div>
+
+          <div class="field interest-form__period-mode" data-period-mode-field hidden>
+            <label for="periodMode">Zeitraum erfassen</label>
+            <select id="periodMode" name="periodMode">
+              <option value="DATES" selected>Datum von / bis</option>
+              <option value="DAYS">Anzahl Tage</option>
+            </select>
+          </div>
+
+          <div class="interest-form__dates" data-date-fields hidden>
             <div class="field">
               <label for="startDate">Datum von</label>
-              <input id="startDate" name="startDate" type="date" required>
+              <input id="startDate" name="startDate" type="date">
             </div>
             <div class="field">
               <label for="endDate">Datum bis</label>
-              <input id="endDate" name="endDate" type="date" required>
+              <input id="endDate" name="endDate" type="date">
             </div>
           </div>
 
-          <div class="field interest-form__method">
+          <div class="field interest-form__days" data-days-field hidden>
+            <label for="dayCount">Anzahl Tage</label>
+            <input id="dayCount" name="dayCount" type="number" inputmode="numeric" min="0" step="1">
+          </div>
+
+          <div class="field interest-form__method" data-method-field hidden>
             <label for="calculationMethod">Berechnungsart</label>
             <select id="calculationMethod" name="calculationMethod">
               <option value="ACT_360">act/360 – tatsächliche Tage / 360</option>
@@ -78,7 +91,7 @@
             <span class="field__hint">Die zuletzt gewählte Berechnungsart wird auf diesem Gerät gespeichert.</span>
           </div>
 
-          <button class="primary-button" type="submit">Zinsen berechnen</button>
+          <button class="primary-button" type="submit" data-submit-button hidden>Zinsen berechnen</button>
           <p class="form-message form-message--error" data-interest-error hidden></p>
         </form>
 
@@ -101,15 +114,15 @@
         </div>
 
         <aside class="interest-note" aria-label="Hinweis zur Berechnung">
-          <strong>Berechnungslogik:</strong> Sollzinsen werden auf den gesamten Betrag gerechnet. Überziehungszinsen fallen zusätzlich nur auf den Betrag an, der den Rahmen übersteigt. Bei act/360 und act/365 zählen die tatsächlichen Kalendertage; bei 30/360 wird jeder Monat mit 30 Tagen angesetzt. Der erste Tag wird nicht, der letzte Tag wird mitgezählt.
+          <strong>Berechnungslogik:</strong> Sollzinsen werden auf den gesamten Betrag gerechnet. Überziehungszinsen fallen zusätzlich nur auf den Betrag an, der den Rahmen übersteigt. Der Zeitraum kann über zwei Daten oder direkt als Anzahl Zinstage erfasst werden. Bei act/360 und act/365 werden die Zinstage durch 360 bzw. 365 geteilt; bei 30/360 werden bei Datumseingabe kaufmännische 30-Tage-Monate verwendet. Bei direkter Tageseingabe gilt die eingegebene Anzahl unmittelbar als Zinstage.
         </aside>
       </div>
     </section>
   </main>
 
-  <footer class="site-footer">Toolbox · v0.8.0</footer>
+  <footer class="site-footer">Toolbox · v0.8.1</footer>
 
   <script type="module" src="js/navigation.js"></script>
-  <script type="module" src="js/interest-calculator.js?v=0.8.0"></script>
+  <script type="module" src="js/interest-calculator.js?v=0.8.1"></script>
 </body>
 </html>
