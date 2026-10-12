@@ -14,7 +14,7 @@
   <title>Toolbox – Sollzinsrechner</title>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/interest-calculator.css?v=0.8.1">
+  <link rel="stylesheet" href="css/interest-calculator.css?v=0.8.2">
 </head>
 <body>
   <div data-site-header></div>
@@ -43,7 +43,6 @@
             <div class="field">
               <label for="limitAmount">Rahmen</label>
               <input id="limitAmount" name="limitAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00">
-              <span class="field__hint">Leer = 0,00 €</span>
             </div>
             <div class="field">
               <label for="amount">Betrag</label>
@@ -51,18 +50,28 @@
             </div>
           </div>
 
-          <div class="field interest-form__overdraft" data-overdraft-field hidden>
-            <label for="overdraftRatePercent">Überziehungszinssatz p.a.</label>
-            <input id="overdraftRatePercent" name="overdraftRatePercent" type="text" inputmode="decimal" autocomplete="off">
-            <span class="field__hint">Nur erforderlich, wenn der Betrag den Rahmen übersteigt.</span>
-          </div>
+          <div class="interest-form__settings">
+            <div class="field interest-form__overdraft" data-overdraft-field hidden>
+              <label for="overdraftRatePercent">Überziehungszinssatz p.a.</label>
+              <input id="overdraftRatePercent" name="overdraftRatePercent" type="text" inputmode="decimal" autocomplete="off">
+            </div>
 
-          <div class="field interest-form__period-mode" data-period-mode-field hidden>
-            <label for="periodMode">Zeitraum erfassen</label>
-            <select id="periodMode" name="periodMode">
-              <option value="DATES" selected>Datum von / bis</option>
-              <option value="DAYS">Anzahl Tage</option>
-            </select>
+            <div class="field interest-form__period-mode" data-period-mode-field hidden>
+              <label for="periodMode">Zeitraum erfassen</label>
+              <select id="periodMode" name="periodMode">
+                <option value="DATES" selected>Datum von / bis</option>
+                <option value="DAYS">Anzahl Tage</option>
+              </select>
+            </div>
+
+            <div class="field interest-form__method" data-method-field hidden>
+              <label for="calculationMethod">Berechnungsart</label>
+              <select id="calculationMethod" name="calculationMethod">
+                <option value="ACT_360">act/360 – tatsächliche Tage / 360</option>
+                <option value="ACT_365">act/365 – tatsächliche Tage / 365</option>
+                <option value="30_360">30/360 – kaufmännisch</option>
+              </select>
+            </div>
           </div>
 
           <div class="interest-form__dates" data-date-fields hidden>
@@ -79,16 +88,6 @@
           <div class="field interest-form__days" data-days-field hidden>
             <label for="dayCount">Anzahl Tage</label>
             <input id="dayCount" name="dayCount" type="number" inputmode="numeric" min="0" step="1">
-          </div>
-
-          <div class="field interest-form__method" data-method-field hidden>
-            <label for="calculationMethod">Berechnungsart</label>
-            <select id="calculationMethod" name="calculationMethod">
-              <option value="ACT_360">act/360 – tatsächliche Tage / 360</option>
-              <option value="ACT_365">act/365 – tatsächliche Tage / 365</option>
-              <option value="30_360">30/360 – kaufmännisch</option>
-            </select>
-            <span class="field__hint">Die zuletzt gewählte Berechnungsart wird auf diesem Gerät gespeichert.</span>
           </div>
 
           <button class="primary-button" type="submit" data-submit-button hidden>Zinsen berechnen</button>
@@ -120,9 +119,9 @@
     </section>
   </main>
 
-  <footer class="site-footer">Toolbox · v0.8.1</footer>
+  <footer class="site-footer">Toolbox · v0.8.2</footer>
 
   <script type="module" src="js/navigation.js"></script>
-  <script type="module" src="js/interest-calculator.js?v=0.8.1"></script>
+  <script type="module" src="js/interest-calculator.js?v=0.8.2"></script>
 </body>
 </html>
