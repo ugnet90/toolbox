@@ -4,12 +4,19 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.8.4
+- **Toolbox:** 0.8.5
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.8.5
+
+- **„Zeitraum erfassen“ ist standardmäßig gesperrt.** Der Rechner startet weiterhin mit „Datum von / bis“. Erst der Link **„ändern“** schaltet die Auswahl frei; nach einer Auswahl wird sie wieder gesperrt.
+- Die Tastaturreihenfolge wurde angepasst: Bei einer Überziehung folgt auf den **Überziehungszinssatz unmittelbar der Zeitraum-Kalender**. Der gesperrte Zeitraumtyp und sein Änderungslink unterbrechen diese Reihenfolge nicht mehr vor dem Kalender.
+- Neuer **Reset-Button**: Er löscht die aktuelle Rechnung, Beträge, Sollzinssatz und Zeitraum und stellt „Datum von / bis“ wieder als gesperrte Vorgabe her. Die bewusst lokal gespeicherten Komfortwerte – Überziehungszinssatz und Berechnungsart – bleiben erhalten.
+- Datumsbereich-Kalender aus 0.8.4 bleibt unverändert: erster Klick setzt den Beginn und lässt den Kalender offen, zweiter Klick setzt das Ende und schließt ihn.
 
 ## Änderungen in 0.8.4
 
