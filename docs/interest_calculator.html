@@ -14,7 +14,7 @@
   <title>Toolbox – Sollzinsrechner</title>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/interest-calculator.css?v=0.8.3">
+  <link rel="stylesheet" href="css/interest-calculator.css?v=0.8.5">
 </head>
 <body>
   <div data-site-header></div>
@@ -56,49 +56,55 @@
               <input id="overdraftRatePercent" name="overdraftRatePercent" type="text" inputmode="decimal" autocomplete="off">
             </div>
 
+            <div class="field interest-form__date-range" data-date-fields hidden>
+              <label for="dateRangeButton">Zeitraum</label>
+              <button class="date-range-trigger" id="dateRangeButton" type="button" data-date-range-trigger aria-haspopup="dialog" aria-expanded="false">
+                <span data-date-range-value>Zeitraum auswählen</span>
+                <span class="date-range-trigger__icon" aria-hidden="true">▾</span>
+              </button>
+              <input id="startDate" name="startDate" type="hidden">
+              <input id="endDate" name="endDate" type="hidden">
+
+              <div class="date-range-popover" data-date-range-popover hidden role="dialog" aria-label="Zeitraum auswählen">
+                <div class="date-range-popover__header">
+                  <button class="date-range-nav" type="button" data-calendar-prev aria-label="Vorheriger Monat">‹</button>
+                  <strong data-calendar-status>Beginndatum auswählen</strong>
+                  <button class="date-range-nav" type="button" data-calendar-next aria-label="Nächster Monat">›</button>
+                </div>
+                <div class="date-range-months" data-calendar-months></div>
+              </div>
+            </div>
+
+            <div class="field interest-form__days" data-days-field hidden>
+              <label for="dayCount">Anzahl Tage</label>
+              <input id="dayCount" name="dayCount" type="number" inputmode="numeric" min="0" step="1">
+            </div>
+
             <div class="field interest-form__period-mode" data-period-mode-field hidden>
-              <label for="periodMode">Zeitraum erfassen</label>
-              <select id="periodMode" name="periodMode">
+              <div class="interest-field-label-row">
+                <label for="periodMode">Zeitraum erfassen</label>
+                <button class="interest-edit-link" type="button" data-period-mode-edit>ändern</button>
+              </div>
+              <select id="periodMode" name="periodMode" disabled>
                 <option value="DATES" selected>Datum von / bis</option>
                 <option value="DAYS">Anzahl Tage</option>
               </select>
             </div>
-
-            <div class="field interest-form__method" data-method-field hidden>
-              <label for="calculationMethod">Berechnungsart</label>
-              <select id="calculationMethod" name="calculationMethod">
-                <option value="ACT_360">act/360 – tatsächliche Tage / 360</option>
-                <option value="ACT_365">act/365 – tatsächliche Tage / 365</option>
-                <option value="30_360">30/360 – kaufmännisch</option>
-              </select>
-            </div>
           </div>
 
-          <div class="field interest-form__date-range" data-date-fields hidden>
-            <label for="dateRangeButton">Zeitraum</label>
-            <button class="date-range-trigger" id="dateRangeButton" type="button" data-date-range-trigger aria-haspopup="dialog" aria-expanded="false">
-              <span data-date-range-value>Zeitraum auswählen</span>
-              <span class="date-range-trigger__icon" aria-hidden="true">▾</span>
-            </button>
-            <input id="startDate" name="startDate" type="hidden">
-            <input id="endDate" name="endDate" type="hidden">
-
-            <div class="date-range-popover" data-date-range-popover hidden role="dialog" aria-label="Zeitraum auswählen">
-              <div class="date-range-popover__header">
-                <button class="date-range-nav" type="button" data-calendar-prev aria-label="Vorheriger Monat">‹</button>
-                <strong data-calendar-status>Beginndatum auswählen</strong>
-                <button class="date-range-nav" type="button" data-calendar-next aria-label="Nächster Monat">›</button>
-              </div>
-              <div class="date-range-months" data-calendar-months></div>
-            </div>
+          <div class="field interest-form__method" data-method-field hidden>
+            <label for="calculationMethod">Berechnungsart</label>
+            <select id="calculationMethod" name="calculationMethod">
+              <option value="ACT_360">act/360 – tatsächliche Tage / 360</option>
+              <option value="ACT_365">act/365 – tatsächliche Tage / 365</option>
+              <option value="30_360">30/360 – kaufmännisch</option>
+            </select>
           </div>
 
-          <div class="field interest-form__days" data-days-field hidden>
-            <label for="dayCount">Anzahl Tage</label>
-            <input id="dayCount" name="dayCount" type="number" inputmode="numeric" min="0" step="1">
+          <div class="interest-form__actions">
+            <button class="primary-button" type="submit" data-submit-button hidden>Zinsen berechnen</button>
+            <button class="interest-reset-button" type="button" data-reset-button>Reset</button>
           </div>
-
-          <button class="primary-button" type="submit" data-submit-button hidden>Zinsen berechnen</button>
           <p class="form-message form-message--error" data-interest-error hidden></p>
         </form>
 
@@ -127,9 +133,9 @@
     </section>
   </main>
 
-  <footer class="site-footer">Toolbox · v0.8.4</footer>
+  <footer class="site-footer">Toolbox · v0.8.5</footer>
 
   <script type="module" src="js/navigation.js"></script>
-  <script type="module" src="js/interest-calculator.js?v=0.8.4"></script>
+  <script type="module" src="js/interest-calculator.js?v=0.8.5"></script>
 </body>
 </html>
