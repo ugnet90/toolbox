@@ -46,6 +46,61 @@
   line-height: 1.4;
 }
 
+
+.interest-form__method {
+  max-width: 380px;
+}
+
+.interest-field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.interest-edit-link {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  color: var(--accent);
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.interest-form__period-mode select:disabled {
+  color: var(--text-muted);
+  background: var(--surface-soft);
+  cursor: default;
+  opacity: 1;
+}
+
+.interest-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.interest-reset-button {
+  min-height: 46px;
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  color: var(--text);
+  background: var(--surface);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.interest-reset-button:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--surface-soft);
+}
+
 .interest-results {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -114,11 +169,18 @@
     grid-template-columns: 1fr;
   }
 
-  .interest-form__days {
+  .interest-form__days,
+  .interest-form__method {
     max-width: none;
   }
 
-  .interest-form .primary-button {
+  .interest-form__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .interest-form .primary-button,
+  .interest-reset-button {
     width: 100%;
   }
 }
