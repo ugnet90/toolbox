@@ -122,3 +122,163 @@
     width: 100%;
   }
 }
+
+.interest-form__date-range {
+  position: relative;
+  max-width: 532px;
+}
+
+.date-range-trigger {
+  display: flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  color: var(--text);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.date-range-trigger:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.date-range-trigger__icon {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.date-range-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(680px, calc(100vw - 48px));
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.date-range-popover__header {
+  display: grid;
+  grid-template-columns: 38px 1fr 38px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.date-range-popover__header strong {
+  text-align: center;
+}
+
+.date-range-nav {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text);
+  background: var(--surface-soft);
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.date-range-months {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.date-range-month h3 {
+  margin: 0 0 9px;
+  text-align: center;
+  font-size: 0.98rem;
+}
+
+.date-range-weekdays,
+.date-range-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.date-range-weekdays {
+  margin-bottom: 4px;
+}
+
+.date-range-weekdays span {
+  padding: 3px 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.date-range-day {
+  position: relative;
+  min-width: 0;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.date-range-day:not(.date-range-day--empty):hover {
+  border-radius: 50%;
+  background: var(--accent-soft);
+}
+
+.date-range-day--empty {
+  pointer-events: none;
+}
+
+.date-range-day--inside {
+  background: var(--accent-soft);
+}
+
+.date-range-day--start,
+.date-range-day--end {
+  border-radius: 50%;
+  color: white;
+  background: var(--accent);
+  font-weight: 800;
+}
+
+.date-range-day--start.date-range-day--end {
+  border-radius: 50%;
+}
+
+@media (max-width: 700px) {
+  .interest-form__date-range {
+    max-width: none;
+  }
+
+  .date-range-popover {
+    position: fixed;
+    z-index: 100;
+    top: 50%;
+    left: 50%;
+    width: min(calc(100vw - 24px), 420px);
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    transform: translate(-50%, -50%);
+  }
+
+  .date-range-months {
+    grid-template-columns: 1fr;
+  }
+
+  .date-range-day {
+    height: 42px;
+  }
+}
