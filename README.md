@@ -4,12 +4,19 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.8.2
+- **Toolbox:** 0.8.3
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.8.3
+
+- Die zwei getrennten Datumsfelder des Sollzinsrechners wurden durch einen gemeinsamen **Datumsbereich-Kalender** ersetzt. Ein Klick auf den Zeitraum öffnet einen Kalender; der erste Datumsklick setzt den Beginn, der zweite das Ende und schließt die Auswahl automatisch.
+- Auf Desktop werden zwei aufeinanderfolgende Monate nebeneinander angezeigt, auf schmalen/mobilen Ansichten ein Monat. Vor- und Zurücknavigation erfolgen im selben Kalender, sodass kein Wechsel zwischen zwei getrennten Datumspickern nötig ist.
+- Der ausgewählte Bereich wird zwischen Beginn und Ende hervorgehoben. Ein zweiter Klick auf ein früheres Datum setzt dieses als neuen Beginn; derselbe Tag kann als Beginn und Ende gewählt werden.
+- Die alternative direkte Eingabe der **Anzahl Tage** bleibt unverändert verfügbar. Änderungen am Datumsbereich verwerfen ein vorhandenes Berechnungsergebnis wie alle übrigen Eingabeänderungen sofort.
 
 ## Änderungen in 0.8.2
 
