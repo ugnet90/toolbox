@@ -1,4 +1,4 @@
-import { calculateInterest } from "./interest-calculator-utils.js?v=0.8.3";
+import { calculateInterest } from "./interest-calculator-utils.js?v=0.8.4";
 
 const METHOD_STORAGE_KEY = "toolbox:interest-calculator:method:v1";
 const OVERDRAFT_RATE_STORAGE_KEY = "toolbox:interest-calculator:overdraft-rate:v1";
@@ -436,6 +436,12 @@ calendarNext?.addEventListener("click", () => {
 calendarMonths?.addEventListener("click", (event) => {
   const target = event.target.closest("button[data-date]");
   if (!target) return;
+
+  // Der Kalender wird nach dem ersten Datumsklick neu gerendert. Ohne
+  // stopPropagation() erreicht derselbe Klick danach noch den globalen
+  // Outside-Click-Handler; das alte Tages-Element ist dann bereits aus dem DOM
+  // entfernt und würde fälschlich als Klick außerhalb erkannt.
+  event.stopPropagation();
   chooseCalendarDate(target.dataset.date);
 });
 
