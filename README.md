@@ -4,12 +4,18 @@
 
 ## Aktueller Stand
 
-- **Toolbox:** 0.8.3
+- **Toolbox:** 0.8.4
 - **Cloudflare-Datenworker:** 0.5.6
 - **Öffentliche Oberfläche:** GitHub Pages
 - **Kanonische Tool-Liste:** `data/tools.json`
 
 Toolbox und Cloudflare-Worker werden unabhängig voneinander versioniert. Die Toolbox-Version steht kanonisch in `VERSION`; `SITE_VERSION` in `docs/js/site-map.js` muss dazu identisch sein.
+
+## Änderungen in 0.8.4
+
+- Datumsbereich-Kalender korrigiert: Nach Auswahl des Beginndatums bleibt der Kalender geöffnet und wechselt unmittelbar in den Modus **„Enddatum auswählen“**. Erst der zweite Datumsklick schließt den Kalender.
+- Ursache war das Event-Bubbling nach dem Neuzeichnen des Kalenders: Der erste Klick erreichte nach dem Rendern noch den globalen Outside-Click-Handler und wurde dadurch fälschlich als Klick außerhalb interpretiert. Interne Datumsklicks werden jetzt vor diesem Handler gestoppt.
+- Auswahl- und Berechnungslogik bleiben ansonsten unverändert.
 
 ## Änderungen in 0.8.3
 
