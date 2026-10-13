@@ -14,7 +14,7 @@
   <title>Toolbox – Sollzinsrechner</title>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/navigation.css">
-  <link rel="stylesheet" href="css/interest-calculator.css?v=0.8.2">
+  <link rel="stylesheet" href="css/interest-calculator.css?v=0.8.3">
 </head>
 <body>
   <div data-site-header></div>
@@ -74,14 +74,22 @@
             </div>
           </div>
 
-          <div class="interest-form__dates" data-date-fields hidden>
-            <div class="field">
-              <label for="startDate">Datum von</label>
-              <input id="startDate" name="startDate" type="date">
-            </div>
-            <div class="field">
-              <label for="endDate">Datum bis</label>
-              <input id="endDate" name="endDate" type="date">
+          <div class="field interest-form__date-range" data-date-fields hidden>
+            <label for="dateRangeButton">Zeitraum</label>
+            <button class="date-range-trigger" id="dateRangeButton" type="button" data-date-range-trigger aria-haspopup="dialog" aria-expanded="false">
+              <span data-date-range-value>Zeitraum auswählen</span>
+              <span class="date-range-trigger__icon" aria-hidden="true">▾</span>
+            </button>
+            <input id="startDate" name="startDate" type="hidden">
+            <input id="endDate" name="endDate" type="hidden">
+
+            <div class="date-range-popover" data-date-range-popover hidden role="dialog" aria-label="Zeitraum auswählen">
+              <div class="date-range-popover__header">
+                <button class="date-range-nav" type="button" data-calendar-prev aria-label="Vorheriger Monat">‹</button>
+                <strong data-calendar-status>Beginndatum auswählen</strong>
+                <button class="date-range-nav" type="button" data-calendar-next aria-label="Nächster Monat">›</button>
+              </div>
+              <div class="date-range-months" data-calendar-months></div>
             </div>
           </div>
 
@@ -119,9 +127,9 @@
     </section>
   </main>
 
-  <footer class="site-footer">Toolbox · v0.8.2</footer>
+  <footer class="site-footer">Toolbox · v0.8.3</footer>
 
   <script type="module" src="js/navigation.js"></script>
-  <script type="module" src="js/interest-calculator.js?v=0.8.2"></script>
+  <script type="module" src="js/interest-calculator.js?v=0.8.3"></script>
 </body>
 </html>
