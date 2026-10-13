@@ -1,10 +1,15 @@
-import { calculateInterest } from "./interest-calculator-utils.js?v=0.8.2";
+import { calculateInterest } from "./interest-calculator-utils.js?v=0.8.3";
 
 const METHOD_STORAGE_KEY = "toolbox:interest-calculator:method:v1";
 const OVERDRAFT_RATE_STORAGE_KEY = "toolbox:interest-calculator:overdraft-rate:v1";
 const DEFAULT_PERIOD_MODE = "DATES";
 const DEFAULT_METHOD = "ACT_360";
 const ALLOWED_METHODS = new Set(["ACT_360", "ACT_365", "30_360"]);
+const MONTH_NAMES = [
+  "Jänner", "Februar", "März", "April", "Mai", "Juni",
+  "Juli", "August", "September", "Oktober", "November", "Dezember"
+];
+const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 const form = document.querySelector("[data-interest-form]");
 const errorNode = document.querySelector("[data-interest-error]");
@@ -26,6 +31,14 @@ const daysField = document.querySelector("[data-days-field]");
 const methodField = document.querySelector("[data-method-field]");
 const submitButton = document.querySelector("[data-submit-button]");
 
+const dateRangeTrigger = document.querySelector("[data-date-range-trigger]");
+const dateRangeValue = document.querySelector("[data-date-range-value]");
+const dateRangePopover = document.querySelector("[data-date-range-popover]");
+const calendarMonths = document.querySelector("[data-calendar-months]");
+const calendarStatus = document.querySelector("[data-calendar-status]");
+const calendarPrev = document.querySelector("[data-calendar-prev]");
+const calendarNext = document.querySelector("[data-calendar-next]");
+
 const amountInputs = [limitInput, amountInput];
 
 const output = {
@@ -41,6 +54,12 @@ const currency = new Intl.NumberFormat("de-AT", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
 });
+
+const calendarState = {
+  visibleYear: new Date().getFullYear(),
+  visibleMonth: new Date().getMonth(),
+  selectingEnd: false
+};
 
 function parseGermanNumber(value) {
   let normalized = String(value ?? "").trim().replace(/[\s']/g, "");
@@ -174,6 +193,7 @@ function updateProgressiveFields() {
   const useDays = periodModeSelect?.value === "DAYS";
   if (dateFields) dateFields.hidden = !showPeriodInputs || useDays;
   if (daysField) daysField.hidden = !showPeriodInputs || !useDays;
+  if ((!showPeriodInputs || useDays) && dateRangePopover && !dateRangePopover.hidden) closeCalendar();
 
   const periodReady = ratesReady && periodInputReady();
   if (methodField) methodField.hidden = !periodReady;
@@ -195,9 +215,184 @@ function showError(message) {
   resultsNode.hidden = true;
 }
 
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+function isoDate(year, monthIndex, day) {
+  return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`;
+}
+
+function parseIsoParts(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
+  if (!match) return null;
+  return { year: Number(match[1]), month: Number(match[2]) - 1, day: Number(match[3]) };
+}
+
+function formatIsoDate(value) {
+  const parts = parseIsoParts(value);
+  if (!parts) return "";
+  return `${pad2(parts.day)}.${pad2(parts.month + 1)}.${parts.year}`;
+}
+
+function updateDateRangeLabel() {
+  const start = startDateInput?.value || "";
+  const end = endDateInput?.value || "";
+  if (!dateRangeValue) return;
+  if (start && end) {
+    dateRangeValue.textContent = `${formatIsoDate(start)} – ${formatIsoDate(end)}`;
+  } else if (start) {
+    dateRangeValue.textContent = `${formatIsoDate(start)} – Enddatum wählen`;
+  } else {
+    dateRangeValue.textContent = "Zeitraum auswählen";
+  }
+}
+
+function monthOffset(year, month, delta) {
+  const date = new Date(Date.UTC(year, month + delta, 1));
+  return { year: date.getUTCFullYear(), month: date.getUTCMonth() };
+}
+
+function visibleMonthCount() {
+  return window.matchMedia("(max-width: 700px)").matches ? 1 : 2;
+}
+
+function firstWeekdayMondayBased(year, month) {
+  const day = new Date(Date.UTC(year, month, 1)).getUTCDay();
+  return (day + 6) % 7;
+}
+
+function daysInMonth(year, month) {
+  return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+}
+
+function renderCalendarMonth(year, month) {
+  const section = document.createElement("section");
+  section.className = "date-range-month";
+
+  const heading = document.createElement("h3");
+  heading.textContent = `${MONTH_NAMES[month]} ${year}`;
+  section.appendChild(heading);
+
+  const weekdays = document.createElement("div");
+  weekdays.className = "date-range-weekdays";
+  WEEKDAYS.forEach((weekday) => {
+    const span = document.createElement("span");
+    span.textContent = weekday;
+    weekdays.appendChild(span);
+  });
+  section.appendChild(weekdays);
+
+  const grid = document.createElement("div");
+  grid.className = "date-range-grid";
+  const leading = firstWeekdayMondayBased(year, month);
+  for (let i = 0; i < leading; i += 1) {
+    const filler = document.createElement("span");
+    filler.className = "date-range-day date-range-day--empty";
+    grid.appendChild(filler);
+  }
+
+  const start = startDateInput?.value || "";
+  const end = endDateInput?.value || "";
+  const totalDays = daysInMonth(year, month);
+
+  for (let day = 1; day <= totalDays; day += 1) {
+    const value = isoDate(year, month, day);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "date-range-day";
+    button.textContent = String(day);
+    button.dataset.date = value;
+    button.setAttribute("aria-label", formatIsoDate(value));
+
+    if (value === start) button.classList.add("date-range-day--start");
+    if (value === end) button.classList.add("date-range-day--end");
+    if (start && end && value > start && value < end) button.classList.add("date-range-day--inside");
+
+    grid.appendChild(button);
+  }
+
+  section.appendChild(grid);
+  return section;
+}
+
+function renderCalendar() {
+  if (!calendarMonths) return;
+  calendarMonths.replaceChildren();
+  const count = visibleMonthCount();
+  for (let index = 0; index < count; index += 1) {
+    const shown = monthOffset(calendarState.visibleYear, calendarState.visibleMonth, index);
+    calendarMonths.appendChild(renderCalendarMonth(shown.year, shown.month));
+  }
+  if (calendarStatus) {
+    calendarStatus.textContent = calendarState.selectingEnd ? "Enddatum auswählen" : "Beginndatum auswählen";
+  }
+}
+
+function setCalendarVisibleMonthFromSelection() {
+  const selected = parseIsoParts(startDateInput?.value);
+  const now = new Date();
+  calendarState.visibleYear = selected?.year ?? now.getFullYear();
+  calendarState.visibleMonth = selected?.month ?? now.getMonth();
+}
+
+function openCalendar() {
+  if (!dateRangePopover || !dateRangeTrigger) return;
+  setCalendarVisibleMonthFromSelection();
+  calendarState.selectingEnd = Boolean(startDateInput?.value && !endDateInput?.value);
+  renderCalendar();
+  dateRangePopover.hidden = false;
+  dateRangeTrigger.setAttribute("aria-expanded", "true");
+}
+
+function closeCalendar() {
+  if (!dateRangePopover || !dateRangeTrigger) return;
+  dateRangePopover.hidden = true;
+  dateRangeTrigger.setAttribute("aria-expanded", "false");
+}
+
+function resetRangeToStart(value) {
+  startDateInput.value = value;
+  endDateInput.value = "";
+  calendarState.selectingEnd = true;
+  clearResults();
+  updateDateRangeLabel();
+  updateProgressiveFields();
+  renderCalendar();
+}
+
+function finishRange(value) {
+  endDateInput.value = value;
+  calendarState.selectingEnd = false;
+  clearResults();
+  updateDateRangeLabel();
+  updateProgressiveFields();
+  renderCalendar();
+  closeCalendar();
+}
+
+function chooseCalendarDate(value) {
+  if (!startDateInput || !endDateInput) return;
+  const start = startDateInput.value;
+  const end = endDateInput.value;
+
+  if (!calendarState.selectingEnd || !start || end) {
+    resetRangeToStart(value);
+    return;
+  }
+
+  if (value < start) {
+    resetRangeToStart(value);
+    return;
+  }
+
+  finishRange(value);
+}
+
 if (methodSelect) methodSelect.value = loadStoredMethod();
 if (periodModeSelect) periodModeSelect.value = DEFAULT_PERIOD_MODE;
 if (overdraftRateInput) overdraftRateInput.value = loadStoredOverdraftRate();
+updateDateRangeLabel();
 updateProgressiveFields();
 
 form?.addEventListener("input", () => {
@@ -217,6 +412,48 @@ amountInputs.forEach((input) => {
     formatAmountInput(input);
     updateProgressiveFields();
   });
+});
+
+dateRangeTrigger?.addEventListener("click", () => {
+  if (dateRangePopover?.hidden) openCalendar();
+  else closeCalendar();
+});
+
+calendarPrev?.addEventListener("click", () => {
+  const previous = monthOffset(calendarState.visibleYear, calendarState.visibleMonth, -1);
+  calendarState.visibleYear = previous.year;
+  calendarState.visibleMonth = previous.month;
+  renderCalendar();
+});
+
+calendarNext?.addEventListener("click", () => {
+  const next = monthOffset(calendarState.visibleYear, calendarState.visibleMonth, 1);
+  calendarState.visibleYear = next.year;
+  calendarState.visibleMonth = next.month;
+  renderCalendar();
+});
+
+calendarMonths?.addEventListener("click", (event) => {
+  const target = event.target.closest("button[data-date]");
+  if (!target) return;
+  chooseCalendarDate(target.dataset.date);
+});
+
+document.addEventListener("click", (event) => {
+  if (!dateRangePopover || dateRangePopover.hidden) return;
+  if (dateFields?.contains(event.target)) return;
+  closeCalendar();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && dateRangePopover && !dateRangePopover.hidden) {
+    closeCalendar();
+    dateRangeTrigger?.focus();
+  }
+});
+
+window.addEventListener("resize", () => {
+  if (dateRangePopover && !dateRangePopover.hidden) renderCalendar();
 });
 
 form?.addEventListener("submit", (event) => {
