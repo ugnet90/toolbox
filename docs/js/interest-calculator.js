@@ -1,4 +1,4 @@
-import { calculateInterest } from "./interest-calculator-utils.js?v=0.8.4";
+import { calculateInterest } from "./interest-calculator-utils.js?v=0.8.5";
 
 const METHOD_STORAGE_KEY = "toolbox:interest-calculator:method:v1";
 const OVERDRAFT_RATE_STORAGE_KEY = "toolbox:interest-calculator:overdraft-rate:v1";
@@ -30,6 +30,8 @@ const dateFields = document.querySelector("[data-date-fields]");
 const daysField = document.querySelector("[data-days-field]");
 const methodField = document.querySelector("[data-method-field]");
 const submitButton = document.querySelector("[data-submit-button]");
+const resetButton = document.querySelector("[data-reset-button]");
+const periodModeEditButton = document.querySelector("[data-period-mode-edit]");
 
 const dateRangeTrigger = document.querySelector("[data-date-range-trigger]");
 const dateRangeValue = document.querySelector("[data-date-range-value]");
@@ -146,6 +148,33 @@ function saveOverdraftRate(value) {
   } catch {
     // Lokale Speicherung ist Komfortfunktion; Berechnung bleibt nutzbar.
   }
+}
+
+function setPeriodModeLocked(locked) {
+  if (!periodModeSelect) return;
+  periodModeSelect.disabled = locked;
+  periodModeSelect.setAttribute("aria-readonly", locked ? "true" : "false");
+  if (periodModeEditButton) {
+    periodModeEditButton.setAttribute("aria-expanded", locked ? "false" : "true");
+  }
+}
+
+function resetCalculator() {
+  closeCalendar();
+  form?.reset();
+  if (periodModeSelect) periodModeSelect.value = DEFAULT_PERIOD_MODE;
+setPeriodModeLocked(true);
+  setPeriodModeLocked(true);
+  if (methodSelect) methodSelect.value = loadStoredMethod();
+  if (overdraftRateInput) overdraftRateInput.value = loadStoredOverdraftRate();
+  if (startDateInput) startDateInput.value = "";
+  if (endDateInput) endDateInput.value = "";
+  if (dayCountInput) dayCountInput.value = "";
+  calendarState.selectingEnd = false;
+  clearResults();
+  updateDateRangeLabel();
+  updateProgressiveFields();
+  debitRateInput?.focus();
 }
 
 function methodLabel(value) {
@@ -404,8 +433,31 @@ form?.addEventListener("change", (event) => {
   clearResults();
   if (event.target === methodSelect) saveMethod(methodSelect.value);
   if (event.target === overdraftRateInput) saveOverdraftRate(overdraftRateInput.value);
+  if (event.target === periodModeSelect) {
+    if (periodModeSelect.value === "DATES") {
+      if (dayCountInput) dayCountInput.value = "";
+    } else {
+      if (startDateInput) startDateInput.value = "";
+      if (endDateInput) endDateInput.value = "";
+      calendarState.selectingEnd = false;
+      closeCalendar();
+      updateDateRangeLabel();
+    }
+    setPeriodModeLocked(true);
+  }
   updateProgressiveFields();
 });
+
+periodModeEditButton?.addEventListener("click", () => {
+  setPeriodModeLocked(false);
+  periodModeSelect?.focus();
+});
+
+periodModeSelect?.addEventListener("blur", () => {
+  setPeriodModeLocked(true);
+});
+
+resetButton?.addEventListener("click", resetCalculator);
 
 amountInputs.forEach((input) => {
   input?.addEventListener("blur", () => {
@@ -468,7 +520,7 @@ form?.addEventListener("submit", (event) => {
   amountInputs.forEach(formatAmountInput);
 
   const data = new FormData(form);
-  const useDays = String(data.get("periodMode") || "DATES") === "DAYS";
+  const useDays = periodModeSelect?.value === "DAYS";
   const limit = optionalAmount(data.get("limitAmount"));
   const amount = parseGermanNumber(data.get("amount"));
   const overdraftNeeded = Number.isFinite(amount) && Number.isFinite(limit) && amount > limit;
